@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from PIL import Image
 from scipy.spatial.distance import euclidean
-from mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE
+from utils.mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE
 
 
 def convert_rgb_to_hsv(rgb):

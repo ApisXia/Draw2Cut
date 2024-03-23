@@ -33,6 +33,7 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
     for line_index, row in enumerate(
         range(starting_row, bin_map.shape[0], row_interval)
     ):
+        print("Processing row: ", row)
         for col in range(bin_map.shape[1])[:: pow(-1, line_index)]:
             # if the pixel is white ('1') and not visited yet
             if bin_map[row, col] == 1 and (row, col) not in visited:
@@ -66,10 +67,7 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
     return trajectories, visited_map
 
 
-def draw_trajectory(visited_map, trajectories):
-    # Convert the visited map to an 8-bit image
-    map_image = (visited_map * 255).astype(np.uint8)
-
+def draw_trajectoryx10(visited_map, trajectories):
     # Resize the image to 10 times larger
     map_image = cv2.resize(map_image, None, fx=10, fy=10)
 
@@ -92,6 +90,31 @@ def draw_trajectory(visited_map, trajectories):
                 # Draw arrow between consecutive points
                 pt1 = (int(trajectory[i - 1][1] * 10), int(trajectory[i - 1][0] * 10))
                 pt2 = (int(trajectory[i][1] * 10), int(trajectory[i][0] * 10))
+                cv2.arrowedLine(map_image, pt1, pt2, (0, 0, 255), 3)  # Arrow in red BGR
+
+    return map_image
+
+
+def draw_trajectory(map_image, trajectories):
+    # Convert grayscale image to BGR
+    map_image = cv2.cvtColor(map_image, cv2.COLOR_GRAY2BGR)
+
+    # Iterate over the trajectories, draw each one
+    for trajectory in trajectories:
+        if len(trajectory) == 1:
+            # If the trajectory is just one point, draw a red circle with radius 4
+            cv2.circle(
+                map_image,
+                (trajectory[0][1], trajectory[0][0]),
+                4,
+                (0, 0, 255),
+                thickness=-1,
+            )
+        else:
+            for i in range(1, len(trajectory)):
+                # Draw arrow between consecutive points
+                pt1 = (int(trajectory[i - 1][1]), int(trajectory[i - 1][0]))
+                pt2 = (int(trajectory[i][1]), int(trajectory[i][0]))
                 cv2.arrowedLine(map_image, pt1, pt2, (0, 0, 255), 3)  # Arrow in red BGR
 
     return map_image

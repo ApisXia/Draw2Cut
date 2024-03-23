@@ -20,16 +20,14 @@ def find_centerline(binary_image):
     return centerline_contours
 
 
-def centerline_downsample(centerline_contours, downsample_factor):
-    downsampled_centerline_contours = []
-    for contour in centerline_contours:
-        downsampled_contour = contour[::downsample_factor]
-        # add the first point to the end to make it a closed loop
-        downsampled_contour = np.concatenate(
-            [downsampled_contour, downsampled_contour[0:1, ...]], axis=0
-        )
-        downsampled_centerline_contours.append(downsampled_contour)
-    return downsampled_centerline_contours
+def centerline_downsample(centerline_contour, downsample_factor: int = 2):
+    downsampled_contour = centerline_contour[::downsample_factor]
+    # add the first point to the end to make it a closed loop
+    downsampled_contour = np.concatenate(
+        [downsampled_contour, downsampled_contour[0:1, ...]], axis=0
+    )
+    downsampled_contour = downsampled_contour.squeeze(axis=1)
+    return downsampled_contour
 
 
 if __name__ == "__main__":
@@ -52,7 +50,7 @@ if __name__ == "__main__":
     cv2.drawContours(centerline_image, centerline_contours, -1, (255, 255, 255), 1)
     cv2.imwrite("images_0323/mask_centerline_image.png", centerline_image)
 
-    # Downsample the centerlines
+    # TODO (incorrect) Downsample the centerlines
     downsample_factor = 2
     trajecotries = centerline_downsample(centerline_contours, downsample_factor)
     trajecotries = [traj.squeeze() for traj in trajecotries]
