@@ -20,20 +20,52 @@ def find_centerline(binary_image):
     return centerline_contours
 
 
-# Load your binary image
-binary_image = cv2.imread("images_0323/mask_contour_image.png", cv2.IMREAD_GRAYSCALE)
+def centerline_downsample(centerline_contours, downsample_factor):
+    downsampled_centerline_contours = []
+    for contour in centerline_contours:
+        downsampled_contour = contour[::downsample_factor]
+        # add the first point to the end to make it a closed loop
+        downsampled_contour = np.concatenate(
+            [downsampled_contour, downsampled_contour[0:1, ...]], axis=0
+        )
+        downsampled_centerline_contours.append(downsampled_contour)
+    return downsampled_centerline_contours
 
-# Find centerlines
-centerline_contours = find_centerline(binary_image)
 
-# Draw the centerlines
-centerline_image = np.zeros_like(binary_image)
-cv2.drawContours(centerline_image, centerline_contours, -1, (255, 255, 255), 1)
-cv2.imwrite("images_0323/mask_centerline_image.png", centerline_image)
+if __name__ == "__main__":
+    # Load your binary image
+    binary_image = cv2.imread(
+        "images_0323/mask_annotation_image.png", cv2.IMREAD_GRAYSCALE
+    )
 
-# saving the centerline contours as json
-centerline_contours_json = {
-    str(i): contour.tolist() for i, contour in enumerate(centerline_contours)
-}
-with open("images_0323/mask_centerline_contours.json", "w") as f:
-    json.dump(centerline_contours_json, f)
+    # Find centerlines
+    centerline_contours = find_centerline(binary_image)
+
+    # Calculate area of each contour and print
+    print("totoal contours: ", len(centerline_contours))
+    for i, contour in enumerate(centerline_contours):
+        area = cv2.contourArea(contour)
+        print(f"Contour {i} has area {area}")
+
+    # Draw the centerlines
+    centerline_image = np.zeros_like(binary_image)
+    cv2.drawContours(centerline_image, centerline_contours, -1, (255, 255, 255), 1)
+    cv2.imwrite("images_0323/mask_centerline_image.png", centerline_image)
+
+    # Downsample the centerlines
+    downsample_factor = 2
+    trajecotries = centerline_downsample(centerline_contours, downsample_factor)
+    trajecotries = [traj.squeeze() for traj in trajecotries]
+
+    # Draw trajectories
+    trajecotries_image = np.zeros_like(binary_image)
+    for traj in trajecotries:
+        for i in range(len(traj) - 1):
+            cv2.line(
+                trajecotries_image,
+                tuple(traj[i]),
+                tuple(traj[i + 1]),
+                (255, 255, 255),
+                1,
+            )
+    cv2.imwrite("images_0323/mask_centerline_downsample_image.png", trajecotries_image)

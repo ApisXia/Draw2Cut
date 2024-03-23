@@ -5,25 +5,13 @@ import matplotlib.pyplot as plt
 
 from PIL import Image
 from scipy.spatial.distance import euclidean
-
-# color is RGB format, while toleration is HSV range
-MARK_TYPES = {
-    "contour": {"color": [41, 27, 125], "toleration": [25, 70, 70]},
-    "annotation": {"color": [184, 54, 78], "toleration": [25, 70, 70]},
-}
-
-SAVING_TEMPLATE = "mask_{mark_type_name}_image.png"
+from mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE
 
 
 def convert_rgb_to_hsv(rgb):
     color_rgb = np.uint8([[list(rgb)]])
     color_hsv = cv2.cvtColor(color_rgb, cv2.COLOR_RGB2HSV)
     return color_hsv[0][0]
-
-
-# rgb = [51, 105, 110]
-rgb = [142, 106, 188]
-hsv = convert_rgb_to_hsv(rgb)
 
 
 def create_mask(image_path, lower_hsv, upper_hsv):
@@ -83,7 +71,8 @@ if __name__ == "__main__":
         # save the mask
         cv2.imwrite(
             os.path.join(
-                images_folder, SAVING_TEMPLATE.format(mark_type_name=mark_type_name)
+                images_folder,
+                MARK_SAVING_TEMPLATE.format(mark_type_name=mark_type_name),
             ),
             img_binary,
         )
