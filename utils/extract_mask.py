@@ -14,7 +14,7 @@ def convert_rgb_to_hsv(rgb):
     return color_hsv[0][0]
 
 
-def create_mask(image_path, lower_hsv, upper_hsv):
+def create_mask_HSV(image_path, lower_hsv, upper_hsv):
     img = cv2.imread(image_path)
     img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -22,29 +22,48 @@ def create_mask(image_path, lower_hsv, upper_hsv):
     return mask
 
 
+def create_mask_RGB(image_path, lower_rgb, upper_rgb):
+    img = cv2.imread(image_path)
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    mask = cv2.inRange(img_hsv, lower_rgb, upper_rgb)
+    return mask
+
+
 def get_mark_mask(mark_type: dict, image_path: str) -> np.ndarray:
     rgb = mark_type["color"]
+    mode = mark_type["mode"]
     color_toleration = mark_type["toleration"]
-    hsv = convert_rgb_to_hsv(rgb)
+    if mode == "rgb":
+        color = rgb
+    elif mode == "hsv":
+        color = convert_rgb_to_hsv(rgb)
+    else:
+        raise ValueError("Invalid mode")
 
     # define ranges (for extremes, we use 0-255)
     lower_bound = np.array(
         [
-            hsv[0] - color_toleration[0],
-            hsv[1] - color_toleration[1],
-            hsv[2] - color_toleration[2],
+            color[0] - color_toleration[0],
+            color[1] - color_toleration[1],
+            color[2] - color_toleration[2],
         ]
     )
     upper_bound = np.array(
         [
-            hsv[0] + color_toleration[0],
-            hsv[1] + color_toleration[1],
-            hsv[2] + color_toleration[2],
+            color[0] + color_toleration[0],
+            color[1] + color_toleration[1],
+            color[2] + color_toleration[2],
         ]
     )
 
     # get the mask
-    img_binary = create_mask(image_path, lower_bound, upper_bound)
+    if mode == "rgb":
+        img_binary = create_mask_RGB(image_path, lower_bound, upper_bound)
+    elif mode == "hsv":
+        img_binary = create_mask_HSV(image_path, lower_bound, upper_bound)
+    else:
+        raise ValueError("Invalid mode")
 
     # do dilation and erosion
     dilate_erode_iterations = 4

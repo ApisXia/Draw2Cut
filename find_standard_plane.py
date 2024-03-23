@@ -5,6 +5,7 @@ from pyzbar import pyzbar
 from collections import deque
 import open3d as o3d
 
+
 def get_qr_codes_position(image, resize_factor=2):
     # Resize the image to a larger size
     resized_image = cv2.resize(image, None, fx=resize_factor, fy=resize_factor)
@@ -35,7 +36,7 @@ def get_qr_codes_position(image, resize_factor=2):
 
         # Get the information from the QR code
         qr_code_data = qr_code.data.decode("utf-8")
-        
+
         # only use number in this sentence
         qr_code_data = str(qr_code_data.split(" ")[-1])
 
@@ -68,9 +69,9 @@ def calculate_points_plane(data_list, quene_size=100):
     for data_path in data_list:
         # load data
         data = np.load(data_path)
-        qr_codes_dict = get_qr_codes_position(data['transformed_color'])
-        point_cloud_pos = data['points_pos']
-        depth_shape = data['depth'].shape
+        qr_codes_dict = get_qr_codes_position(data["transformed_color"])
+        point_cloud_pos = data["points_pos"]
+        depth_shape = data["depth"].shape
         point_cloud_pos = point_cloud_pos.reshape((depth_shape[0], depth_shape[1], 3))
 
         # push dict to quene
@@ -98,18 +99,24 @@ def calculate_points_plane(data_list, quene_size=100):
     points_plane = np.array(list(average_position_dict.values()))
     plane_para = best_fit_plane(points_plane)
     # projection points to the plane
-    to_plane_dist = (plane_para[0]*points_plane[:, 0] + 
-                     plane_para[1]*points_plane[:, 1] + 
-                     plane_para[2]*points_plane[:, 2] + plane_para[3]) / np.sqrt(plane_para[0]**2 + plane_para[1]**2 + plane_para[2]**2)
-    points_plane = points_plane - np.reshape(to_plane_dist, (-1, 1)) * np.reshape(plane_para[:3], (1, -1))
+    to_plane_dist = (
+        plane_para[0] * points_plane[:, 0]
+        + plane_para[1] * points_plane[:, 1]
+        + plane_para[2] * points_plane[:, 2]
+        + plane_para[3]
+    ) / np.sqrt(plane_para[0] ** 2 + plane_para[1] ** 2 + plane_para[2] ** 2)
+    points_plane = points_plane - np.reshape(to_plane_dist, (-1, 1)) * np.reshape(
+        plane_para[:3], (1, -1)
+    )
 
     # back to dict
     points_plane = dict(zip(average_position_dict.keys(), points_plane))
 
     return points_plane, plane_para
 
+
 if __name__ == "__main__":
-    file_path = "data/Feb15Test/*.npz"
+    file_path = "data/0323/*.npz"
     data_list = glob(file_path)
     if len(data_list) == 0:
         raise ValueError("No data found")
@@ -119,10 +126,10 @@ if __name__ == "__main__":
 
     # load data
     data = np.load(data_list[50])
-    points = data['points_pos']
-    colors = data['transformed_color'][..., (2, 1, 0)].reshape((-1, 3))
+    points = data["points_pos"]
+    colors = data["transformed_color"][..., (2, 1, 0)].reshape((-1, 3))
     colors = colors / 255.0
-    depth = data['depth'].reshape((-1))
+    depth = data["depth"].reshape((-1))
 
     # keep depth larger than 0
     mask = depth > 0
@@ -155,11 +162,3 @@ if __name__ == "__main__":
 
     # visualize point cloud
     o3d.visualization.draw_geometries(object_to_draw)
-
-
-
-    
-    
-    
-    
-    

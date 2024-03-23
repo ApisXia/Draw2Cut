@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from utils.traj_to_Gcode import generate_gcode
-from utils.extract_mask import create_mask, convert_rgb_to_hsv
 from utils.get_bulk_trajectory import get_trajectory, draw_trajectory
 from utils.mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE
 from utils.extract_mask import get_mark_mask
@@ -13,10 +12,10 @@ from utils.find_centerline_groups import find_centerline, centerline_downsample
 
 if __name__ == "__main__":
     # base path
-    images_folder = "images_0323"
+    images_folder = "images"
 
     # load image
-    image_path = os.path.join(images_folder, "wrapped_image.jpg")
+    image_path = os.path.join(images_folder, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
