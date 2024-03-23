@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 
 from utils.traj_to_Gcode import generate_gcode
 from utils.get_bulk_trajectory import get_trajectory, draw_trajectory
-from utils.mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE, SURFACE_UPSCALE
+from utils.mark_config import (
+    MARK_TYPES,
+    MARK_SAVING_TEMPLATE,
+    SURFACE_UPSCALE,
+    ROW_INTERVAL,
+)
 from utils.extract_mask import get_mark_mask
 from utils.find_centerline_groups import find_centerline, centerline_downsample
 
@@ -148,10 +153,15 @@ if __name__ == "__main__":
             )
 
         # ! transform the binary image to trajectory
-        traj, _ = get_trajectory(img_binary, SURFACE_UPSCALE, SURFACE_UPSCALE)
+        traj, _ = get_trajectory(img_binary, ROW_INTERVAL, ROW_INTERVAL)
         trajectory_holders.extend(traj)
 
     print("Number of trajectories: ", len(trajectory_holders))
+
+    # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
+    canvas = np.zeros_like(img_binaries["contour"])
+    map_image = draw_trajectory(canvas, trajectory_holders)
+    cv2.imwrite(os.path.join(images_folder, "trajectory.png"), map_image)
 
     # downsample the trajectory based on SURFACE_UPSCALE
     trajectory_holders = [
@@ -161,11 +171,6 @@ if __name__ == "__main__":
         ]
         for trajectory in trajectory_holders
     ]
-
-    # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
-    canvas = np.zeros_like(img_binaries["contour"])
-    map_image = draw_trajectory(canvas, trajectory_holders)
-    cv2.imwrite(os.path.join(images_folder, "trajectory.png"), map_image)
 
     # load left_bottom of the image
     preprocess_data = np.load("left_bottom_point.npz")
@@ -187,9 +192,9 @@ if __name__ == "__main__":
     plt.imsave(os.path.join(images_folder, "grid.png"), grid, cmap="gray")
 
     # generate gcode, define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2] + 1.2  # ! compensate for the lefting_distance???
-    carving_depth = -2  # ! minus means nothing will happen
-    feed_rate = 50
+    z_surface_level = left_bottom[2] + 6  # ! compensate for the lefting_distance???
+    carving_depth = 1  # ! minus means nothing will happen
+    feed_rate = 25
     spindle_speed = 1000
     gcode = generate_gcode(
         trajectories, z_surface_level, carving_depth, feed_rate, spindle_speed

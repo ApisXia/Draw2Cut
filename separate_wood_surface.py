@@ -105,7 +105,7 @@ mask = (
 mask_plane = np.zeros_like(mask)
 z = z_max
 z_tolerance = 2
-z_step = 0.3
+z_step = 0.5
 while z > z_min:
     mask_plane = (points_transformed[:, 2] > z) & mask
     if np.sum(mask_plane) > 0.5 * np.sum(mask):
@@ -114,6 +114,7 @@ while z > z_min:
         break
     z -= z_step
 z_surface = z
+z_surface += z_tolerance + z_step
 
 # visualize the get slice
 # points = points[mask_plane, :]
