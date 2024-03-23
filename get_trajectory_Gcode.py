@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from utils.traj_to_Gcode import generate_gcode
 from utils.get_bulk_trajectory import get_trajectory, draw_trajectory
-from utils.mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE
+from utils.mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE, SURFACE_UPSCALE
 from utils.extract_mask import get_mark_mask
 from utils.find_centerline_groups import find_centerline, centerline_downsample
 
@@ -26,7 +26,6 @@ if __name__ == "__main__":
             MARK_TYPES[mark_type_name], image_path
         )
 
-        # [ ](check) reverse the img_binary along x-axis
         img_binaries[mark_type_name] = img_binaries[mark_type_name][::-1, :]
 
         # save the mask for visualization
@@ -148,17 +147,25 @@ if __name__ == "__main__":
                 img_binary * 255,
             )
 
-        # transform the binary image to trajectory
-        traj, _ = get_trajectory(img_binary, 10, 10)
+        # ! transform the binary image to trajectory
+        traj, _ = get_trajectory(img_binary, SURFACE_UPSCALE, SURFACE_UPSCALE)
         trajectory_holders.extend(traj)
 
     print("Number of trajectories: ", len(trajectory_holders))
+
+    # downsample the trajectory based on SURFACE_UPSCALE
+    trajectory_holders = [
+        [
+            (point[0] / SURFACE_UPSCALE, point[1] / SURFACE_UPSCALE)
+            for point in trajectory
+        ]
+        for trajectory in trajectory_holders
+    ]
 
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
     canvas = np.zeros_like(img_binaries["contour"])
     map_image = draw_trajectory(canvas, trajectory_holders)
     cv2.imwrite(os.path.join(images_folder, "trajectory.png"), map_image)
-    assert False
 
     # load left_bottom of the image
     preprocess_data = np.load("left_bottom_point.npz")
@@ -180,8 +187,8 @@ if __name__ == "__main__":
     plt.imsave(os.path.join(images_folder, "grid.png"), grid, cmap="gray")
 
     # generate gcode, define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2] + 1.2  # compensate for the lefting_distance???
-    carving_depth = -2
+    z_surface_level = left_bottom[2] + 1.2  # ! compensate for the lefting_distance???
+    carving_depth = -2  # ! minus means nothing will happen
     feed_rate = 50
     spindle_speed = 1000
     gcode = generate_gcode(

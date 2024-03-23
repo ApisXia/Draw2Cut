@@ -1,7 +1,7 @@
 import cv2
 import json
 import numpy as np
-from skimage.morphology import skeletonize
+from skimage.morphology import skeletonize, thin
 
 
 def find_centerline(binary_image):
@@ -10,8 +10,10 @@ def find_centerline(binary_image):
         binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
 
+    binary_image = thin(binary_image // 255, max_num_iter=20).astype(np.uint8) * 255
+
     # Skeletonize the binary image to get the centerline
-    skeleton = skeletonize(binary_image // 255).astype(np.uint8) * 255
+    skeleton = skeletonize(binary_image // 255, method="lee").astype(np.uint8) * 255
 
     # Find contours of the skeleton (centerlines)
     centerline_contours, _ = cv2.findContours(

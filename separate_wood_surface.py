@@ -5,9 +5,9 @@ import open3d as o3d
 import cv2
 from copy import deepcopy
 
-from utils.mark_config import WARPPING_RESOLUTION, FILE_PATH
+from utils.mark_config import WARPPING_RESOLUTION, FOLDER_PATH, SURFACE_UPSCALE
 
-file_path = FILE_PATH
+file_path = FOLDER_PATH
 data_list = glob(file_path)
 
 points_plane, plane_para = calculate_points_plane(data_list)
@@ -167,7 +167,9 @@ wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_TELEA)
 # increase the size by 10 and save the wrapped image
 wrapped_image = cv2.resize(wrapped_image, (0, 0), fx=1, fy=1)
 cv2.imwrite("images/wrapped_image.png", wrapped_image)
-wrapped_image = cv2.resize(wrapped_image, (0, 0), fx=20, fy=20)
+wrapped_image = cv2.resize(
+    wrapped_image, (0, 0), fx=SURFACE_UPSCALE, fy=SURFACE_UPSCALE
+)
 # increase sharpness
 wrapped_image = cv2.GaussianBlur(wrapped_image, (5, 5), 0)
 cv2.imwrite("images/wrapped_image_zoom.png", wrapped_image)

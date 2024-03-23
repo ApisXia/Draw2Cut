@@ -5,7 +5,7 @@ from pyzbar import pyzbar
 from collections import deque
 import open3d as o3d
 
-from utils.mark_config import FILE_PATH
+from utils.mark_config import FOLDER_PATH
 
 
 def get_qr_codes_position(image, resize_factor=2):
@@ -118,7 +118,7 @@ def calculate_points_plane(data_list, quene_size=100):
 
 
 if __name__ == "__main__":
-    file_path = FILE_PATH
+    file_path = FOLDER_PATH
     data_list = glob(file_path)
     if len(data_list) == 0:
         raise ValueError("No data found")
