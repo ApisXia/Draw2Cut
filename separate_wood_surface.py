@@ -5,9 +5,9 @@ import open3d as o3d
 import cv2
 from copy import deepcopy
 
-from utils.mark_config import WARPPING_RESOLUTION
+from utils.mark_config import WARPPING_RESOLUTION, FILE_PATH
 
-file_path = "data/0323/*.npz"
+file_path = FILE_PATH
 data_list = glob(file_path)
 
 points_plane, plane_para = calculate_points_plane(data_list)

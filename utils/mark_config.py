@@ -7,3 +7,5 @@ MARK_TYPES = {
 MARK_SAVING_TEMPLATE = "mask_{mark_type_name}_image.png"
 
 WARPPING_RESOLUTION = 1  # mm
+
+FOLDER_PATH = "data/0323/*.npz"
