@@ -34,6 +34,8 @@ for label in x_axis_label:
         x_direction += direction
         x_counter += 1
 x_direction = x_direction / x_counter
+# print("x_norm_length", np.linalg.norm(x_direction))
+x_direction = x_direction / np.linalg.norm(x_direction)
 
 if "5" not in points_plane and "1" in points_plane:
     x_length = np.linalg.norm(points_plane["1"] - points_plane[origin_label]) * 2
@@ -49,6 +51,10 @@ for label in y_axis_label:
         y_direction += direction
         y_counter += 1
 y_direction = y_direction / y_counter
+# print("y_norm_length", np.linalg.norm(y_direction))
+y_direction = y_direction / np.linalg.norm(y_direction)
+
+print("x dot y beginning", np.dot(x_direction, y_direction))
 
 if "2" not in points_plane and "6" in points_plane:
     y_length = np.linalg.norm(points_plane["6"] - points_plane[origin_label]) * 2
@@ -56,8 +62,13 @@ elif "2" in points_plane:
     y_length = np.linalg.norm(points_plane["2"] - points_plane[origin_label])
 
 z_direction = np.cross(y_direction, x_direction)
+
+# XXX: using z and y axis to calculate orthogonal x axis again
+x_direction = np.cross(z_direction, y_direction)
+print("x dot y later", np.dot(x_direction, y_direction))
+
 z_max = 50
-z_min = 10
+z_min = -5
 
 origin_point = points_plane[origin_label]
 
@@ -104,7 +115,8 @@ mask = (
 # get the mask of the plane
 mask_plane = np.zeros_like(mask)
 z = z_max
-z_tolerance = 2
+z_tolerance_value = 2
+z_tolerance = z_tolerance_value
 z_step = 0.5
 while z > z_min:
     mask_plane = (points_transformed[:, 2] > z) & mask
@@ -114,7 +126,7 @@ while z > z_min:
         break
     z -= z_step
 z_surface = z
-z_surface += z_tolerance + z_step
+z_surface += z_tolerance_value + z_step
 
 # visualize the get slice
 # points = points[mask_plane, :]

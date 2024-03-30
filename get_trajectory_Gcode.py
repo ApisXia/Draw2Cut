@@ -189,11 +189,15 @@ if __name__ == "__main__":
     for trajectory in trajectories:
         for point in trajectory:
             grid[int(point[0]), int(point[1])] = 1
+    # # reverse x axis
+    # grid = grid[::-1, :]
+    # # black to white, white to black
+    # grid = 1 - grid
     plt.imsave(os.path.join(images_folder, "grid.png"), grid, cmap="gray")
 
     # generate gcode, define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2] + 6  # ! compensate for the lefting_distance???
-    carving_depth = 1  # ! minus means nothing will happen
+    z_surface_level = left_bottom[2] + 4  # ! compensate for the lefting_distance???
+    carving_depth = -8  # ! minus means nothing will happen
     feed_rate = 25
     spindle_speed = 1000
     gcode = generate_gcode(
