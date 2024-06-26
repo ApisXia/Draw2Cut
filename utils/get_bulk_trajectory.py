@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from scipy.spatial.distance import euclidean
+from copy import deepcopy
 
 
 def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
@@ -22,7 +23,8 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
         raise ValueError("No white pixel in the binary map.")
 
     # Initialize the list of visited points and trajectories
-    visited = []
+    visited_now = []
+    visited_past = []
     trajectories = []
     trajectory = []
 
@@ -34,9 +36,11 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
         range(starting_row, bin_map.shape[0], row_interval)
     ):
         print("Processing row: ", row)
+        # clean visited now for each row
+        visited_now = []
         for col in range(bin_map.shape[1])[:: pow(-1, line_index)]:
             # if the pixel is white ('1') and not visited yet
-            if bin_map[row, col] == 1 and (row, col) not in visited:
+            if bin_map[row, col] == 1 and (row, col) not in visited_past:
                 # if the distance to the previous point is larger than radius, start new trajectory
                 if trajectory and euclidean(trajectory[-1], (row, col)) > 2.5 * radius:
                     trajectories.append(trajectory)
@@ -46,7 +50,7 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
                 trajectory.append((row, col))
 
                 # add the position to the visited nodes
-                visited.append((row, col))
+                visited_now.append((row, col))
                 visited_map[row, col] = 1
 
                 # create a patch around to denote the area that circle would cover
@@ -57,8 +61,9 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
                             and 0 <= col + j < bin_map.shape[1]
                             and np.sqrt(i**2 + j**2) <= radius
                         ):
-                            visited.append((row + i, col + j))
+                            visited_now.append((row + i, col + j))
                             visited_map[row + i, col + j] = 1
+        visited_past = deepcopy(visited_now)
 
     # add the last trajectory to the list of trajectories
     if trajectory:

@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import open3d as o3d
 
 from utils.traj_to_Gcode import generate_gcode
 from utils.get_bulk_trajectory import get_trajectory, draw_trajectory
@@ -10,6 +11,8 @@ from utils.mark_config import (
     MARK_SAVING_TEMPLATE,
     SURFACE_UPSCALE,
     ROW_INTERVAL,
+    GT_X_LENGTH,
+    GT_Y_LENGTH,
 )
 from utils.extract_mask import get_mark_mask
 from utils.find_centerline_groups import find_centerline, centerline_downsample
@@ -173,7 +176,7 @@ if __name__ == "__main__":
     ]
 
     # load left_bottom of the image
-    preprocess_data = np.load("left_bottom_point.npz")
+    preprocess_data = np.load("images/left_bottom_point.npz")
     left_bottom = preprocess_data["left_bottom_point"]
     x_length = int(preprocess_data["x_length"]) + 1
     y_length = int(preprocess_data["y_length"]) + 1
@@ -195,13 +198,67 @@ if __name__ == "__main__":
     # grid = 1 - grid
     plt.imsave(os.path.join(images_folder, "grid.png"), grid, cmap="gray")
 
-    # generate gcode, define milimeters here is OK, in the function it will be converted to inches
+    # ! generate gcode, define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2] + 4  # ! compensate for the lefting_distance???
-    carving_depth = -8  # ! minus means nothing will happen
+    carving_depth = 2.5  # ! minus means nothing will happen
     feed_rate = 25
-    spindle_speed = 1000
-    gcode = generate_gcode(
-        trajectories, z_surface_level, carving_depth, feed_rate, spindle_speed
-    )
+    gcode = generate_gcode(trajectories, z_surface_level, carving_depth, feed_rate)
     with open(os.path.join(images_folder, "output.gcode.tap"), "w") as f:
         f.write(gcode)
+
+    # a trajectory from (0, 0) to farthest point
+    # trajectory_holders = [[(0, 0), (x_length, y_length)]]
+    # gcodes = generate_gcode(
+    #     trajectory_holders, z_surface_level, carving_depth, feed_rate, True
+    # )
+    # with open(os.path.join(images_folder, "output_test.gcode.tap"), "w") as f:
+    #     f.write(gcodes)
+
+    # ! (VISUAL) draw trajectory as point on 3d point cloud
+    points_transformed = np.load("images/points_transformed.npz")["points"]
+    point_colors = np.load("images/points_transformed.npz")["colors"]
+
+    d3_trajectories = [
+        [
+            (
+                -(point[0] + left_bottom[0]),
+                point[1] + left_bottom[1],
+                left_bottom[2] + 1,
+            )
+            for point in trajectory
+        ]
+        for trajectory in trajectory_holders
+    ]
+    # combine list of list to list
+    d3_trajectories = [point for trajectory in d3_trajectories for point in trajectory]
+
+    # add spheres to the point cloud
+    # create point cloud object
+    pcd = o3d.geometry.PointCloud()
+    points_transformed[:, 0] = -points_transformed[:, 0]
+    pcd.points = o3d.utility.Vector3dVector(points_transformed)
+    pcd.colors = o3d.utility.Vector3dVector(point_colors)
+
+    # print points_transformed x length and y length
+    print(
+        "points_transformed x length: ",
+        np.max(points_transformed[:, 0]) - np.min(points_transformed[:, 0]),
+    )
+    print(
+        "points_transformed y length: ",
+        np.max(points_transformed[:, 1]) - np.min(points_transformed[:, 1]),
+    )
+
+    object_to_draw = []
+    object_to_draw.append(pcd)
+
+    # create trajectory point cloud object using green color
+    trajectory_pcd = o3d.geometry.PointCloud()
+    trajectory_pcd.points = o3d.utility.Vector3dVector(d3_trajectories)
+    trajectory_pcd.colors = o3d.utility.Vector3dVector(
+        np.array([[0, 1, 0]] * len(d3_trajectories))
+    )
+    object_to_draw.append(trajectory_pcd)
+
+    # visualize point cloud
+    o3d.visualization.draw_geometries(object_to_draw)

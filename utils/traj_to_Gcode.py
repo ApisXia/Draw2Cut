@@ -1,5 +1,5 @@
 def generate_gcode(
-    trajectories, z_surface_level, carving_depth, feed_rate=100, spindle_speed=1000
+    trajectories, z_surface_level, carving_depth, feed_rate=100, stop_at_end=False
 ):
     lefting_distance = 15  # it is millimeters
 
@@ -28,6 +28,8 @@ def generate_gcode(
         # Move spindle up to the z_surface_level + z_surface_level
         gcode += f"G1 Z{(z_surface_level+lefting_distance)*0.03937:.4f} F{feed_rate} ; Move spindle up\n"
 
-    gcode += f"G0 X0.0000 Y0.0000 Z{(z_surface_level+lefting_distance)*0.03937:.4f} ; Move spindle to start position\n"
+    if not stop_at_end:
+        # Move spindle to start position
+        gcode += f"G0 X0.0000 Y0.0000 Z{(z_surface_level+lefting_distance)*0.03937:.4f} ; Move spindle to start position\n"
     gcode += "M30 ; End of program\n"
     return gcode

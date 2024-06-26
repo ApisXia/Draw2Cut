@@ -10,7 +10,7 @@ from utils.mark_config import WARPPING_RESOLUTION, FOLDER_PATH, SURFACE_UPSCALE
 file_path = FOLDER_PATH
 data_list = glob(file_path)
 
-points_plane, plane_para = calculate_points_plane(data_list)
+points_plane, plane_para = calculate_points_plane(data_list[20:])
 
 origin_label = "8"
 x_axis_label = [
@@ -68,7 +68,7 @@ x_direction = np.cross(z_direction, y_direction)
 print("x dot y later", np.dot(x_direction, y_direction))
 
 z_max = 50
-z_min = -5
+z_min = 10
 
 origin_point = points_plane[origin_label]
 
@@ -80,7 +80,7 @@ print(f"z_direction: {z_direction}")
 print(f"origin_point: {origin_point}")
 
 # load data
-data = np.load(data_list[40])
+data = np.load(data_list[50])
 points = data["points_pos"]
 colors = data["transformed_color"][..., (0, 1, 2)].reshape((-1, 3))
 
@@ -100,6 +100,17 @@ points_transformed = points - origin_point
 points_transformed = np.dot(
     points_transformed, np.array([x_direction, y_direction, z_direction]).T
 )
+
+# pcd = o3d.geometry.PointCloud()
+# pcd.points = o3d.utility.Vector3dVector(points_transformed)
+# pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)
+
+# object_to_draw = []
+# object_to_draw.append(pcd)
+
+# # visualize point cloud
+# o3d.visualization.draw_geometries(object_to_draw)
+# assert False
 
 # get the mask of points_transformed, with 0 < x < x_length and 0 < y < y_length, and z < z_max and z > z_min
 mask = (
@@ -157,6 +168,7 @@ extract_mask = (
     & (points_transformed[:, 1] < y_max)
     & mask_plane
 )
+extract_mask = extract_mask & mask_plane
 
 # get the corresponding color for these points, and wrap them into a 2d image
 extract_color = colors[extract_mask, :]
@@ -168,7 +180,7 @@ wrapped_image = np.zeros((x_size + 1, y_size + 1, 3), dtype=np.uint8)
 for point, color in zip(extract_points, extract_color):
     x = int((point[0] - x_min) / WARPPING_RESOLUTION)
     y = int((point[1] - y_min) / WARPPING_RESOLUTION)
-    wrapped_image[x_size - x, y, :] = color.astype(np.uint8)
+    wrapped_image[x_size - x - 1, y, :] = color.astype(np.uint8)
 
 # fill the holes in the wrapped_image with the average of the nearest colors
 # 创建一个掩码，标记需要填充的区域
@@ -191,8 +203,40 @@ cv2.imwrite("images/wrapped_image_zoom.png", wrapped_image)
 left_bottom_point = np.array([x_min, y_min, z_surface])
 print(f"left_bottom_point: {left_bottom_point}")
 np.savez(
-    "left_bottom_point.npz",
+    "images/left_bottom_point.npz",
     left_bottom_point=left_bottom_point,
     x_length=x_length,
     y_length=y_length,
 )
+
+# color needs to be transposed from (0, 1, 2) to (2, 1, 0)
+colors = colors[..., (2, 1, 0)]
+colors = colors.astype(np.float32)
+colors /= 255.0
+
+mask_visual = (
+    (points_transformed[:, 0] > 0)
+    & (points_transformed[:, 0] < x_length)
+    & (points_transformed[:, 1] > 0)
+    & (points_transformed[:, 1] < y_length)
+    & (points_transformed[:, 2] < z_max + 5)
+    & (points_transformed[:, 2] > -5)
+)
+points_transformed = points_transformed[mask_visual, :]
+colors = colors[mask_visual, :]
+
+# save points_transformed
+np.savez("images/points_transformed.npz", points=points_transformed, colors=colors)
+
+# add spheres to the point cloud
+# create point cloud object
+
+# pcd = o3d.geometry.PointCloud()
+# pcd.points = o3d.utility.Vector3dVector(points_transformed)
+# pcd.colors = o3d.utility.Vector3dVector(colors)
+
+# object_to_draw = []
+# object_to_draw.append(pcd)
+
+# # visualize point cloud
+# o3d.visualization.draw_geometries(object_to_draw)
