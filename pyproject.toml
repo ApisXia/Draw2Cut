@@ -20,6 +20,7 @@ addict = "^2.4.0"
 pandas = "^2.2.2"
 tqdm = "^4.66.4"
 matplotlib = "^3.9.0"
+pyrealsense2 = "^2.55.1.6486"
 
 
 [build-system]
