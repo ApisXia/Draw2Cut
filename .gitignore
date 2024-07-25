@@ -168,3 +168,4 @@ output.gcode_Feb15_2.tap
 images_0323
 poetry.lock
 images_board
+.DS_Store

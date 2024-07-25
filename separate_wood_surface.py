@@ -1,16 +1,20 @@
-from find_standard_plane import calculate_points_plane
-from glob import glob
+import os
+import cv2
+
 import numpy as np
 import open3d as o3d
-import cv2
 from copy import deepcopy
+
+from glob import glob
+from find_standard_plane import calculate_points_plane
 
 from utils.mark_config import WARPPING_RESOLUTION, FOLDER_PATH, SURFACE_UPSCALE
 
 file_path = FOLDER_PATH
-file_path = "realsense_data/*.npz"
 # file_path = "test_point_cloud.npz"
 data_list = glob(file_path)
+
+os.makedirs("images", exist_ok=True)
 
 points_plane, plane_para = calculate_points_plane(data_list[0:])
 
@@ -82,9 +86,9 @@ print(f"z_direction: {z_direction}")
 print(f"origin_point: {origin_point}")
 
 # load data
-data = np.load(data_list[0])
+data = np.load(data_list[8])
 points = data["points_pos"]
-colors = data["transformed_color"][..., (0, 1, 2)].reshape((-1, 3))
+colors = data["transformed_color"].reshape((-1, 3))
 
 # points_holder = [points]
 # for i in range(1, 10):
@@ -189,7 +193,7 @@ for point, color in zip(extract_points, extract_color):
 mask = np.all(wrapped_image == 0, axis=2).astype(np.uint8)
 # 使用 inpaint 函数填充
 wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_TELEA)
-
+wrapped_image = cv2.cvtColor(wrapped_image, cv2.COLOR_BGR2RGB)
 
 # increase the size by 10 and save the wrapped image
 wrapped_image = cv2.resize(wrapped_image, (0, 0), fx=1, fy=1)
@@ -211,8 +215,6 @@ np.savez(
     y_length=y_length,
 )
 
-# color needs to be transposed from (0, 1, 2) to (2, 1, 0)
-colors = colors[..., (2, 1, 0)]
 colors = colors.astype(np.float32)
 colors /= 255.0
 
