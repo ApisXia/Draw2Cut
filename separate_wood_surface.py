@@ -8,9 +8,11 @@ from copy import deepcopy
 from utils.mark_config import WARPPING_RESOLUTION, FOLDER_PATH, SURFACE_UPSCALE
 
 file_path = FOLDER_PATH
+file_path = "realsense_data/*.npz"
+# file_path = "test_point_cloud.npz"
 data_list = glob(file_path)
 
-points_plane, plane_para = calculate_points_plane(data_list[20:])
+points_plane, plane_para = calculate_points_plane(data_list[0:])
 
 origin_label = "8"
 x_axis_label = [
@@ -80,7 +82,7 @@ print(f"z_direction: {z_direction}")
 print(f"origin_point: {origin_point}")
 
 # load data
-data = np.load(data_list[50])
+data = np.load(data_list[0])
 points = data["points_pos"]
 colors = data["transformed_color"][..., (0, 1, 2)].reshape((-1, 3))
 
@@ -103,7 +105,7 @@ points_transformed = np.dot(
 
 # pcd = o3d.geometry.PointCloud()
 # pcd.points = o3d.utility.Vector3dVector(points_transformed)
-# pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)
+# pcd.colors = o3d.utility.Vector3dVector(colors / 255)
 
 # object_to_draw = []
 # object_to_draw.append(pcd)
@@ -139,14 +141,14 @@ while z > z_min:
 z_surface = z
 z_surface += z_tolerance_value + z_step
 
-# visualize the get slice
+# # visualize the get slice
 # points = points[mask_plane, :]
 # colors = colors[mask_plane, :]
 
 # # create point cloud object
 # pcd = o3d.geometry.PointCloud()
 # pcd.points = o3d.utility.Vector3dVector(points)
-# pcd.colors = o3d.utility.Vector3dVector(colors)
+# pcd.colors = o3d.utility.Vector3dVector(colors / 255)
 
 # object_to_draw = []
 # object_to_draw.append(pcd)

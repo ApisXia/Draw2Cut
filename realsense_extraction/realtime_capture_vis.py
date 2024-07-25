@@ -4,6 +4,50 @@ import cv2
 import open3d as o3d
 import queue
 
+
+def create_custom_point_cloud(depth_image, color_image, intrinsic):
+    # Get the intrinsic parameters
+    fx = intrinsic.intrinsic_matrix[0, 0]
+    fy = intrinsic.intrinsic_matrix[1, 1]
+    cx = intrinsic.intrinsic_matrix[0, 2]
+    cy = intrinsic.intrinsic_matrix[1, 2]
+
+    height, width = depth_image.shape
+    points = []
+    colors = []
+
+    for v in range(height):
+        for u in range(width):
+            d = depth_image[v, u]
+            # if d > 0:  # You can change this condition to include all depth values
+            z = d / 0.001  # Convert depth from mm to meters
+            x = (u - cx) * z / fx
+            y = (v - cy) * z / fy
+            points.append([x, y, z])
+            colors.append(color_image[v, u])  # Normalize color values
+
+    points = np.array(points)
+    colors = np.array(colors)
+
+    # Create Open3D point cloud object
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+
+    return pcd
+
+
+def show_image(img, name="image"):
+    cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
+    try:
+        img = img.reshape((800, 1280, 3))
+    except:
+        img = img.reshape((800, 1280))
+    cv2.imshow(name, (img * 255).astype(np.uint8))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
 if __name__ == "__main__":
     align = rs.align(rs.stream.color)
 
@@ -56,29 +100,50 @@ if __name__ == "__main__":
             print("finish")
             break
 
-    depth_frame = aligned_frames.get_depth_frame()
-    depth = o3d.geometry.Image(np.asanyarray(depth_frame.get_data()))
-    color = o3d.geometry.Image(color_image)
+    DATA_NUMBER = 1
+    while DATA_NUMBER > 0:
+        depth_frame = aligned_frames.get_depth_frame()
+        depth_data = np.asarray(depth_frame.get_data())
 
-    rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-        color, depth, convert_rgb_to_intensity=False
-    )
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, pinhole_camera_intrinsic)
+        # Perform the multiplication
+        depth_data_scaled = depth_data
 
-    pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+        # Convert the scaled NumPy array back to an Open3D image
+        depth = o3d.geometry.Image(depth_data_scaled.astype(np.float32))
+        color = o3d.geometry.Image(color_image)
 
-    pipeline.stop()
+        rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
+            color, depth, convert_rgb_to_intensity=False
+        )
+        # pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+        #     rgbd, pinhole_camera_intrinsic
+        # )
+        # Assuming rgbd_image is an Open3D RGBDImage object
+        depth_image = np.asarray(rgbd.depth)
+        color_image = np.asarray(rgbd.color)
+        pcd = create_custom_point_cloud(
+            depth_image, color_image, pinhole_camera_intrinsic
+        )
 
-    o3d.visualization.draw_geometries([pcd])
+        pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 
-    # save the point cloud to npz file
-    # points_pos = np.asarray(pcd.points)
-    # transformed_color = np.asarray(pcd.colors)
-    # depth = np.asarray(depth)
-    # np.savez(
-    #     "point_cloud.npz",
-    #     points_pos=points_pos,
-    #     transformed_color=transformed_color,
-    #     depth=depth,
-    #     color_image=color_image,
-    # )
+        # pipeline.stop()
+
+        # o3d.visualization.draw_geometries([pcd])
+
+        # save the point cloud to npz file
+        points_pos = np.asarray(pcd.points)
+        transformed_color = np.asarray(pcd.colors)
+        depth = np.asarray(depth)
+        # show_image(points_pos, "points_pos")
+        # show_image(transformed_color, "transformed_color")
+        # show_image(depth, "depth")
+        # color_image = cv2.resize(color_image, (1280, 800))
+        np.savez(
+            "realsense_data/test_point_cloud_" + str(10 - DATA_NUMBER) + ".npz",
+            points_pos=points_pos,
+            transformed_color=transformed_color,
+            depth=depth,
+            color_image=color_image,
+        )
+        DATA_NUMBER -= 1

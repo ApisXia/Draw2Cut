@@ -71,7 +71,19 @@ def calculate_points_plane(data_list, quene_size=100):
     for data_path in data_list:
         # load data
         data = np.load(data_path)
-        qr_codes_dict = get_qr_codes_position(data["transformed_color"])
+        ## test
+        # dt = data["transformed_color"].copy()
+        # dt = dt.reshape((800, 1280, 3))
+        # dt = (dt * 255).astype(np.uint8)
+        # # cv2.imshow("test", dt)
+        # # cv2.waitKey(0)  # Wait for a key press to close the window
+        # # cv2.destroyAllWindows()
+        # # ## test
+        # qr_codes_dict = get_qr_codes_position(dt)
+        qr_codes_dict = get_qr_codes_position(
+            data["transformed_color"].reshape((800, 1280, 3))
+        )
+
         point_cloud_pos = data["points_pos"]
         depth_shape = data["depth"].shape
         point_cloud_pos = point_cloud_pos.reshape((depth_shape[0], depth_shape[1], 3))
@@ -127,7 +139,7 @@ if __name__ == "__main__":
     points_plane = list(points_plane.values())
 
     # load data
-    data = np.load(data_list[50])
+    data = np.load(data_list[9])
     points = data["points_pos"]
     colors = data["transformed_color"][..., (2, 1, 0)].reshape((-1, 3))
     colors = colors / 255.0

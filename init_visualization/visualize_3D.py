@@ -2,7 +2,7 @@ from glob import glob
 import numpy as np
 import open3d as o3d
 
-file_path = "data/test/*.npz"
+file_path = "realsense_data/*.npz"
 data_list = glob(file_path)
 
 # use open3d to visualize 3D point cloud data
