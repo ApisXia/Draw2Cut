@@ -169,3 +169,5 @@ images_0323
 poetry.lock
 images_board
 .DS_Store
+src/mark/color_cluster_vis
+src/mark/semantic_color_mask_vis
