@@ -14,37 +14,48 @@ from utils.mark_config import (
     GT_X_LENGTH,
     GT_Y_LENGTH,
 )
-from utils.extract_mask import get_mark_mask
+from src.mark.extract_mask import (
+    extract_marks_with_colors,
+    find_in_predefined_colors,
+    draw_extracted_marks,
+)
 from utils.find_centerline_groups import find_centerline, centerline_downsample
 
 
 if __name__ == "__main__":
     # base path
     images_folder = "images"
+    # action subfolder
+    action_folder = os.path.join(images_folder, "trajectory_extraction")
+    os.makedirs(action_folder, exist_ok=True)
 
     # load image
     image_path = os.path.join(images_folder, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.GaussianBlur(img, (5, 5), 0)
 
-    # target color
-    img_binaries = {}
-    for mark_type_name in MARK_TYPES.keys():
-        img_binaries[mark_type_name] = get_mark_mask(
-            MARK_TYPES[mark_type_name], image_path
-        )
+    # auto-threshold color mask
+    color_masks_dict = extract_marks_with_colors(img)
+    colored_masks_img = draw_extracted_marks(color_masks_dict, img.shape)
+    cv2.imwrite(os.path.join(action_folder, "colored_masks_img.png"), colored_masks_img)
 
-        img_binaries[mark_type_name] = img_binaries[mark_type_name][::-1, :]
-
-        # save the mask for visualization
+    semantic_color_mask_dict = find_in_predefined_colors(color_masks_dict)
+    semantic_saving_folder = os.path.join(action_folder, "semantic_color_mask_vis")
+    os.makedirs(semantic_saving_folder, exist_ok=True)
+    for i, (color_type, mask) in enumerate(semantic_color_mask_dict.items()):
         cv2.imwrite(
-            os.path.join(
-                images_folder,
-                MARK_SAVING_TEMPLATE.format(mark_type_name=mark_type_name),
-            ),
-            img_binaries[mark_type_name],
+            os.path.join(semantic_saving_folder, f"semantic_{color_type}.png"), mask
         )
+        print(f"{color_type} saved")
+
+    # assign name to semantic mask dict
+    mapping_dict = {
+        "purple": "contour",
+        "red_orange": "behaviour",
+    }
+    img_binaries = {}
+    for original_name, new_name in mapping_dict.items():
+        img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
 
     # get centerlines and decide loop or line type for each centerline
     line_dict = {}

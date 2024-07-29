@@ -141,7 +141,7 @@ if __name__ == "__main__":
     # load data
     data = np.load(data_list[9])
     points = data["points_pos"]
-    colors = data["transformed_color"][..., (2, 1, 0)].reshape((-1, 3))
+    colors = data["transformed_color"].reshape((-1, 3))
     colors = colors / 255.0
     depth = data["depth"].reshape((-1))
 
