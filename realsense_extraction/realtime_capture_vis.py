@@ -145,5 +145,6 @@ if __name__ == "__main__":
             transformed_color=transformed_color,
             depth=depth,
             color_image=color_image,
+            camera_parameters=pinhole_camera_intrinsic,
         )
         DATA_NUMBER -= 1

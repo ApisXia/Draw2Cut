@@ -80,7 +80,7 @@ PREDEFINED_COLOR_TYPE_VALUES = None
 with open("src/mark/color_type_values.json", "r") as f:
     PREDEFINED_COLOR_TYPE_VALUES = json.load(f)
 
-SEMANTIC_COLOR_MATCHING_MIN_DISTANCE = 30
+SEMANTIC_COLOR_MATCHING_MIN_DISTANCE = 100
 
 
 def extract_marks_with_colors(
