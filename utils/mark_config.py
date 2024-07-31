@@ -8,7 +8,7 @@ MARK_SAVING_TEMPLATE = "mask_{mark_type_name}_image.png"
 
 WARPPING_RESOLUTION = 1  # mm
 
-FOLDER_PATH = "data/0330_02/*.npz"
+FOLDER_PATH = "data/colortest/*.npz"
 
 SURFACE_UPSCALE = 10
 ROW_INTERVAL = 5

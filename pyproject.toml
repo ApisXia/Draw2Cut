@@ -5,7 +5,8 @@ description = ""
 authors = ["Atara <dingxia1995@gmail.com>"]
 readme = "README.md"
 packages = [
-    { include = "utils"},
+    { include = "utils" },
+    { include = "mark", from = "src" },
 ]
 
 [tool.poetry.dependencies]
@@ -20,7 +21,7 @@ addict = "^2.4.0"
 pandas = "^2.2.2"
 tqdm = "^4.66.4"
 matplotlib = "^3.9.0"
-pyrealsense2 = "^2.55.1.6486"
+numpy = "^1.23"
 
 
 [build-system]
