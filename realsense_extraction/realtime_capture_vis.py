@@ -100,7 +100,7 @@ if __name__ == "__main__":
             print("finish")
             break
 
-    DATA_NUMBER = 1
+    DATA_NUMBER = 10
     while DATA_NUMBER > 0:
         depth_frame = aligned_frames.get_depth_frame()
         depth_data = np.asarray(depth_frame.get_data())

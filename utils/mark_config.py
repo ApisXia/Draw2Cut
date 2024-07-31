@@ -1,6 +1,6 @@
 # color is RGB format, while toleration is HSV range
 MARK_TYPES = {
-    "contour": {"color": [166, 147, 142], "toleration": [20, 20, 20], "mode": "hsv"},
+    "contour": {"color": [108, 92, 104], "toleration": [15, 15, 20], "mode": "hsv"},
     "behaviour": {"color": [1, 1, 1], "toleration": [50, 50, 50], "mode": "rgb"},
 }
 

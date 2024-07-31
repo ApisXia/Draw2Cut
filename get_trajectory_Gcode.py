@@ -26,7 +26,6 @@ if __name__ == "__main__":
     image_path = os.path.join(images_folder, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.GaussianBlur(img, (5, 5), 0)
 
     # target color
     img_binaries = {}
@@ -200,9 +199,9 @@ if __name__ == "__main__":
     plt.imsave(os.path.join(images_folder, "grid.png"), grid, cmap="gray")
 
     # ! generate gcode, define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2] + 4  # ! compensate for the lefting_distance???
-    carving_depth = -5  # ! minus means nothing will happen
-    feed_rate = 25
+    z_surface_level = left_bottom[2]
+    carving_depth = 2.5  # ! minus means nothing will happen
+    feed_rate = 15
     gcode = generate_gcode(trajectories, z_surface_level, carving_depth, feed_rate)
     with open(os.path.join(images_folder, "output.gcode.tap"), "w") as f:
         f.write(gcode)

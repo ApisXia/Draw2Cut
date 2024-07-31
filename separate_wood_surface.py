@@ -12,7 +12,7 @@ file_path = "realsense_data/*.npz"
 # file_path = "test_point_cloud.npz"
 data_list = glob(file_path)
 
-points_plane, plane_para = calculate_points_plane(data_list[0:])
+points_plane, plane_para = calculate_points_plane(data_list[4:])
 
 origin_label = "8"
 x_axis_label = [
@@ -189,6 +189,7 @@ for point, color in zip(extract_points, extract_color):
 mask = np.all(wrapped_image == 0, axis=2).astype(np.uint8)
 # 使用 inpaint 函数填充
 wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_TELEA)
+wrapped_image = cv2.cvtColor(wrapped_image, cv2.COLOR_BGR2RGB)
 
 
 # increase the size by 10 and save the wrapped image
@@ -212,7 +213,7 @@ np.savez(
 )
 
 # color needs to be transposed from (0, 1, 2) to (2, 1, 0)
-colors = colors[..., (2, 1, 0)]
+# colors = colors[..., (2, 1, 0)]
 colors = colors.astype(np.float32)
 colors /= 255.0
 
