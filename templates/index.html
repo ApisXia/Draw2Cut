@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Point Cloud Visualization</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // 创建场景
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // 创建WebGLRenderer并设置背景颜色为白色
+        var renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(0.5);
+        renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
+        document.body.appendChild(renderer.domElement);
+
+        // 创建OrbitControls
+        var controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // 读取点云数据
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                var wood_points = data.wood_points;
+                var wood_colors = data.wood_colors;
+                var cut_points = data.cut_points;
+                var cut_colors = data.cut_colors;
+
+                // 创建木头的点云
+                var wood_geometry = new THREE.BufferGeometry();
+                var wood_vertices = new Float32Array(wood_points.length * 3);
+                var wood_vertexColors = new Float32Array(wood_points.length * 3);
+
+                for (var i = 0; i < wood_points.length; i++) {
+                    wood_vertices[i * 3] = wood_points[i][0];
+                    wood_vertices[i * 3 + 1] = wood_points[i][1];
+                    wood_vertices[i * 3 + 2] = wood_points[i][2];
+
+                    wood_vertexColors[i * 3] = wood_colors[i][0];
+                    wood_vertexColors[i * 3 + 1] = wood_colors[i][1];
+                    wood_vertexColors[i * 3 + 2] = wood_colors[i][2];
+                }
+
+                wood_geometry.setAttribute('position', new THREE.BufferAttribute(wood_vertices, 3));
+                wood_geometry.setAttribute('color', new THREE.BufferAttribute(wood_vertexColors, 3));
+
+                var wood_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
+                var wood_pointCloud = new THREE.Points(wood_geometry, wood_material);
+                scene.add(wood_pointCloud);
+
+                // 创建被割掉轨迹的点云
+                var cut_geometry = new THREE.BufferGeometry();
+                var cut_vertices = new Float32Array(cut_points.length * 3);
+                var cut_vertexColors = new Float32Array(cut_points.length * 3);
+
+                for (var i = 0; i < cut_points.length; i++) {
+                    cut_vertices[i * 3] = cut_points[i][0];
+                    cut_vertices[i * 3 + 1] = cut_points[i][1];
+                    cut_vertices[i * 3 + 2] = cut_points[i][2];
+
+                    cut_vertexColors[i * 3] = cut_colors[i][0];
+                    cut_vertexColors[i * 3 + 1] = cut_colors[i][1];
+                    cut_vertexColors[i * 3 + 2] = cut_colors[i][2];
+                }
+
+                cut_geometry.setAttribute('position', new THREE.BufferAttribute(cut_vertices, 3));
+                cut_geometry.setAttribute('color', new THREE.BufferAttribute(cut_vertexColors, 3));
+
+                var cut_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true, opacity: 0.5, transparent: true });
+                var cut_pointCloud = new THREE.Points(cut_geometry, cut_material);
+                scene.add(cut_pointCloud);
+
+                camera.position.z = 5;
+
+                var animate = function () {
+                    requestAnimationFrame(animate);
+                    controls.update();  // 更新OrbitControls
+                    renderer.render(scene, camera);
+                };
+
+                animate();
+            });
+
+        // 响应窗口大小变化
+        window.addEventListener('resize', function () {
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+            renderer.setSize(width, height);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
+    </script>
+</body>
+
+</html>
