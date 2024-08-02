@@ -8,6 +8,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Mac OS X hidden files
+.DS_Store
+
 # Distribution / packaging
 .Python
 build/
@@ -83,10 +86,6 @@ target/
 # IPython
 profile_default/
 ipython_config.py
-
-# data
-realsense_data*/
-realsense_data/
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
@@ -164,14 +163,9 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-images
-output.gcode_Feb15_3.tap
-left_bottom_point.npz
-output.gcode_Feb15_2.tap
 .vscode/launch.json
-images_0323
 poetry.lock
-images_board
-.DS_Store
-src/mark/color_cluster_vis
-src/mark/semantic_color_mask_vis
+
+src/mask/color_cluster_vis
+src/mask/semantic_color_mask_vis
+temp_files
