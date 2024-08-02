@@ -14,12 +14,16 @@ from utils.mark_config import (
     GT_X_LENGTH,
     GT_Y_LENGTH,
 )
-from src.mark.extract_mask import (
+from src.mask.extract_mask import (
     extract_marks_with_colors,
     find_in_predefined_colors,
     draw_extracted_marks,
 )
-from utils.find_centerline_groups import find_centerline, centerline_downsample
+from trajectory.find_centerline_groups import (
+    find_centerline_groups,
+    filter_centerlines,
+    centerline_downsample,
+)
 
 
 if __name__ == "__main__":
@@ -60,7 +64,8 @@ if __name__ == "__main__":
     # get centerlines and decide loop or line type for each centerline
     line_dict = {}
     for mark_type_name in MARK_TYPES.keys():
-        centerline_contours = find_centerline(img_binaries[mark_type_name])
+        centerline_contours = find_centerline_groups(img_binaries[mark_type_name])
+        centerline_contours = filter_centerlines(centerline_contours, filter_size=5)
 
         # Draw the centerlines for visualization
         centerline_image = np.zeros_like(img_binaries[mark_type_name])

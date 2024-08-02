@@ -8,7 +8,7 @@ MARK_SAVING_TEMPLATE = "mask_{mark_type_name}_image.png"
 
 WARPPING_RESOLUTION = 1  # mm
 
-FOLDER_PATH = "data/colortest/*.npz"
+FOLDER_PATH = "data/realsense_data_dark/*.npz"
 
 SURFACE_UPSCALE = 10
 ROW_INTERVAL = 5

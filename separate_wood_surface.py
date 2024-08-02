@@ -86,7 +86,7 @@ print(f"z_direction: {z_direction}")
 print(f"origin_point: {origin_point}")
 
 # load data
-data = np.load(data_list[8])
+data = np.load(data_list[3])
 points = data["points_pos"]
 colors = data["transformed_color"].reshape((-1, 3))
 
