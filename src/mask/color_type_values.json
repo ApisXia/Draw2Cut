@@ -2,31 +2,43 @@
     {
         "type": "green", 
         "HSV_value": [ 81, 39, 156],
-        "description": "need explanation"
+        "tolerance": 60,
+        "description": "need explanation",
+        "action": "not defined"
     },
     {
         "type": "purple", 
         "HSV_value": [133, 46, 123],
-        "description": "need explanation"
+        "tolerance": 60,
+        "description": "Define the contour of cutting region",
+        "action": "contour"
     },
     {
         "type": "red_orange",
         "HSV_value": [118, 87, 184],
-        "description": "need explanation"
+        "tolerance": 60,
+        "description": "Define how we cut the contour area",
+        "action": "behaviour"
     },
     {
         "type": "blue",
         "HSV_value": [19, 14, 148],
-        "description": "need explanation"
+        "tolerance": 60,
+        "description": "need explanation",
+        "action": "not defined"
     },
     {
         "type": "grey",
         "HSV_value": [114, 5, 145],
-        "description": "need explanation"
+        "tolerance": 60,
+        "description": "need explanation",
+        "action": "not defined"
     },
     {
         "type": "brown_ignore",
         "HSV_value": [113, 68, 79],
-        "description": "mask with this color will be ignored"
+        "tolerance": 60,
+        "description": "mask with this color will be ignored",
+        "action": "ignore"
     }
 ]

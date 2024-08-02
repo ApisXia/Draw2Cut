@@ -5,8 +5,6 @@ import numpy as np
 
 from sklearn.cluster import KMeans
 
-from utils.mark_config import MARK_TYPES, MARK_SAVING_TEMPLATE
-
 
 def convert_rgb_to_hsv(rgb):
     color_rgb = np.uint8([[list(rgb)]])
@@ -97,7 +95,7 @@ def extract_marks_with_colors(
         blurred_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
     )
 
-    cv2.imwrite("test_binary_image.png", binary_image)
+    # cv2.imwrite("test_binary_image.png", binary_image)
 
     # 根据连通域分析分割各个圆
     num_labels, labels_im = cv2.connectedComponents(binary_image)
