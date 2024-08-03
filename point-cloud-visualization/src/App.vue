@@ -1,7 +1,5 @@
 <template>
-  <div id="app">
     <PointCloud />
-  </div>
 </template>
 
 <script>
@@ -21,7 +19,10 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
+  box-sizing: border-box;
   color: #2c3e50;
-  margin-top: 60px;
+  padding: 0px 60px;
+  height: 100vh;
+  display: flex;
 }
 </style>

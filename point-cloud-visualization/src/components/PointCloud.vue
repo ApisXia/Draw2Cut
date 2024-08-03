@@ -1,10 +1,12 @@
 <template>
-  <div>
+  <div class="main">
     <h1>Drawn2Cut interface</h1>
     <div class="container">
       <div class="left-panel">
-        <canvas ref="canvas"></canvas>
-        <button @click="autoSmooth">Auto-smooth</button>
+        <div class="canvas-container" ref="container">
+          <!-- <canvas class="canvas" ref="canvas"></canvas> -->
+        </div>
+        <button class="auto-smooth-btn" @click="autoSmooth">Auto-smooth</button>
       </div>
       <div class="right-panel">
         <div v-for="text in texts" :key="text">{{ text }}</div>
@@ -33,6 +35,17 @@ export default {
           this.texts = data.texts;
         });
     },
+    setUpCanvas() {
+      var renderer = new THREE.WebGLRenderer();
+      // renderer.setSize(window.innerWidth, window.innerHeight);
+      const container = this.$refs.container;
+      console.log(container.clientWidth, container.clientHeight);
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(0.5);
+      // renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
+      this.$refs.container.appendChild(renderer.domElement);
+
+    },
     renderPointCloud(data) {
       // 创建场景
       var scene = new THREE.Scene();
@@ -40,11 +53,6 @@ export default {
 
       // 创建WebGLRenderer并设置背景颜色为白色
       var renderer = new THREE.WebGLRenderer();
-      // renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setSize(300,150);
-      renderer.setPixelRatio(0.5);
-      // renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
-      this.$refs.canvas.appendChild(renderer.domElement);
 
       // 创建OrbitControls
       var controls = new OrbitControls(camera, renderer.domElement);
@@ -105,12 +113,18 @@ export default {
     }
   },
   mounted() {
+    this.setUpCanvas();
     this.fetchPointCloudData();
   }
 };
 </script>
 
 <style>
+.main {
+  display: flex;
+  flex:1;
+  flex-direction: column;
+}
 .container {
   display: flex;
   height: 100%;
@@ -119,6 +133,24 @@ export default {
 .left-panel {
   flex: 2;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auto-smooth-btn {
+  width: 100px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: #007bff;
+  color: #ffffff;
+  border-color: #ffffff;
+  appearance: none;
+}
+
+.canvas-container {
+  flex: 1;
+  width: 100%;
 }
 
 .right-panel {
