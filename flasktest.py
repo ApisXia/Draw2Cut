@@ -72,12 +72,28 @@ cut_points -= centroid
 def index():
     return render_template('index.html')
 
-@app.route('/data')
+@app.route('/data', methods=['GET'])
 def get_data():
-    return jsonify(
-        wood_points=wood_points.tolist(), wood_colors=wood_colors.tolist(),
-        cut_points=cut_points.tolist(), cut_colors=cut_colors.tolist()
-    )
+    data = {
+        "wood_points": wood_points.tolist(),
+        "wood_colors": wood_colors.tolist(),
+        "cut_points": cut_points.tolist(),
+        "cut_colors": cut_colors.tolist(),
+        "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"]
+    }
+    return jsonify(data)
+
+@app.route('/auto-smooth', methods=['POST'])
+def auto_smooth():
+    # 处理auto-smooth逻辑并返回新的数据
+    data = {
+        "wood_points": wood_points.tolist(),
+        "wood_colors": wood_colors.tolist(),
+        "cut_points": cut_points.tolist(),
+        "cut_colors": cut_colors.tolist(),
+        "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"]
+    }
+    return jsonify(data)
 
 if __name__ == '__main__':
     app.run(debug=True)
