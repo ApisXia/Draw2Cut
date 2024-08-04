@@ -1,13 +1,12 @@
 from flask import Flask, jsonify, render_template
 import numpy as np
 from scipy.spatial import KDTree,cKDTree
-from flask_cors import CORS
+
 
 app = Flask(__name__)
-CORS(app) 
 
 def rgb2float(rgb):
-    return np.array([c / 255.0 for c in rgb])
+    return np.array([c / 255.0*0.7 for c in rgb])
     
 def filter_points(wood_points,wood_colors, cut_points, threshold=0.1):
     """
@@ -46,12 +45,12 @@ def filter_points(wood_points,wood_colors, cut_points, threshold=0.1):
     return np.array(filtered_points), np.array(filtered_colors)
 
 # 读取木头的点云数据
-wood_data = np.load("../images/points_transformed.npz")
+wood_data = np.load("images/points_transformed.npz")
 wood_points = wood_data['points']
 wood_colors = wood_data['colors']
 
 # 读取被割掉轨迹的点云数据
-cut_data = np.load("../images/cut_points.npz")
+cut_data = np.load("images/cut_points.npz")
 cut_points = cut_data['points']
 cut_points[:,0] = -cut_points[:,0]
 cut_points[:,2] -= 1
@@ -82,7 +81,6 @@ def get_data():
         "cut_colors": cut_colors.tolist(),
         "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"]
     }
-    print(wood_colors.shape)
     return jsonify(data)
 
 @app.route('/auto-smooth', methods=['POST'])
