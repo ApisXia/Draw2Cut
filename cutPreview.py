@@ -79,7 +79,7 @@ def get_data():
         "wood_colors": wood_colors.tolist(),
         "cut_points": cut_points.tolist(),
         "cut_colors": cut_colors.tolist(),
-        "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"]
+        "texts": ["Contour 'Circle' -> 3mm", "Cut trajectories visualized in 'Gray'", "number: 3 contours"]
     }
     return jsonify(data)
 

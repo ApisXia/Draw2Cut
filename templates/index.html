@@ -79,9 +79,9 @@
 
         #info-list li,
         #info-list2 li {
-            padding: 10px;
+            padding: 30px;
             /* 内边距 */
-            font-size: 20px;
+            font-size: 30px;
             /* 字体大小 */
             font-weight: bold;
             text-align: center;
@@ -91,6 +91,7 @@
             /* 边框 */
             margin-bottom: 5px;
             /* 列表项之间的间距 */
+            line-height: 1.5;
         }
 
         /* 定义指定颜色的样式 */
@@ -122,17 +123,17 @@
             var scene = new THREE.Scene();
             var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-                                                // 创建WebGLRenderer并设置背景颜色为白色
-                                                var renderer = new THREE.WebGLRenderer();
-                                                renderer.setSize(1200, 600);
-                                                renderer.setPixelRatio(0.5);
-                                                renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
-                                                document.getElementById("viewer").appendChild(renderer.domElement);
+            // 创建WebGLRenderer并设置背景颜色为白色
+            var renderer = new THREE.WebGLRenderer();
+            renderer.setSize(1200, 600);
+            renderer.setPixelRatio(0.5);
+            renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
+            document.getElementById("viewer").appendChild(renderer.domElement);
 
-                                                // 创建OrbitControls
-                                                var controls = new THREE.OrbitControls(camera, renderer.domElement);
+            // 创建OrbitControls
+            var controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-                                                function render(data) {
+            function render(data) {
                 var wood_points = data.wood_points;
                 var wood_colors = data.wood_colors;
                 var cut_points = data.cut_points;
@@ -169,55 +170,53 @@
                 };
 
                 animate();
-                                                }
+            }
 
-                                                function update(texts) {
-                                                    var colorStringList = ['red', 'Green', 'blue', 'yellow', 'purple', 'orange', 'pink', 'brown', 'black', 'white'];
-                                                    var infoList = document.getElementById('info-list');
-                                                    infoList.innerHTML = '';
-                                                    for (var i = 0; i < 1; i++) {
-                                                        var li = document.createElement('li');
-                                                        for (var j = 0; j < colorStringList.length; j++) {
-                                                            if (texts[i].includes(colorStringList[j])) {
-                                                                texts[i] = texts[i].replace(colorStringList[j], "<span style='color:green:" + colorStringList[j] + "'>" + colorStringList[j] + "</span>");
-                                                            }
-                                                        }
-                                                        li.innerHTML = texts[i];
-                                                        infoList.appendChild(li);
-                                                    }
-                                                    var infoList2 = document.getElementById('info-list2');
-                                                    infoList2.innerHTML = '';
-                                                    for (var i = 1; i < texts.length; i++) {
-                                                        var li = document.createElement('li');
-                                                        for (var j = 0; j < colorStringList.length; j++) {
-                                                            if (texts[i].includes(colorStringList[j])) {
-                                                                texts[i] = texts[i].replace(colorStringList[j], "<span style='color:green:" + colorStringList[j] + "'>" + colorStringList[j] + "</span>");
-                                                            }
-                                                        }
-                                                        li.innerHTML = texts[i];
-                                                        infoList2.appendChild(li);
-                                                    }
+            function update(texts) {
+                var HightLightList = ['Green', 'Gray', 'Circle', 'Triangle'];
+                var infoList = document.getElementById('info-list');
+                infoList.innerHTML = '';
+                for (var i = 0; i < 1; i++) {
+                    var li = document.createElement('li');
+                    for (var j = 0; j < HightLightList.length; j++) {
+                        if (texts[i].includes(HightLightList[j])) {
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                        }
+                    }
+                    li.innerHTML = texts[i];
+                    infoList.appendChild(li);
+                }
+                var infoList2 = document.getElementById('info-list2');
+                infoList2.innerHTML = '';
+                for (var i = 1; i < texts.length; i++) {
+                    var li = document.createElement('li');
+                    for (var j = 0; j < HightLightList.length; j++) {
+                        if (texts[i].includes(HightLightList[j])) {
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                        }
+                    }
+                    li.innerHTML = texts[i];
+                    infoList2.appendChild(li);
+                }
+            }
 
+            // 读取点云数据
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => { render(data); update(data.texts); });
 
-                                                }
-
-                                                // 读取点云数据
-                                                fetch('/data')
-                                                    .then(response => response.json())
-                                                    .then(data => { render(data); update(data.texts); });
-
-                                                document.getElementById('auto-smooth').addEventListener('click', function () {
-                                                    fetch('/auto-smooth', {
-                                                        method: 'POST'
-                                                    })
-                                                        .then(response => response.json())
-                                                        .then(data => {
-                                                            // 重新渲染点云数据
-                                                            render(data);
-                                                    });
-                                            });
-</script>
-</div>
+            document.getElementById('auto-smooth').addEventListener('click', function () {
+                fetch('/auto-smooth', {
+                    method: 'POST'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        // 重新渲染点云数据
+                        render(data);
+                    });
+            });
+        </script>
+    </div>
     </script>
 </body>
 
