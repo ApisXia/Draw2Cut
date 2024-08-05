@@ -263,6 +263,8 @@ if __name__ == "__main__":
     ]
     # combine list of list to list
     d3_trajectories = [point for trajectory in d3_trajectories for point in trajectory]
+    d3_trajectories = np.array(d3_trajectories)
+    np.savez("cut_points.npz", d3_trajectories=d3_trajectories)
 
     # add spheres to the point cloud
     # create point cloud object
