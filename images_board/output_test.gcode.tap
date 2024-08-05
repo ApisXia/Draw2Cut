@@ -1,0 +1,9 @@
+G20 ; Set units to inches
+G90 ; Set to absolute positioning
+G0 X0.0000 Y0.0000 Z2.0276 ; Move spindle to start position
+G0 X0.0000 Y0.0000 Z2.0276 ; Move spindle to start point
+G1 Z1.4764 F25 ; Move spindle down
+G1 X0.0000 Y0.0000 Z1.4764 F25 ; Move to next point
+G1 X10.3149 Y10.5118 Z1.4764 F25 ; Move to next point
+G1 Z2.0276 F25 ; Move spindle up
+M30 ; End of program

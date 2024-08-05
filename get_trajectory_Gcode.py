@@ -1,36 +1,51 @@
 import os
 import cv2
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-from utils.traj_to_Gcode import generate_gcode
-from utils.get_bulk_trajectory import get_trajectory, draw_trajectory
-from utils.mark_config import (
-    MARK_TYPES,
-    MARK_SAVING_TEMPLATE,
-    SURFACE_UPSCALE,
-    ROW_INTERVAL,
-    GT_X_LENGTH,
-    GT_Y_LENGTH,
-)
-from src.mark.extract_mask import (
+from trajectory.traj_to_Gcode import generate_gcode
+from trajectory.get_bulk_trajectory import get_trajectory, draw_trajectory
+
+from configs.load_config import CONFIG
+
+from src.mask.extract_mask import (
     extract_marks_with_colors,
     find_in_predefined_colors,
     draw_extracted_marks,
 )
-from utils.find_centerline_groups import find_centerline, centerline_downsample
+from trajectory.find_centerline_groups import (
+    find_centerline_groups,
+    filter_centerlines,
+    centerline_downsample,
+)
+
+# build action mapping dict
+with open("src/mask/color_type_values.json", "r") as f:
+    color_type_values = json.load(f)
+
+ACTION_MAPPING_DICT = {}
+for item in color_type_values:
+    if (
+        item["action"] in CONFIG["action_supported"]
+    ):  # currently only support these two functions
+        ACTION_MAPPING_DICT[item["type"]] = item["action"]
+# if not find all action type, raise error
+if len(ACTION_MAPPING_DICT) != len(CONFIG["action_supported"]):
+    raise ValueError("Not all action type is found in color_type_values.json")
 
 
 if __name__ == "__main__":
-    # base path
-    images_folder = "images"
+    # define the path to save the temporary files
+    temp_file_path = CONFIG["temp_file_path"]
+
     # action subfolder
-    action_folder = os.path.join(images_folder, "trajectory_extraction")
+    action_folder = os.path.join(temp_file_path, "trajectory_extraction")
     os.makedirs(action_folder, exist_ok=True)
 
     # load image
-    image_path = os.path.join(images_folder, "wrapped_image_zoom.png")
+    image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -49,24 +64,21 @@ if __name__ == "__main__":
         print(f"{color_type} saved")
 
     # assign name to semantic mask dict
-    mapping_dict = {
-        "purple": "contour",
-        "red_orange": "behaviour",
-    }
     img_binaries = {}
-    for original_name, new_name in mapping_dict.items():
+    for original_name, new_name in ACTION_MAPPING_DICT.items():
         img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
 
     # get centerlines and decide loop or line type for each centerline
     line_dict = {}
-    for mark_type_name in MARK_TYPES.keys():
-        centerline_contours = find_centerline(img_binaries[mark_type_name])
+    for mark_type_name in CONFIG["action_supported"]:
+        centerline_contours = find_centerline_groups(img_binaries[mark_type_name])
+        centerline_contours = filter_centerlines(centerline_contours, filter_size=5)
 
         # Draw the centerlines for visualization
         centerline_image = np.zeros_like(img_binaries[mark_type_name])
         cv2.drawContours(centerline_image, centerline_contours, -1, (255, 255, 255), 1)
         cv2.imwrite(
-            os.path.join(images_folder, f"centerline_{mark_type_name}.png"),
+            os.path.join(action_folder, f"centerline_{mark_type_name}.png"),
             centerline_image,
         )
 
@@ -153,7 +165,7 @@ if __name__ == "__main__":
             )
             # save the mask for visualization
             cv2.imwrite(
-                os.path.join(images_folder, f"carve_out_mask_c{key_contour}.png"),
+                os.path.join(action_folder, f"carve_out_mask_c{key_contour}.png"),
                 img_binary * 255,
             )
         elif contour_status == "pocket":
@@ -163,12 +175,16 @@ if __name__ == "__main__":
             img_binary = pocket_mask
             # save the mask for visualization
             cv2.imwrite(
-                os.path.join(images_folder, f"pocket_mask_c{key_contour}.png"),
+                os.path.join(action_folder, f"pocket_mask_c{key_contour}.png"),
                 img_binary * 255,
             )
 
         # ! transform the binary image to trajectory
-        traj, _ = get_trajectory(img_binary, ROW_INTERVAL, ROW_INTERVAL)
+        traj, _ = get_trajectory(
+            img_binary,
+            CONFIG["trajectory_row_interval"],
+            CONFIG["trajectory_row_interval"],
+        )
         trajectory_holders.extend(traj)
 
     print("Number of trajectories: ", len(trajectory_holders))
@@ -176,19 +192,19 @@ if __name__ == "__main__":
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
     canvas = np.zeros_like(img_binaries["contour"])
     map_image = draw_trajectory(canvas, trajectory_holders)
-    cv2.imwrite(os.path.join(images_folder, "trajectory.png"), map_image)
+    cv2.imwrite(os.path.join(action_folder, "trajectory.png"), map_image)
 
     # downsample the trajectory based on SURFACE_UPSCALE
     trajectory_holders = [
         [
-            (point[0] / SURFACE_UPSCALE, point[1] / SURFACE_UPSCALE)
+            (point[0] / CONFIG["surface_upscale"], point[1] / CONFIG["surface_upscale"])
             for point in trajectory
         ]
         for trajectory in trajectory_holders
     ]
 
     # load left_bottom of the image
-    preprocess_data = np.load("images/left_bottom_point.npz")
+    preprocess_data = np.load(os.path.join(temp_file_path, "left_bottom_point.npz"))
     left_bottom = preprocess_data["left_bottom_point"]
     x_length = int(preprocess_data["x_length"]) + 1
     y_length = int(preprocess_data["y_length"]) + 1
@@ -208,14 +224,14 @@ if __name__ == "__main__":
     # grid = grid[::-1, :]
     # # black to white, white to black
     # grid = 1 - grid
-    plt.imsave(os.path.join(images_folder, "grid.png"), grid, cmap="gray")
+    plt.imsave(os.path.join(action_folder, "grid.png"), grid, cmap="gray")
 
     # ! generate gcode, define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2]
     carving_depth = 2.5  # ! minus means nothing will happen
     feed_rate = 15
     gcode = generate_gcode(trajectories, z_surface_level, carving_depth, feed_rate)
-    with open(os.path.join(images_folder, "output.gcode.tap"), "w") as f:
+    with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
 
     # a trajectory from (0, 0) to farthest point
@@ -227,8 +243,12 @@ if __name__ == "__main__":
     #     f.write(gcodes)
 
     # ! (VISUAL) draw trajectory as point on 3d point cloud
-    points_transformed = np.load("images/points_transformed.npz")["points"]
-    point_colors = np.load("images/points_transformed.npz")["colors"]
+    points_transformed = np.load(
+        os.path.join(temp_file_path, "points_transformed.npz")
+    )["points"]
+    point_colors = np.load(os.path.join(temp_file_path, "points_transformed.npz"))[
+        "colors"
+    ]
 
     d3_trajectories = [
         [
@@ -243,6 +263,8 @@ if __name__ == "__main__":
     ]
     # combine list of list to list
     d3_trajectories = [point for trajectory in d3_trajectories for point in trajectory]
+    d3_trajectories = np.array(d3_trajectories)
+    np.savez("cut_points.npz", d3_trajectories=d3_trajectories)
 
     # add spheres to the point cloud
     # create point cloud object

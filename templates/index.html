@@ -1,0 +1,223 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+
+<head>
+    <title>Point Cloud Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .left {
+            flex: 2;
+            background-color: #f1f1f1;
+            padding: 20px;
+        }
+
+        .right {
+            flex: 1;
+            background-color: #e6e6e6;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .green-button {
+            display: block;
+            margin: 20px auto;
+            padding: 15px 30px;
+            /* 增加了内边距 */
+            font-size: 18px;
+            /* 增加了字体大小 */
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            /* 添加了边框圆角 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            /* 添加了阴影效果 */
+        }
+
+        .blue-button {
+            display: block;
+            margin: 20px auto;
+            padding: 15px 30px;
+            /* 增加了内边距 */
+            font-size: 24px;
+            /* 增加了字体大小 */
+            background-color: #2a3ce1;
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            /* 添加了阴影效果 */
+        }
+
+        #info-list,
+        #info-list2 {
+            list-style-type: none;
+            padding: 0;
+            margin: 10px 0;
+            /* 上下边距 */
+            background-color: #f1f1f1;
+            width: 100%;
+            /* 使列表宽度适应容器 */
+        }
+
+        #info-list li,
+        #info-list2 li {
+            padding: 30px;
+            /* 内边距 */
+            font-size: 30px;
+            /* 字体大小 */
+            font-weight: bold;
+            text-align: center;
+            font-family: 'Nunito', sans-serif;
+            /* 设置字体 */
+            border: 1px solid #ccc;
+            /* 边框 */
+            margin-bottom: 5px;
+            /* 列表项之间的间距 */
+            line-height: 1.5;
+        }
+
+        /* 定义指定颜色的样式 */
+        .highlight {
+            color: green;
+            /* 或者你想要的颜色 */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="left">
+            <!-- <h1>cut preview with trajectory in 3D</h1> -->
+            <!-- <HeadButton id="head">cut preview with trajectory in 3D</HeadButton> -->
+            <button class="blue-button" id="leftTitle">cut preview with trajectory in 3D</button>
+            <div id="viewer"></div>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        </div>
+        <div class="right">
+            <button class="blue-button" id="rightTitle">Additional</button>
+            <ul id="info-list"></ul>
+            <button id="auto-smooth" class="green-button">Auto-Smooth</button>
+            <ul id="info-list2"></ul>
+        </div>
+        <script>
+            // 创建场景
+            var scene = new THREE.Scene();
+            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // 创建WebGLRenderer并设置背景颜色为白色
+            var renderer = new THREE.WebGLRenderer();
+            renderer.setSize(1200, 600);
+            renderer.setPixelRatio(0.5);
+            renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
+            document.getElementById("viewer").appendChild(renderer.domElement);
+
+            // 创建OrbitControls
+            var controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+            function render(data) {
+                var wood_points = data.wood_points;
+                var wood_colors = data.wood_colors;
+                var cut_points = data.cut_points;
+                var cut_colors = data.cut_colors;
+
+                // 创建木头的点云
+                var wood_geometry = new THREE.BufferGeometry();
+                var wood_vertices = new Float32Array(wood_points.length * 3);
+                var wood_vertexColors = new Float32Array(wood_points.length * 3);
+
+                for (var i = 0; i < wood_points.length; i++) {
+                    wood_vertices[i * 3] = wood_points[i][0];
+                    wood_vertices[i * 3 + 1] = wood_points[i][1];
+                    wood_vertices[i * 3 + 2] = wood_points[i][2];
+
+                    wood_vertexColors[i * 3] = wood_colors[i][0];
+                    wood_vertexColors[i * 3 + 1] = wood_colors[i][1];
+                    wood_vertexColors[i * 3 + 2] = wood_colors[i][2];
+                }
+
+                wood_geometry.setAttribute('position', new THREE.BufferAttribute(wood_vertices, 3));
+                wood_geometry.setAttribute('color', new THREE.BufferAttribute(wood_vertexColors, 3));
+
+                var wood_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
+                var wood_pointCloud = new THREE.Points(wood_geometry, wood_material);
+                scene.add(wood_pointCloud);
+
+                camera.position.z = 5;
+
+                var animate = function () {
+                    requestAnimationFrame(animate);
+                    controls.update();  // 更新OrbitControls
+                    renderer.render(scene, camera);
+                };
+
+                animate();
+            }
+
+            function update(texts) {
+                var HightLightList = ['Green', 'Gray', 'Circle', 'Triangle'];
+                var infoList = document.getElementById('info-list');
+                infoList.innerHTML = '';
+                for (var i = 0; i < 1; i++) {
+                    var li = document.createElement('li');
+                    for (var j = 0; j < HightLightList.length; j++) {
+                        if (texts[i].includes(HightLightList[j])) {
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                        }
+                    }
+                    li.innerHTML = texts[i];
+                    infoList.appendChild(li);
+                }
+                var infoList2 = document.getElementById('info-list2');
+                infoList2.innerHTML = '';
+                for (var i = 1; i < texts.length; i++) {
+                    var li = document.createElement('li');
+                    for (var j = 0; j < HightLightList.length; j++) {
+                        if (texts[i].includes(HightLightList[j])) {
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                        }
+                    }
+                    li.innerHTML = texts[i];
+                    infoList2.appendChild(li);
+                }
+            }
+
+            // 读取点云数据
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => { render(data); update(data.texts); });
+
+            document.getElementById('auto-smooth').addEventListener('click', function () {
+                fetch('/auto-smooth', {
+                    method: 'POST'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        // 重新渲染点云数据
+                        render(data);
+                    });
+            });
+        </script>
+    </div>
+    </script>
+</body>
+
+</html>
