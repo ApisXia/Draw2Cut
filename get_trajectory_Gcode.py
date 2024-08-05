@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-from trajectory.traj_to_Gcode import generate_gcode
-from trajectory.get_bulk_trajectory import get_trajectory, draw_trajectory
+from src.trajectory.traj_to_Gcode import generate_gcode
+from src.trajectory.get_bulk_trajectory import get_trajectory, draw_trajectory
 
 from configs.load_config import CONFIG
 
@@ -15,7 +15,7 @@ from src.mask.extract_mask import (
     find_in_predefined_colors,
     draw_extracted_marks,
 )
-from trajectory.find_centerline_groups import (
+from src.trajectory.find_centerline_groups import (
     find_centerline_groups,
     filter_centerlines,
     centerline_downsample,
@@ -264,7 +264,11 @@ if __name__ == "__main__":
     # combine list of list to list
     d3_trajectories = [point for trajectory in d3_trajectories for point in trajectory]
     d3_trajectories = np.array(d3_trajectories)
-    np.savez("cut_points.npz", d3_trajectories=d3_trajectories)
+    np.savez(
+        os.path.join(temp_file_path, "cut_points.npz"),
+        points=d3_trajectories,
+        colors=np.array([[0, 1, 0]] * len(d3_trajectories)),
+    )
 
     # add spheres to the point cloud
     # create point cloud object
