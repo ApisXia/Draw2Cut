@@ -65,6 +65,7 @@ if __name__ == "__main__":
     pinhole_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic(
         intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy
     )
+    camera_parameters = np.asarray(pinhole_camera_intrinsic.intrinsic_matrix)
 
     # Initialize queues with max size 10
     queue_size = 10
@@ -145,6 +146,6 @@ if __name__ == "__main__":
             transformed_color=transformed_color,
             depth=depth,
             color_image=color_image,
-            camera_parameters=pinhole_camera_intrinsic,
+            camera_parameters=camera_parameters,
         )
         DATA_NUMBER -= 1
