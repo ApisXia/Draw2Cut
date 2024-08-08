@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
@@ -38,32 +37,25 @@
             display: block;
             margin: 20px auto;
             padding: 15px 30px;
-            /* 增加了内边距 */
             font-size: 18px;
-            /* 增加了字体大小 */
             background-color: #4caf50;
             color: white;
             border: none;
             cursor: pointer;
             border-radius: 5px;
-            /* 添加了边框圆角 */
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            /* 添加了阴影效果 */
         }
 
         .blue-button {
             display: block;
             margin: 20px auto;
             padding: 15px 30px;
-            /* 增加了内边距 */
             font-size: 24px;
-            /* 增加了字体大小 */
             background-color: #2a3ce1;
             color: white;
             border: none;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            /* 添加了阴影效果 */
         }
 
         #info-list,
@@ -71,33 +63,24 @@
             list-style-type: none;
             padding: 0;
             margin: 10px 0;
-            /* 上下边距 */
             background-color: #f1f1f1;
             width: 100%;
-            /* 使列表宽度适应容器 */
         }
 
         #info-list li,
         #info-list2 li {
             padding: 30px;
-            /* 内边距 */
             font-size: 30px;
-            /* 字体大小 */
             font-weight: bold;
             text-align: center;
             font-family: 'Nunito', sans-serif;
-            /* 设置字体 */
             border: 1px solid #ccc;
-            /* 边框 */
             margin-bottom: 5px;
-            /* 列表项之间的间距 */
             line-height: 1.5;
         }
 
-        /* 定义指定颜色的样式 */
         .highlight {
             color: green;
-            /* 或者你想要的颜色 */
         }
     </style>
 </head>
@@ -105,8 +88,6 @@
 <body>
     <div class="container">
         <div class="left">
-            <!-- <h1>cut preview with trajectory in 3D</h1> -->
-            <!-- <HeadButton id="head">cut preview with trajectory in 3D</HeadButton> -->
             <button class="blue-button" id="leftTitle">cut preview with trajectory in 3D</button>
             <div id="viewer"></div>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -117,29 +98,46 @@
             <ul id="info-list"></ul>
             <button id="auto-smooth" class="green-button">Auto-Smooth</button>
             <ul id="info-list2"></ul>
+                        <input type="color" id="color-picker" value="#ff0000">
+                        <input type="range" id="z-slider" min="-50" max="50" value="0">
+                        <span id="z-value">0</span>
         </div>
         <script>
-            // 创建场景
             var scene = new THREE.Scene();
-            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-            // 创建WebGLRenderer并设置背景颜色为白色
+                        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             var renderer = new THREE.WebGLRenderer();
             renderer.setSize(1200, 600);
             renderer.setPixelRatio(0.5);
-            renderer.setClearColor(0xffffff);  // 设置背景颜色为白色
+                        renderer.setClearColor(0xffffff);
             document.getElementById("viewer").appendChild(renderer.domElement);
 
-            // 创建OrbitControls
             var controls = new THREE.OrbitControls(camera, renderer.domElement);
+                        var pointCloudData = null;
+                        var cutColor = [1, 0, 0];
+                        var zOffset = 0;
+                        camera.position.z = 5;
 
-            function render(data) {
-                var wood_points = data.wood_points;
-                var wood_colors = data.wood_colors;
-                var cut_points = data.cut_points;
-                var cut_colors = data.cut_colors;
+                        function render() {
+                            if (!pointCloudData) return;
 
-                // 创建木头的点云
+                            var wood_points = pointCloudData.wood_points;
+                            var wood_colors = pointCloudData.wood_colors;
+                            var cut_points = pointCloudData.cut_points;
+                            var cut_colors = pointCloudData.cut_colors;
+
+                            for (var i = 0; i < cut_colors.length; i++) {
+                                cut_colors[i] = cutColor;
+                            }
+
+                            // for (var i = 0; i < cut_points.length; i++) {
+                            //     cut_points[i][2] -= zOffset;
+                            // }
+
+                            var camPosition = camera.position.clone();
+                            var camRotation = camera.rotation.clone();
+
+                        scene.clear();
+
                 var wood_geometry = new THREE.BufferGeometry();
                 var wood_vertices = new Float32Array(wood_points.length * 3);
                 var wood_vertexColors = new Float32Array(wood_points.length * 3);
@@ -161,15 +159,32 @@
                 var wood_pointCloud = new THREE.Points(wood_geometry, wood_material);
                 scene.add(wood_pointCloud);
 
-                camera.position.z = 5;
+                        var cut_geometry = new THREE.BufferGeometry();
+                        var cut_vertices = new Float32Array(cut_points.length * 3);
+                        var cut_vertexColors = new Float32Array(cut_points.length * 3);
 
-                var animate = function () {
-                    requestAnimationFrame(animate);
-                    controls.update();  // 更新OrbitControls
-                    renderer.render(scene, camera);
-                };
+                        for (var i = 0; i < cut_points.length; i++) {
+                            cut_vertices[i * 3] = cut_points[i][0];
+                            cut_vertices[i * 3 + 1] = cut_points[i][1];
+                            cut_vertices[i * 3 + 2] = cut_points[i][2] - zOffset;
 
-                animate();
+                            cut_vertexColors[i * 3] = cut_colors[i][0];
+                            cut_vertexColors[i * 3 + 1] = cut_colors[i][1];
+                            cut_vertexColors[i * 3 + 2] = cut_colors[i][2];
+                        }
+
+                        cut_geometry.setAttribute('position', new THREE.BufferAttribute(cut_vertices, 3));
+                        cut_geometry.setAttribute('color', new THREE.BufferAttribute(cut_vertexColors, 3));
+
+                        var cut_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
+                        var cut_pointCloud = new THREE.Points(cut_geometry, cut_material);
+                        scene.add(cut_pointCloud);
+
+                        camera.position.copy(camPosition);
+                        camera.rotation.copy(camRotation);
+
+                        controls.update();
+                        renderer.render(scene, camera);
             }
 
             function update(texts) {
@@ -200,10 +215,13 @@
                 }
             }
 
-            // 读取点云数据
             fetch('/data')
                 .then(response => response.json())
-                .then(data => { render(data); update(data.texts); });
+                .then(data => {
+                    pointCloudData = data;
+                    render();
+                    update(data.texts);
+                });
 
             document.getElementById('auto-smooth').addEventListener('click', function () {
                 fetch('/auto-smooth', {
@@ -211,13 +229,36 @@
                 })
                     .then(response => response.json())
                     .then(data => {
-                        // 重新渲染点云数据
-                        render(data);
+                        pointCloudData = data;
+                        render();
                     });
             });
+
+                document.getElementById('color-picker').addEventListener('input', function () {
+                    var hexColor = this.value;
+                    cutColor = [
+                        parseInt(hexColor.substr(1, 2), 16) / 255,
+                        parseInt(hexColor.substr(3, 2), 16) / 255,
+                        parseInt(hexColor.substr(5, 2), 16) / 255
+                    ];
+                    render();
+                });
+
+                document.getElementById('z-slider').addEventListener('input', function () {
+                    zOffset = parseFloat(this.value);
+                    document.getElementById('z-value').textContent = zOffset;
+                    render();
+            });
+
+    var animate = function () {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    };
+
+    animate();
         </script>
     </div>
-    </script>
 </body>
 
 </html>
