@@ -43,7 +43,7 @@ def find_centerline_groups(binary_image, connectivity=8):
 def filter_centerlines(centerline_contours, filter_size=5):
     smoothed_centerline_contours = []
     for centerline_contour in centerline_contours:
-        sigma = 3
+        sigma = filter_size
         centerline_contour[:, 0, 0] = gaussian_filter1d(
             centerline_contour[:, 0, 0], sigma=sigma
         )

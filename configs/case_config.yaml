@@ -1,6 +1,6 @@
 version: 0.1.1
 
-case_name: "realsense_data_dark"  # which is also the folder name
+case_name: "realsense_data"  # which is also the folder name
 data_path_template: "data/{case_name}/*.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 
