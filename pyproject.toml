@@ -22,6 +22,7 @@ pandas = "^2.2.2"
 tqdm = "^4.66.4"
 matplotlib = "^3.9.0"
 numpy = "^1.23"
+hdbscan = "^0.8.38.post1"
 
 
 [build-system]

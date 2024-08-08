@@ -9,29 +9,34 @@ from sklearn.cluster import DBSCAN
 import hdbscan
 import copy
 
-
 app = Flask(__name__)
 
-# 定义一个函数将点投影到平面上
+
+# Define a function to project points onto a plane
 def project_to_plane(points, plane_model):
     a, b, c, d = plane_model
     normal = np.array([a, b, c])
     projected_points = points - (np.dot(points, normal) + d)[:, np.newaxis] * normal
     return projected_points
 
-# 将点转换到2D平面坐标系
+
+# Convert points to 2D plane coordinates
 def to_2d(points, plane_model):
     a, b, c, _ = plane_model
     normal = np.array([a, b, c])
-    basis_x = np.cross(normal, np.array([0, 0, 1]) if abs(normal[2]) < abs(normal[0]) else np.array([1, 0, 0]))
+    basis_x = np.cross(
+        normal,
+        np.array([0, 0, 1]) if abs(normal[2]) < abs(normal[0]) else np.array([1, 0, 0]),
+    )
     basis_x /= np.linalg.norm(basis_x)
     basis_y = np.cross(normal, basis_x)
     return np.dot(points, np.vstack((basis_x, basis_y)).T)
 
-# 定义一个最小二乘法拟合圆的函数
+
+# Define a function to fit a circle using least squares
 def fit_circle_2d(points):
     def calc_R(xc, yc):
-        return np.sqrt((points[:, 0] - xc)**2 + (points[:, 1] - yc)**2)
+        return np.sqrt((points[:, 0] - xc) ** 2 + (points[:, 1] - yc) ** 2)
 
     def f_2(c):
         Ri = calc_R(*c)
@@ -42,15 +47,20 @@ def fit_circle_2d(points):
     radius = calc_R(*center).mean()
     return center, radius
 
-# 将2D圆点转换回3D点
+
+# Convert 2D circle points back to 3D points
 def to_3d(points_2d, plane_model):
     a, b, c, d = plane_model
     normal = np.array([a, b, c])
-    basis_x = np.cross(normal, np.array([0, 0, 1]) if abs(normal[2]) < abs(normal[0]) else np.array([1, 0, 0]))
+    basis_x = np.cross(
+        normal,
+        np.array([0, 0, 1]) if abs(normal[2]) < abs(normal[0]) else np.array([1, 0, 0]),
+    )
     basis_x /= np.linalg.norm(basis_x)
     basis_y = np.cross(normal, basis_x)
     points_3d = np.dot(points_2d, np.vstack((basis_x, basis_y)))
     return points_3d - (np.dot(points_3d, normal) + d)[:, np.newaxis] * normal
+
 
 def rgb2float(rgb):
     return np.array([c / 255.0 * 0.7 for c in rgb])
@@ -58,20 +68,20 @@ def rgb2float(rgb):
 
 def filter_points(wood_points, wood_colors, cut_points, threshold=0.1):
     """
-    对点集A进行过滤,删除那些与点集B中的点足够接近的点。
+    Filter points in set A by removing points that are close enough to points in set B.
 
-    参数:
-    A (numpy.ndarray): 点集A,shape为(len, 3)
-    B (numpy.ndarray): 点集B,shape为(len, 3)
-    threshold (float): 距离阈值,默认为0.1
+    Args:
+    A (numpy.ndarray): Set A, shape (len, 3)
+    B (numpy.ndarray): Set B, shape (len, 3)
+    threshold (float): Distance threshold, default is 0.1
 
-    返回:
-    filtered_A (numpy.ndarray): 过滤后的点集A
+    Returns:
+    filtered_A (numpy.ndarray): Filtered set A
     """
-    # 创建点集B的KDTree
+    # Create KDTree for set B
     kdtree = KDTree(cut_points)
 
-    # 删除那些与点集B中的点足够接近的点
+    # Remove points in set A that are close enough to points in set B
     filtered_points = []
     filtered_colors = []
     distances, indices = kdtree.query(wood_points, k=1)
@@ -86,7 +96,7 @@ def filter_points(wood_points, wood_colors, cut_points, threshold=0.1):
     # wood_points = wood_points[keep_mask]
     # wood_colors = wood_colors[keep_mask]
     # wood_colors[keep_mask] = [255,255,255]
-    return wood_points, wood_colors, cut_points, cut_colors,keep_mask,unkeep_mask
+    return wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
 
     for wood_point, wood_color in zip(wood_points, wood_colors):
         dist = 100
@@ -100,12 +110,12 @@ def filter_points(wood_points, wood_colors, cut_points, threshold=0.1):
 
 
 temp_file_path = CONFIG["temp_file_path"]
-# 读取木头的点云数据
+# Read wood point cloud data
 wood_data = np.load(os.path.join(temp_file_path, "points_transformed.npz"))
 wood_points = wood_data["points"]
 wood_colors = wood_data["colors"]
 
-# 读取被割掉轨迹的点云数据
+# Read cut trajectory point cloud data
 cut_data = np.load(
     os.path.join(temp_file_path, "cut_points.npz"),
 )
@@ -114,15 +124,16 @@ cut_points[:, 0] = -cut_points[:, 0]
 cut_points[:, 2] -= 1
 cut_colors = cut_data["colors"]
 
-# 过滤木头点云数据
-wood_points, wood_colors,cut_points,cut_colors,keep_mask,unkeep_mask = filter_points(
-    wood_points, wood_colors, cut_points, threshold=2
+# Filter wood point cloud data
+wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask = (
+    filter_points(wood_points, wood_colors, cut_points, threshold=2)
 )
 print(wood_points.shape)
 
 centroid = np.mean(wood_points, axis=0)
 wood_points -= centroid
 cut_points -= centroid
+
 
 @app.route("/")
 def index():
@@ -131,7 +142,7 @@ def index():
 
 @app.route("/data", methods=["GET"])
 def get_data():
-    global wood_points, wood_colors, cut_points, cut_colors,keep_mask,unkeep_mask
+    global wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
     c = copy.deepcopy(cut_points)
     c[:, 2] -= 5
     data = {
@@ -150,8 +161,8 @@ def get_data():
 
 @app.route("/auto-smooth", methods=["POST"])
 def auto_smooth():
-    # 处理auto-smooth逻辑并返回新的数据
-    global wood_points, wood_colors, cut_points, cut_colors,keep_mask,unkeep_mask
+    # Process auto-smooth logic and return new data
+    global wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
     # keep_mask = np.zeros(cut_points.shape[0], dtype=bool)
     # cut_points = cut_points[keep_mask]
     # cut_colors = cut_colors[keep_mask]
@@ -161,70 +172,75 @@ def auto_smooth():
     remaining_pcd = pcd
 
     while True:
-        # 使用RANSAC拟合平面
-        plane_model, inliers = remaining_pcd.segment_plane(distance_threshold=0.01,
-                                                        ransac_n=3,
-                                                        num_iterations=1000)
-        if len(inliers) < 100:  # 如果剩余点数少于一定数量，则停止
+        # Fit a plane using RANSAC
+        plane_model, inliers = remaining_pcd.segment_plane(
+            distance_threshold=0.01, ransac_n=3, num_iterations=1000
+        )
+        if len(inliers) < 100:  # Stop if remaining points are below a certain threshold
             break
 
-        # 提取拟合平面的点
+        # Extract points on the fitted plane
         inlier_cloud = remaining_pcd.select_by_index(inliers)
         inlier_points = np.asarray(inlier_cloud.points)
 
-        # 将平面上的点投影到平面
+        # Project points on the plane
         projected_points = project_to_plane(inlier_points, plane_model)
 
-        # 将点转换到2D平面坐标系
+        # Convert points to 2D plane coordinates
         points_2d = to_2d(projected_points, plane_model)
 
-        # 使用DBSCAN聚类2D平面上的点
-        clustering = hdbscan.HDBSCAN(min_cluster_size=200, min_samples=10).fit(points_2d)
+        # Cluster points on the 2D plane using DBSCAN
+        clustering = hdbscan.HDBSCAN(min_cluster_size=200, min_samples=10).fit(
+            points_2d
+        )
         labels = clustering.labels_
 
         unique_labels = set(labels)
         for label in unique_labels:
             if label == -1:
-                continue  # 忽略噪声点
+                continue  # Ignore noise points
             cluster_points_2d = points_2d[labels == label]
 
-            # 拟合2D平面上的圆
+            # Fit a circle on the 2D plane
             center_2d, radius = fit_circle_2d(cluster_points_2d)
 
-            # 生成填充圆的点
+            # Generate points for filling the circle
             theta = np.linspace(0, 2 * np.pi, 500)
-            circle_thickness = 2  # 圆的厚度
+            circle_thickness = 2  # Circle thickness
             filled_circle_points_2d = []
-            for r in np.linspace(radius - circle_thickness, radius + circle_thickness, 20):  # 调整填充密度
-                circle_points_2d = np.c_[center_2d[0] + r * np.cos(theta), center_2d[1] + r * np.sin(theta)]
+            for r in np.linspace(
+                radius - circle_thickness, radius + circle_thickness, 20
+            ):  # Adjust fill density
+                circle_points_2d = np.c_[
+                    center_2d[0] + r * np.cos(theta), center_2d[1] + r * np.sin(theta)
+                ]
                 filled_circle_points_2d.append(circle_points_2d)
             filled_circle_points_2d = np.vstack(filled_circle_points_2d)
 
-            # 将2D圆点转换回3D点
+            # Convert 2D circle points back to 3D points
             filled_circle_points_3d = to_3d(filled_circle_points_2d, plane_model)
 
-            # 创建拟合圆的点云
+            # Create point cloud for the fitted circle
             circle_pcd = o3d.geometry.PointCloud()
             circle_pcd.points = o3d.utility.Vector3dVector(filled_circle_points_3d)
             # circle_pcd.paint_uniform_color([0, 1, 0])
             all_circle_pcds.append(circle_pcd)
 
-        # 从剩余点云中去除拟合到的平面内点
+        # Remove points in the fitted plane from the remaining point cloud
         remaining_pcd = remaining_pcd.select_by_index(inliers, invert=True)
-    
-    # 将拟合的圆点云合并
+
+    # Merge the fitted circle point clouds
     circle_pcds = o3d.geometry.PointCloud()
     for circle_pcd in all_circle_pcds:
         circle_pcds += circle_pcd
-    
+
     cut_points = np.array(circle_pcds.points)
     # cut_colors = np.array([[0.0, 1.0, 0.0]] * cut_points.shape[0])
     cut_colors = rgb2float([184, 151, 136]) * np.ones_like(cut_points)
 
-    _, _, _, _,keep_mask,unkeep_mask = filter_points(
+    _, _, _, _, keep_mask, unkeep_mask = filter_points(
         wood_points, wood_colors, cut_points, threshold=2
     )
-    
 
     print(cut_points.shape)
 
