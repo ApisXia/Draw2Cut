@@ -11,6 +11,61 @@ import copy
 
 app = Flask(__name__)
 
+def filter_wood_zone(wood_points, wood_colors,width = 10,height = 10):
+    #TODO: Filter points bias on z axis
+    # Calculate center of the point cloud
+    center = wood_points.mean(axis=0)
+    
+    # Define rectangle size (e.g., width=10, height=10)
+    mask = (
+        (wood_points[:, 0] > center[0] - width / 2) & (wood_points[:, 0] < center[0] + width / 2) &
+        (wood_points[:, 1] > center[1] - height / 2) & (wood_points[:, 1] < center[1] + height / 2)
+    )
+    
+    # Filter points and colors
+    filtered_points = wood_points[mask]
+    filtered_colors = wood_colors[mask]
+
+    return filtered_points, filtered_colors
+
+def build_mesh(wood_points,wood_colors,cut_points,cut_colors):
+    A = wood_points
+    B = wood_colors
+    C = copy.deepcopy(cut_points)
+    # C[:, 2] += 5
+    D = cut_colors
+    A = np.concatenate((A, C), axis=0)
+    B = np.concatenate((B, D), axis=0)
+    pcd = o3d.geometry.PointCloud()
+    pcd.colors = o3d.utility.Vector3dVector(B)
+    pcd.points = o3d.utility.Vector3dVector(A)
+    # o3d.visualization.draw_geometries([pcd])  
+    print(A.shape)
+    mesh = construct_3d_model(A, B)
+    return mesh
+
+def construct_3d_model(points, colors):
+    pcd = o3d.geometry.PointCloud()
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+    pcd.points = o3d.utility.Vector3dVector(points)
+    # 法线估计
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(
+        radius=0.1, max_nn=30))
+
+    # 进行泊松重建
+    print("Performing Poisson surface reconstruction...")
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
+
+    # 去除低密度区域的面片（例如孤立的面片）
+    # densities = np.asarray(densities)
+    # density_threshold = densities.mean()
+    # vertices_to_remove = densities < density_threshold
+    # mesh.remove_vertices_by_mask(vertices_to_remove)
+
+    # cut_points = np.asarray(mesh.points)
+    # cut_colors = np.array([[0.0, 1.0, 0.0]] * cut_points.shape[0])
+    # o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+    return mesh
 
 # Define a function to project points onto a plane
 def project_to_plane(points, plane_model):
@@ -126,7 +181,7 @@ cut_colors = cut_data["colors"]
 
 # Filter wood point cloud data
 wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask = (
-    filter_points(wood_points, wood_colors, cut_points, threshold=2)
+    filter_points(wood_points, wood_colors, cut_points, threshold=3)
 )
 print(wood_points.shape)
 
@@ -144,17 +199,26 @@ def index():
 def get_data():
     global wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
     c = copy.deepcopy(cut_points)
-    c[:, 2] -= 5
+    # c[:, 2] -= 5
+    filter_wood_points, filter_wood_colors = filter_wood_zone(wood_points[keep_mask], wood_colors[keep_mask],250,250)
+    mesh = build_mesh(filter_wood_points, filter_wood_colors, cut_points, cut_colors)
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+    colors = np.asarray(mesh.vertex_colors)
     data = {
-        "wood_points": wood_points[keep_mask].tolist(),
-        "wood_colors": wood_colors[keep_mask].tolist(),
-        "cut_points": c.tolist(),
-        "cut_colors": cut_colors.tolist(),
+        # "wood_points": wood_points[keep_mask].tolist(),
+        # "wood_colors": wood_colors[keep_mask].tolist(),
+        # "cut_points": c.tolist(),
+        # "cut_colors": cut_colors.tolist(),
         "texts": [
             "Contour 'Circle' -> 3mm",
             "Cut trajectories visualized in 'Gray'",
-            "number: 3 contours",
+            "number: 9 contours",
         ],
+        "vertices": vertices.tolist(),
+        "triangles": triangles.tolist(),
+        "colors": colors.tolist(),
+        
     }
     return jsonify(data)
 
@@ -190,7 +254,7 @@ def auto_smooth():
         points_2d = to_2d(projected_points, plane_model)
 
         # Cluster points on the 2D plane using DBSCAN
-        clustering = hdbscan.HDBSCAN(min_cluster_size=200, min_samples=10).fit(
+        clustering = hdbscan.HDBSCAN(min_cluster_size=50, min_samples=100).fit(
             points_2d
         )
         labels = clustering.labels_
@@ -234,26 +298,25 @@ def auto_smooth():
     for circle_pcd in all_circle_pcds:
         circle_pcds += circle_pcd
 
-    cut_points = np.array(circle_pcds.points)
+    smooth_cut_points = np.array(circle_pcds.points)
     # cut_colors = np.array([[0.0, 1.0, 0.0]] * cut_points.shape[0])
-    cut_colors = rgb2float([184, 151, 136]) * np.ones_like(cut_points)
+    smooth_cut_colors = rgb2float([184, 151, 136]) * np.ones_like(smooth_cut_points)
 
     _, _, _, _, keep_mask, unkeep_mask = filter_points(
-        wood_points, wood_colors, cut_points, threshold=2
+        wood_points, wood_colors, smooth_cut_points, threshold=2
     )
 
-    print(cut_points.shape)
+    print(smooth_cut_points.shape)
 
-    # empty the wood_points
-    # wood_points = np.array([[0, 0, 0]])
-    # wood_colors = np.array([[0, 0, 0]])
-    # cut_points = np.array(([0, 0, 0]))
-    # cut_colors = np.array(([0, 0, 0]))
+    mesh = build_mesh(wood_points, wood_colors, smooth_cut_points, smooth_cut_colors)
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+    colors = np.asarray(mesh.vertex_colors)
+
     data = {
-        "wood_points": wood_points[keep_mask].tolist(),
-        "wood_colors": wood_colors[keep_mask].tolist(),
-        "cut_points": cut_points.tolist(),
-        "cut_colors": cut_colors.tolist(),
+        "vertices": vertices.tolist(),
+        "triangles": triangles.tolist(),
+        "colors": colors.tolist(),
         "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"],
     }
     return jsonify(data)
