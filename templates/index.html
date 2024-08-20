@@ -269,7 +269,19 @@
                 document.getElementById('z-slider').addEventListener('input', function () {
                     zOffset = parseFloat(this.value);
                     document.getElementById('z-value').textContent = zOffset;
-                    render();
+
+                    fetch('/update-depth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ zOffset: zOffset })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            backendData = data;
+                            render();
+                        });
             });
 
                 var animate = function () {
