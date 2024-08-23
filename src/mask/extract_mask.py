@@ -193,7 +193,7 @@ def find_in_predefined_colors(color_mask_dict: dict) -> dict:
 
 if __name__ == "__main__":
     # load image
-    image_path = "src/mark/image_color_collection.png"
+    image_path = "src/mask/image_color_collection.png"
     if not os.path.exists(image_path):
         raise ValueError("Image not found")
     img = cv2.imread(image_path)
@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
     # find semantic color mask
     semantic_color_mask_dict = find_in_predefined_colors(color_masks_dict)
-    semantic_saving_folder = "src/mark/semantic_color_mask_vis"
+    semantic_saving_folder = "src/mask/semantic_color_mask_vis"
     os.makedirs(semantic_saving_folder, exist_ok=True)
     for i, (color_type, mask) in enumerate(semantic_color_mask_dict.items()):
         cv2.imwrite(
