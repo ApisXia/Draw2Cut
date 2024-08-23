@@ -66,11 +66,17 @@ if __name__ == "__main__":
     # assign name to semantic mask dict
     img_binaries = {}
     for original_name, new_name in ACTION_MAPPING_DICT.items():
-        img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
+        if original_name in semantic_color_mask_dict.keys():
+            img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
+    if len(img_binaries) == 0:
+        raise ValueError("No action type found in the image")
 
     # get centerlines and decide loop or line type for each centerline
     line_dict = {}
     for mark_type_name in CONFIG["action_supported"]:
+        if mark_type_name not in img_binaries:
+            line_dict[mark_type_name] = {}
+            continue
         centerline_contours = find_centerline_groups(img_binaries[mark_type_name])
         centerline_contours = filter_centerlines(centerline_contours, filter_size=5)
 

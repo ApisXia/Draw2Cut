@@ -52,8 +52,8 @@ def show_image(img, name="image"):
 
 
 if __name__ == "__main__":
-    case_name = "test0823-2"
-    samping_number = 30
+    case_name = "tech_evaluation-0823"
+    samping_number = 50
     saving_opt = True
 
     if saving_opt:
