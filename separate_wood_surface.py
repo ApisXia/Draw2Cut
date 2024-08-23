@@ -11,9 +11,8 @@ from src.space_finding.plane import calculate_points_plane
 from configs.load_config import CONFIG
 
 if __name__ == "__main__":
-    # load data
-    file_path = CONFIG["data_path"]
-    data_list = glob(file_path)
+    # read data
+    pointcloud_data = np.load(CONFIG["data_path"])
 
     # define the path to save the temporary files
     temp_file_path = CONFIG["temp_file_path"]
@@ -23,8 +22,8 @@ if __name__ == "__main__":
     x_axis_label = CONFIG["x_axis_label"]
     y_axis_label = CONFIG["y_axis_label"]
 
-    points_plane, plane_para = calculate_points_plane(
-        origin_label, data_list[0:], resize_factor=2
+    points_plane, _ = calculate_points_plane(
+        CONFIG["origin_label"], pointcloud_data, resize_factor=2
     )
     if origin_label not in points_plane:
         raise ValueError("origin_label not found in data")
@@ -85,9 +84,8 @@ if __name__ == "__main__":
     print(f"origin_point: {origin_point}")
 
     # load data
-    data = np.load(data_list[3])
-    points = data["points_pos"]
-    colors = data["transformed_color"].reshape((-1, 3))
+    points = pointcloud_data["points_pos"]
+    colors = pointcloud_data["transformed_color"].reshape((-1, 3))
 
     # points_holder = [points]
     # for i in range(1, 10):

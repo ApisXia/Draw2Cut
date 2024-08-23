@@ -1,7 +1,7 @@
-version: 0.1.2
+version: 0.1.3
 
 case_name: "tech_evaluation-0823"  # which is also the folder name
-data_path_template: "data/{case_name}/*.npz"
+data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 
 # working space settings
