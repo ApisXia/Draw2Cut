@@ -118,7 +118,7 @@ def depth_queue(
 
 
 if __name__ == "__main__":
-    case_name = "tech_evaluation-0823-7"
+    case_name = "tech_evaluation-0823-13"
     samping_number = 20
     saving_opt = True
 
@@ -136,6 +136,9 @@ if __name__ == "__main__":
     pipeline = rs.pipeline()
     profile = pipeline.start(config)
 
+    sensor = profile.get_device().query_sensors()[1]
+    sensor.set_option(rs.option.exposure, 60)
+
     # get camera intrinsics
     intr = (
         profile.get_stream(rs.stream.color).as_video_stream_profile().get_intrinsics()
@@ -148,6 +151,7 @@ if __name__ == "__main__":
 
     # define a queue to store the RGBD images
     image_list = []
+    sampling_counter = 0
     while True:
         frames = pipeline.wait_for_frames()
         aligned_frames = align.process(frames)
@@ -156,7 +160,7 @@ if __name__ == "__main__":
         color_image = np.asanyarray(color_frame.get_data())
         if len(image_list) < samping_number:
             image_list.append(color_image)
-        elif len(image_list) == samping_number:
+        elif len(image_list) == samping_number - 1:
             print("Color Image collection is done.")
 
         # draw the QR code to the color image
@@ -183,6 +187,9 @@ if __name__ == "__main__":
 
         cv2.namedWindow("color and depth image", cv2.WINDOW_AUTOSIZE)
         cv2.imshow("color and depth image", combined_image)
+        sampling_counter += 1
+        if sampling_counter == QUEUE_SIZE:
+            print("!!! Depth queue is full.")
 
         if cv2.waitKey(1) != -1:
             print("finish")

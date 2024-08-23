@@ -201,6 +201,7 @@ if __name__ == "__main__":
         (0, 0),
         fx=CONFIG["surface_upscale"],
         fy=CONFIG["surface_upscale"],
+        interpolation=cv2.INTER_CUBIC,
     )
     # increase sharpness
     # wrapped_image = cv2.GaussianBlur(wrapped_image, (5, 5), 0)

@@ -31,9 +31,6 @@ for item in color_type_values:
         item["action"] in CONFIG["action_supported"]
     ):  # currently only support these two functions
         ACTION_MAPPING_DICT[item["type"]] = item["action"]
-# if not find all action type, raise error
-if len(ACTION_MAPPING_DICT) != len(CONFIG["action_supported"]):
-    raise ValueError("Not all action type is found in color_type_values.json")
 
 
 if __name__ == "__main__":
@@ -67,7 +64,15 @@ if __name__ == "__main__":
     img_binaries = {}
     for original_name, new_name in ACTION_MAPPING_DICT.items():
         if original_name in semantic_color_mask_dict.keys():
-            img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
+            if new_name in img_binaries:
+                img_binaries[new_name] = cv2.bitwise_or(
+                    img_binaries[new_name],
+                    semantic_color_mask_dict[original_name][::-1, :],
+                )
+            else:
+                img_binaries[new_name] = semantic_color_mask_dict[original_name][
+                    ::-1, :
+                ]
     if len(img_binaries) == 0:
         raise ValueError("No action type found in the image")
 

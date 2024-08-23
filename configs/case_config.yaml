@@ -1,6 +1,6 @@
 version: 0.1.3
 
-case_name: "tech_evaluation-0823-7"  # which is also the folder name
+case_name: "tech_evaluation-0823-13"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 
