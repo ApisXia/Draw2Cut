@@ -20,11 +20,9 @@ def best_fit_plane(points):
     return normal[0], normal[1], normal[2], d
 
 
-def calculate_points_plane(data_list, quene_size=100):
-    coordinate_origin_name = "8"
-
+def calculate_points_plane(origin_label, data_list, resize_factor=3, quene_size=100):
     qr_position_quene = {}
-    qr_position_quene[coordinate_origin_name] = deque(maxlen=quene_size)
+    qr_position_quene[origin_label] = deque(maxlen=quene_size)
 
     for data_path in data_list:
         # load data
@@ -39,7 +37,8 @@ def calculate_points_plane(data_list, quene_size=100):
         # # ## test
         # qr_codes_dict = get_qr_codes_position(dt)
         qr_codes_dict = get_qr_codes_position(
-            data["transformed_color"].reshape((800, 1280, 3))
+            data["transformed_color"].reshape((800, 1280, 3)),
+            resize_factor=resize_factor,
         )
 
         point_cloud_pos = data["points_pos"]
@@ -53,11 +52,11 @@ def calculate_points_plane(data_list, quene_size=100):
             qr_position_quene[key].append(point_cloud_pos[value[1], value[0], :])
 
         # if the length of coordinate_origin is 0, then skip this iteration
-        if len(qr_position_quene[coordinate_origin_name]) == 0:
+        if len(qr_position_quene[origin_label]) == 0:
             continue
 
         # break when length of coordinate_origin is 20
-        if len(qr_position_quene[coordinate_origin_name]) == quene_size:
+        if len(qr_position_quene[origin_label]) == quene_size:
             break
 
     # calculate the average position of each qr code

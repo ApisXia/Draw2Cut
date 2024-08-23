@@ -14,7 +14,9 @@ if __name__ == "__main__":
     if len(data_list) == 0:
         raise ValueError("No data found")
 
-    points_plane, _ = calculate_points_plane(data_list)
+    points_plane, _ = calculate_points_plane(
+        CONFIG["origin_label"], data_list, resize_factor=2
+    )
     points_plane = list(points_plane.values())
 
     # load data

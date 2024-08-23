@@ -52,9 +52,9 @@ def show_image(img, name="image"):
 
 
 if __name__ == "__main__":
-    case_name = "test0823"
-    samping_number = 10
-    saving_opt = False
+    case_name = "test0823-2"
+    samping_number = 30
+    saving_opt = True
 
     if saving_opt:
         saving_path = os.path.join("data", case_name)
