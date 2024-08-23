@@ -78,14 +78,17 @@ PREDEFINED_COLOR_TYPE_VALUES = None
 with open("src/mask/color_type_values.json", "r") as f:
     PREDEFINED_COLOR_TYPE_VALUES = json.load(f)
 
-SEMANTIC_COLOR_MATCHING_MIN_DISTANCE = 60
+SEMANTIC_COLOR_MATCHING_MIN_DISTANCE = 100
 
 
 def extract_marks_with_colors(
-    image: np.ndarray, min_connect_ratio: float = 0.002
+    image: np.ndarray, min_connect_ratio: float = 0.0001
 ) -> dict:
     # 转换为灰度图像
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # # 使用直方图均衡化来增强对比度
+    # gray_image = cv2.equalizeHist(gray_image)
 
     # 使用高斯模糊去噪
     blurred_image = cv2.GaussianBlur(gray_image, (9, 9), 2)
@@ -94,6 +97,10 @@ def extract_marks_with_colors(
     _, binary_image = cv2.threshold(
         blurred_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
     )
+
+    # binary_image = cv2.adaptiveThreshold(
+    #     blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
+    # )
 
     # cv2.imwrite("test_binary_image.png", binary_image)
 
@@ -132,21 +139,38 @@ def extract_marks_with_colors(
         if len(hsv_pixels) < 10:
             continue
 
+        # map hue to x-y plane
+        kmeans_trainings = np.zeros((len(hsv_pixels), 4))
+        kmeans_trainings[:, 0] = np.sin(hsv_pixels[:, 0] / 90 * np.pi)
+        kmeans_trainings[:, 1] = np.cos(hsv_pixels[:, 0] / 90 * np.pi)
+        kmeans_trainings[:, 2] = hsv_pixels[:, 1] / 255
+        kmeans_trainings[:, 3] = hsv_pixels[:, 2] / 255
+
         # KMeans聚类
-        kmeans = KMeans(n_clusters=min(5, len(hsv_pixels) // 10))
-        kmeans.fit(hsv_pixels)
+        kmeans = KMeans(n_clusters=min(3, len(kmeans_trainings) // 10))
+        kmeans.fit(kmeans_trainings)
         dominant_color = kmeans.cluster_centers_[np.argmax(np.bincount(kmeans.labels_))]
 
-        # 将颜色转换为整数
-        dominant_color = tuple(map(int, dominant_color))
+        # transform back to hsv
+        dominant_color_hsv = np.zeros(3)
+        dominant_color_hsv[0] = (
+            np.arctan2(dominant_color[0], dominant_color[1]) / np.pi * 90
+        )
+        if dominant_color_hsv[0] < 0:
+            dominant_color_hsv[0] += 180
+        dominant_color_hsv[1] = dominant_color[2] * 255
+        dominant_color_hsv[2] = dominant_color[3] * 255
 
-        # 将颜色转换为RGB
-        dominant_rgb_color = cv2.cvtColor(
-            np.uint8(dominant_color).reshape(1, 1, 3), cv2.COLOR_HSV2RGB
+        # 将颜色转换为整数
+        dominant_color_hsv = tuple(map(int, dominant_color_hsv))
+
+        # 将颜色转换为BGR
+        dominant_bgr_color = cv2.cvtColor(
+            np.uint8(dominant_color_hsv).reshape(1, 1, 3), cv2.COLOR_HSV2BGR
         )[0][0]
 
         # 存储结果
-        color_masks_dict[tuple(dominant_rgb_color)] = single_mark_mask
+        color_masks_dict[tuple(dominant_bgr_color)] = single_mark_mask
 
     return color_masks_dict
 
@@ -168,15 +192,31 @@ def find_in_predefined_colors(color_mask_dict: dict) -> dict:
         temp_option_dict = {}
 
         # transform color to hsv
-        color_hsv = cv2.cvtColor(np.uint8([[list(color)]]), cv2.COLOR_RGB2HSV).reshape(
+        color_hsv = cv2.cvtColor(np.uint8([[list(color)]]), cv2.COLOR_BGR2HSV).reshape(
             3
         )
 
+        color_hsv_normalized = np.zeros(4)
+        color_hsv_normalized[0] = np.sin(color_hsv[0] / 90 * np.pi)
+        color_hsv_normalized[1] = np.cos(color_hsv[0] / 90 * np.pi)
+        color_hsv_normalized[2] = color_hsv[1] / 255
+        color_hsv_normalized[3] = color_hsv[2] / 255
+
         for predefined_color in PREDEFINED_COLOR_TYPE_VALUES:
-            color_distance = np.linalg.norm(
-                np.array(color_hsv) - np.array(predefined_color["HSV_value"])
+            target_color_normalized = np.zeros(4)
+            target_color_normalized[0] = np.sin(
+                predefined_color["HSV_value"][0] / 90 * np.pi
             )
-            if color_distance < SEMANTIC_COLOR_MATCHING_MIN_DISTANCE:
+            target_color_normalized[1] = np.cos(
+                predefined_color["HSV_value"][0] / 90 * np.pi
+            )
+            target_color_normalized[2] = predefined_color["HSV_value"][1] / 255
+            target_color_normalized[3] = predefined_color["HSV_value"][2] / 255
+
+            color_distance = np.linalg.norm(
+                color_hsv_normalized - target_color_normalized
+            )
+            if color_distance < predefined_color["tolerance"]:
                 temp_option_dict[predefined_color["type"]] = color_distance
         # find closest predefined color index
         if len(temp_option_dict) == 0:
@@ -193,11 +233,10 @@ def find_in_predefined_colors(color_mask_dict: dict) -> dict:
 
 if __name__ == "__main__":
     # load image
-    image_path = "src/mark/image_color_collection.png"
+    image_path = "src/mask/image_color_collection.png"
     if not os.path.exists(image_path):
         raise ValueError("Image not found")
     img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # # target color
     # for mark_type_name in MARK_TYPES.keys():
@@ -218,7 +257,7 @@ if __name__ == "__main__":
 
     # find semantic color mask
     semantic_color_mask_dict = find_in_predefined_colors(color_masks_dict)
-    semantic_saving_folder = "src/mark/semantic_color_mask_vis"
+    semantic_saving_folder = "src/mask/semantic_color_mask_vis"
     os.makedirs(semantic_saving_folder, exist_ok=True)
     for i, (color_type, mask) in enumerate(semantic_color_mask_dict.items()):
         cv2.imwrite(

@@ -11,64 +11,59 @@ from src.space_finding.plane import calculate_points_plane
 from configs.load_config import CONFIG
 
 if __name__ == "__main__":
-    # load data
-    file_path = CONFIG["data_path"]
-    data_list = glob(file_path)
+    # read data
+    pointcloud_data = np.load(CONFIG["data_path"])
 
     # define the path to save the temporary files
     temp_file_path = CONFIG["temp_file_path"]
     os.makedirs(temp_file_path, exist_ok=True)
 
-    points_plane, plane_para = calculate_points_plane(data_list[0:])
+    origin_label = CONFIG["origin_label"]
+    x_axis_label = CONFIG["x_axis_label"]
+    y_axis_label = CONFIG["y_axis_label"]
 
-    origin_label = "8"
-    x_axis_label = [
-        "1",
-        "5",
-    ]  # first is the half index of the x axis, second is the end index of the x axis
-    y_axis_label = ["6", "2"]
-    oppsite_label = "7"
+    points_plane, _ = calculate_points_plane(
+        CONFIG["origin_label"], pointcloud_data, resize_factor=2
+    )
+    if origin_label not in points_plane:
+        raise ValueError("origin_label not found in data")
 
     # assert at least one label in x_axis_label can be found in points_plane
     assert any([label in points_plane.keys() for label in x_axis_label])
-    # same as y_axis_label
+    # assert at least one label in y_axis_label can be found in points_plane
     assert any([label in points_plane.keys() for label in y_axis_label])
 
     x_direction = 0
-    x_counter = 0
     for label in x_axis_label:
         if label in points_plane:
             direction = points_plane[label] - points_plane[origin_label]
             direction = direction / np.linalg.norm(direction)
             x_direction += direction
-            x_counter += 1
-    x_direction = x_direction / x_counter
-    # print("x_norm_length", np.linalg.norm(x_direction))
     x_direction = x_direction / np.linalg.norm(x_direction)
 
-    if "5" not in points_plane and "1" in points_plane:
-        x_length = np.linalg.norm(points_plane["1"] - points_plane[origin_label]) * 2
-    elif "5" in points_plane:
-        x_length = np.linalg.norm(points_plane["5"] - points_plane[origin_label])
+    if x_axis_label[-1] not in points_plane:
+        x_length = CONFIG["default_x_length"]
+    else:
+        x_length = np.linalg.norm(
+            points_plane[x_axis_label[-1]] - points_plane[origin_label]
+        )
 
     y_direction = 0
-    y_counter = 0
     for label in y_axis_label:
         if label in points_plane:
             direction = points_plane[label] - points_plane[origin_label]
             direction = direction / np.linalg.norm(direction)
             y_direction += direction
-            y_counter += 1
-    y_direction = y_direction / y_counter
-    # print("y_norm_length", np.linalg.norm(y_direction))
     y_direction = y_direction / np.linalg.norm(y_direction)
 
     print("x dot y beginning", np.dot(x_direction, y_direction))
 
-    if "2" not in points_plane and "6" in points_plane:
-        y_length = np.linalg.norm(points_plane["6"] - points_plane[origin_label]) * 2
-    elif "2" in points_plane:
-        y_length = np.linalg.norm(points_plane["2"] - points_plane[origin_label])
+    if y_axis_label[-1] not in points_plane:
+        y_length = CONFIG["default_y_length"]
+    else:
+        y_length = np.linalg.norm(
+            points_plane[y_axis_label[-1]] - points_plane[origin_label]
+        )
 
     z_direction = np.cross(y_direction, x_direction)
 
@@ -76,7 +71,7 @@ if __name__ == "__main__":
     x_direction = np.cross(z_direction, y_direction)
     print("x dot y later", np.dot(x_direction, y_direction))
 
-    z_max = 50
+    z_max = 60
     z_min = 10
 
     origin_point = points_plane[origin_label]
@@ -89,9 +84,8 @@ if __name__ == "__main__":
     print(f"origin_point: {origin_point}")
 
     # load data
-    data = np.load(data_list[3])
-    points = data["points_pos"]
-    colors = data["transformed_color"].reshape((-1, 3))
+    points = pointcloud_data["points_pos"]
+    colors = pointcloud_data["transformed_color"].reshape((-1, 3))
 
     # points_holder = [points]
     # for i in range(1, 10):
@@ -135,7 +129,7 @@ if __name__ == "__main__":
     # get the mask of the plane
     mask_plane = np.zeros_like(mask)
     z = z_max
-    z_tolerance_value = 2
+    z_tolerance_value = 5
     z_tolerance = z_tolerance_value
     z_step = 0.5
     while z > z_min:
@@ -148,7 +142,7 @@ if __name__ == "__main__":
     z_surface = z
     z_surface += z_tolerance_value + z_step
 
-    # # visualize the get slice
+    # visualize the get slice
     # points = points[mask_plane, :]
     # colors = colors[mask_plane, :]
 
@@ -162,6 +156,7 @@ if __name__ == "__main__":
 
     # # visualize point cloud
     # o3d.visualization.draw_geometries(object_to_draw)
+    # assert False
 
     # get bounding box of the slice in x and y direction
     x_min = np.min(points_transformed[mask_plane, 0])
@@ -206,9 +201,10 @@ if __name__ == "__main__":
         (0, 0),
         fx=CONFIG["surface_upscale"],
         fy=CONFIG["surface_upscale"],
+        interpolation=cv2.INTER_CUBIC,
     )
     # increase sharpness
-    wrapped_image = cv2.GaussianBlur(wrapped_image, (5, 5), 0)
+    # wrapped_image = cv2.GaussianBlur(wrapped_image, (5, 5), 0)
     cv2.imwrite(os.path.join(temp_file_path, "wrapped_image_zoom.png"), wrapped_image)
 
     # save left bottom point position, including x, y, z and x_length, y_length

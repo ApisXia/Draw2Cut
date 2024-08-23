@@ -31,9 +31,6 @@ for item in color_type_values:
         item["action"] in CONFIG["action_supported"]
     ):  # currently only support these two functions
         ACTION_MAPPING_DICT[item["type"]] = item["action"]
-# if not find all action type, raise error
-if len(ACTION_MAPPING_DICT) != len(CONFIG["action_supported"]):
-    raise ValueError("Not all action type is found in color_type_values.json")
 
 
 if __name__ == "__main__":
@@ -66,13 +63,30 @@ if __name__ == "__main__":
     # assign name to semantic mask dict
     img_binaries = {}
     for original_name, new_name in ACTION_MAPPING_DICT.items():
-        img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
+        if original_name in semantic_color_mask_dict.keys():
+            if new_name in img_binaries:
+                img_binaries[new_name] = cv2.bitwise_or(
+                    img_binaries[new_name],
+                    semantic_color_mask_dict[original_name][::-1, :],
+                )
+            else:
+                img_binaries[new_name] = semantic_color_mask_dict[original_name][
+                    ::-1, :
+                ]
+    if len(img_binaries) == 0:
+        raise ValueError("No action type found in the image")
 
     # get centerlines and decide loop or line type for each centerline
     line_dict = {}
     for mark_type_name in CONFIG["action_supported"]:
+        if mark_type_name not in img_binaries:
+            line_dict[mark_type_name] = {}
+            continue
         centerline_contours = find_centerline_groups(img_binaries[mark_type_name])
-        centerline_contours = filter_centerlines(centerline_contours, filter_size=5)
+        if CONFIG["smooth_size"] > 0:
+            centerline_contours = filter_centerlines(
+                centerline_contours, filter_size=CONFIG["smooth_size"]
+            )
 
         # Draw the centerlines for visualization
         centerline_image = np.zeros_like(img_binaries[mark_type_name])
