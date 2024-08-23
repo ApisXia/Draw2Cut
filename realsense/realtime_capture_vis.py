@@ -53,7 +53,7 @@ def show_image(img, name="image"):
 
 if __name__ == "__main__":
     case_name = "tech_evaluation-0823"
-    samping_number = 50
+    samping_number = 10
     saving_opt = True
 
     if saving_opt:
@@ -123,11 +123,18 @@ if __name__ == "__main__":
 
     case_idx = 0
     while case_idx < samping_number:
+        frames = pipeline.wait_for_frames()
+        aligned_frames = align.process(frames)
+
         depth_frame = aligned_frames.get_depth_frame()
         depth_data = np.asarray(depth_frame.get_data())
 
         # Perform the multiplication
         depth_data_scaled = depth_data
+
+        # Get the color frame
+        color_frame = aligned_frames.get_color_frame()
+        color_image = np.asanyarray(color_frame.get_data())
 
         # Convert the scaled NumPy array back to an Open3D image
         depth = o3d.geometry.Image(depth_data_scaled.astype(np.float32))

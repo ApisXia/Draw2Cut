@@ -20,7 +20,7 @@ if __name__ == "__main__":
     points_plane = list(points_plane.values())
 
     # load data
-    data = np.load(data_list[9])
+    data = np.load(data_list[0])
     points = data["points_pos"]
     colors = data["transformed_color"].reshape((-1, 3))
     colors = colors / 255.0

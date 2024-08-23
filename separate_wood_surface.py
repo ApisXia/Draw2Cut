@@ -72,8 +72,8 @@ if __name__ == "__main__":
     x_direction = np.cross(z_direction, y_direction)
     print("x dot y later", np.dot(x_direction, y_direction))
 
-    z_max = 100
-    z_min = 5
+    z_max = 60
+    z_min = 10
 
     origin_point = points_plane[origin_label]
 
