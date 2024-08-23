@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # get the mask of the plane
     mask_plane = np.zeros_like(mask)
     z = z_max
-    z_tolerance_value = 2
+    z_tolerance_value = 5
     z_tolerance = z_tolerance_value
     z_step = 0.5
     while z > z_min:
@@ -203,7 +203,7 @@ if __name__ == "__main__":
         fy=CONFIG["surface_upscale"],
     )
     # increase sharpness
-    wrapped_image = cv2.GaussianBlur(wrapped_image, (5, 5), 0)
+    # wrapped_image = cv2.GaussianBlur(wrapped_image, (5, 5), 0)
     cv2.imwrite(os.path.join(temp_file_path, "wrapped_image_zoom.png"), wrapped_image)
 
     # save left bottom point position, including x, y, z and x_length, y_length

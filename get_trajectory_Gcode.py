@@ -78,7 +78,10 @@ if __name__ == "__main__":
             line_dict[mark_type_name] = {}
             continue
         centerline_contours = find_centerline_groups(img_binaries[mark_type_name])
-        centerline_contours = filter_centerlines(centerline_contours, filter_size=5)
+        if CONFIG["smooth_size"] > 0:
+            centerline_contours = filter_centerlines(
+                centerline_contours, filter_size=CONFIG["smooth_size"]
+            )
 
         # Draw the centerlines for visualization
         centerline_image = np.zeros_like(img_binaries[mark_type_name])

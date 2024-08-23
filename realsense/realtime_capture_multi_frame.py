@@ -118,7 +118,7 @@ def depth_queue(
 
 
 if __name__ == "__main__":
-    case_name = "tech_evaluation-0823"
+    case_name = "tech_evaluation-0823-7"
     samping_number = 20
     saving_opt = True
 
