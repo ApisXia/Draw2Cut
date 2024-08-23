@@ -54,11 +54,13 @@ def show_image(img, name="image"):
 if __name__ == "__main__":
     case_name = "test0823"
     samping_number = 10
+    saving_opt = False
 
-    saving_path = os.path.join("data", case_name)
-    if os.path.exists(saving_path):
-        raise ValueError("The folder already exists")
-    os.makedirs(saving_path)
+    if saving_opt:
+        saving_path = os.path.join("data", case_name)
+        if os.path.exists(saving_path):
+            raise ValueError("The folder already exists")
+        os.makedirs(saving_path)
 
     align = rs.align(rs.stream.color)
 
@@ -115,6 +117,10 @@ if __name__ == "__main__":
             print("finish")
             break
 
+    if not saving_opt:
+        pipeline.stop()
+        exit()
+
     case_idx = 0
     while case_idx < samping_number:
         depth_frame = aligned_frames.get_depth_frame()
@@ -164,3 +170,5 @@ if __name__ == "__main__":
         )
         print(f"*** Saving point cloud {case_idx} is Done. ***")
         case_idx += 1
+
+    pipeline.stop()
