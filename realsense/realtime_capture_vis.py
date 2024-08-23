@@ -1,3 +1,4 @@
+import os
 import pyrealsense2 as rs
 import numpy as np
 import cv2
@@ -51,6 +52,14 @@ def show_image(img, name="image"):
 
 
 if __name__ == "__main__":
+    case_name = "test0823"
+    samping_number = 10
+
+    saving_path = os.path.join("data", case_name)
+    if os.path.exists(saving_path):
+        raise ValueError("The folder already exists")
+    os.makedirs(saving_path)
+
     align = rs.align(rs.stream.color)
 
     config = rs.config()
@@ -106,8 +115,8 @@ if __name__ == "__main__":
             print("finish")
             break
 
-    DATA_NUMBER = 10
-    while DATA_NUMBER > 0:
+    case_idx = 0
+    while case_idx < samping_number:
         depth_frame = aligned_frames.get_depth_frame()
         depth_data = np.asarray(depth_frame.get_data())
 
@@ -146,11 +155,12 @@ if __name__ == "__main__":
         # show_image(depth, "depth")
         # color_image = cv2.resize(color_image, (1280, 800))
         np.savez(
-            "realsense_data/test_point_cloud_" + str(10 - DATA_NUMBER) + ".npz",
+            os.path.join(saving_path, "point_cloud_" + str(case_idx) + ".npz"),
             points_pos=points_pos,
             transformed_color=transformed_color,
             depth=depth,
             color_image=color_image,
             camera_parameters=camera_parameters,
         )
-        DATA_NUMBER -= 1
+        print(f"*** Saving point cloud {case_idx} is Done. ***")
+        case_idx += 1
