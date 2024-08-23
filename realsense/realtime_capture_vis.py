@@ -4,6 +4,8 @@ import cv2
 import open3d as o3d
 import queue
 
+from visualization.QRcode_localization import localize_qr_codes
+
 
 def create_custom_point_cloud(depth_image, color_image, intrinsic):
     # Get the intrinsic parameters
@@ -78,6 +80,9 @@ if __name__ == "__main__":
 
         color_frame = aligned_frames.get_color_frame()
         color_image = np.asanyarray(color_frame.get_data())
+
+        # draw the QR code to the color image
+        color_image = localize_qr_codes(color_image, resize_factor=2)
 
         depth_info = np.asarray(aligned_frames.get_depth_frame().get_data())
 

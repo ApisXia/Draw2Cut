@@ -5,8 +5,8 @@ description = ""
 authors = ["Atara <dingxia1995@gmail.com>"]
 readme = "README.md"
 packages = [
-    { include = "utils" },
-    { include = "mark", from = "src" },
+    { include = "visualization" },
+    { include = "mask", from = "src" },
 ]
 
 [tool.poetry.dependencies]

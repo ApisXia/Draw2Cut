@@ -9,10 +9,16 @@ from configs.load_config import CONFIG
 
 def localize_qr_codes(image, resize_factor=2):
     # Resize the image to a larger size
-    resized_image = cv2.resize(image, None, fx=resize_factor, fy=resize_factor)
+    resized_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    resized_image = cv2.resize(resized_image, None, fx=resize_factor, fy=resize_factor)
+
+    # binarize the image
+    binarized_image = cv2.threshold(
+        resized_image, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
+    )[1]
 
     # Find QR codes and their information
-    qr_codes = pyzbar.decode(resized_image)
+    qr_codes = pyzbar.decode(binarized_image, symbols=[pyzbar.ZBarSymbol.QRCODE])
 
     # Iterate over the QR codes
     for qr_code in qr_codes:
