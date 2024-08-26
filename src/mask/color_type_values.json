@@ -4,7 +4,7 @@
         "HSV_value": [3, 81, 188],
         "tolerance": 60,
         "description": "need explanation",
-        "action": "behaviour"
+        "action": "behavior_plane"
     },
     {
         "type": "green", 
@@ -25,7 +25,7 @@
         "HSV_value": [176, 106, 178],
         "tolerance": 60,
         "description": "Define how we cut the contour area",
-        "action": "behaviour"
+        "action": "behavior_plane"
     },
     {
         "type": "blue",

@@ -108,20 +108,22 @@ if __name__ == "__main__":
                 "centerline": downsampled_centerline,
             }
 
-    # for each "contour" type, check relationship with "behaviour"
+    # for each "contour" type, check relationship with "behavior_plane"
     for key_contour in line_dict["contour"].keys():
         contour_type = line_dict["contour"][key_contour]["type"]
         contour_line = line_dict["contour"][key_contour]["centerline"]
         contour_status = "carve_in"
         contour_related_behaviour = None
 
-        if len(line_dict["behaviour"]) > 0:
-            for key_behaviour in line_dict["behaviour"].keys():
-                behaviour_type = line_dict["behaviour"][key_behaviour]["type"]
-                behaviour_line = line_dict["behaviour"][key_behaviour]["centerline"]
+        if len(line_dict["behavior_plane"]) > 0:
+            for key_behaviour in line_dict["behavior_plane"].keys():
+                behaviour_type = line_dict["behavior_plane"][key_behaviour]["type"]
+                behaviour_line = line_dict["behavior_plane"][key_behaviour][
+                    "centerline"
+                ]
 
                 if contour_type in ["line", "loop"] and behaviour_type == "loop":
-                    # when contour is line and behaviour is loop, line needs to be inside the loop
+                    # when contour is line and behavior_plane is loop, line needs to be inside the loop
                     inside_ratio = np.sum(
                         [
                             cv2.pointPolygonTest(
@@ -159,7 +161,7 @@ if __name__ == "__main__":
         contour_status = line_dict["contour"][key_contour]["status"]
         relate_behaviour = line_dict["contour"][key_contour]["related_behaviour"]
         if relate_behaviour is not None:
-            behaviour_line = line_dict["behaviour"][relate_behaviour]["centerline"]
+            behaviour_line = line_dict["behavior_plane"][relate_behaviour]["centerline"]
 
         if contour_status == "carve_in":
             # reverse x and y axis
