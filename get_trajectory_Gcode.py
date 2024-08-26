@@ -6,7 +6,11 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 
 from src.trajectory.traj_to_Gcode import generate_gcode
-from src.trajectory.get_bulk_trajectory import get_trajectory, draw_trajectory
+from src.trajectory.get_bulk_trajectory import (
+    get_trajectory_row_by_row,
+    get_trajectory_incremental_cut_inward,
+    draw_trajectory,
+)
 
 from configs.load_config import CONFIG
 
@@ -193,11 +197,20 @@ if __name__ == "__main__":
             )
 
         # ! transform the binary image to trajectory
-        traj, _ = get_trajectory(
-            img_binary,
-            CONFIG["trajectory_row_interval"],
-            CONFIG["trajectory_row_interval"],
-        )
+        if CONFIG["bulk_cutting_style"] == "cut_inward":
+            traj, _ = get_trajectory_incremental_cut_inward(
+                img_binary,
+                CONFIG["spindle_radius"],
+                CONFIG["spindle_radius"] * 2 - 2,
+            )
+        elif CONFIG["bulk_cutting_style"] == "row_by_row":
+            traj, _ = get_trajectory_row_by_row(
+                img_binary,
+                CONFIG["spindle_radius"],
+                CONFIG["spindle_radius"],
+            )
+        else:
+            raise ValueError("Unsupported bulk cutting style")
         trajectory_holders.extend(traj)
 
     print("Number of trajectories: ", len(trajectory_holders))
