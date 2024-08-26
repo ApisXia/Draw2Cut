@@ -3,15 +3,15 @@
         "type": "orange", 
         "HSV_value": [3, 81, 188],
         "tolerance": 60,
-        "description": "need explanation",
+        "description": "Define how we cut the contour area using plane cutting",
         "action": "behavior_plane"
     },
     {
         "type": "green", 
         "HSV_value": [39, 51, 152],
         "tolerance": 60,
-        "description": "need explanation",
-        "action": "not defined"
+        "description": "Define how we cut the contour area using relief cutting",
+        "action": "behavior_relief"
     },
     {
         "type": "purple", 
@@ -24,7 +24,7 @@
         "type": "red",
         "HSV_value": [176, 106, 178],
         "tolerance": 60,
-        "description": "Define how we cut the contour area",
+        "description": "Define how we cut the contour area using plane cutting",
         "action": "behavior_plane"
     },
     {
