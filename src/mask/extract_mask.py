@@ -93,16 +93,26 @@ def extract_marks_with_colors(
     # 使用高斯模糊去噪
     blurred_image = cv2.GaussianBlur(gray_image, (9, 9), 2)
 
-    # 使用Otsu阈值
-    _, binary_image = cv2.threshold(
-        blurred_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+    # use OTSU thresholding to get binary image with multiple channels
+    b_channel, g_channel, r_channel = cv2.split(image)
+    _, binary_b = cv2.threshold(
+        b_channel, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
     )
+    _, binary_g = cv2.threshold(
+        g_channel, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+    )
+    _, binary_r = cv2.threshold(
+        r_channel, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+    )
+    binary_image = cv2.bitwise_or(binary_b, binary_g)
+    binary_image = cv2.bitwise_or(binary_image, binary_r)
 
     # binary_image = cv2.adaptiveThreshold(
     #     blurred_image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
     # )
 
     # cv2.imwrite("test_binary_image.png", binary_image)
+    # assert False
 
     # 根据连通域分析分割各个圆
     num_labels, labels_im = cv2.connectedComponents(binary_image)
