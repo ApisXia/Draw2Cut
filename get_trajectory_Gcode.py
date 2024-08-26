@@ -198,15 +198,18 @@ if __name__ == "__main__":
                 img_binary * 255,
             )
 
+        # all img_binary should be uint8
+        img_binary = img_binary.astype(np.uint8)
+
         # ! transform the binary image to trajectory
         if CONFIG["bulk_cutting_style"] == "cut_inward":
-            traj, _ = get_trajectory_incremental_cut_inward(
+            traj, visited_map = get_trajectory_incremental_cut_inward(
                 img_binary,
                 CONFIG["spindle_radius"],
                 CONFIG["spindle_radius"] * 2 - 2,
             )
         elif CONFIG["bulk_cutting_style"] == "row_by_row":
-            traj, _ = get_trajectory_row_by_row(
+            traj, visited_map = get_trajectory_row_by_row(
                 img_binary,
                 CONFIG["spindle_radius"],
                 CONFIG["spindle_radius"],
@@ -214,6 +217,11 @@ if __name__ == "__main__":
         else:
             raise ValueError("Unsupported bulk cutting style")
         trajectory_holders.extend(traj)
+
+        # save the visited map for visualization
+        cv2.imwrite(
+            os.path.join(action_folder, f"visited_map_c{key_contour}.png"), visited_map
+        )
 
     print("Number of trajectories: ", len(trajectory_holders))
 
@@ -243,16 +251,16 @@ if __name__ == "__main__":
         for trajectory in trajectory_holders
     ]
 
-    # draw the trajectory in a 120 x 120 grid
-    grid = np.zeros((x_length, y_length))
-    for trajectory in trajectories:
-        for point in trajectory:
-            grid[int(point[0]), int(point[1])] = 1
-    # # reverse x axis
-    # grid = grid[::-1, :]
-    # # black to white, white to black
-    # grid = 1 - grid
-    plt.imsave(os.path.join(action_folder, "grid.png"), grid, cmap="gray")
+    # (meaningless now, wait to be removed) draw the trajectory in a 120 x 120 grid
+    # grid = np.zeros((x_length, y_length))
+    # for trajectory in trajectories:
+    #     for point in trajectory:
+    #         grid[int(point[0]), int(point[1])] = 1
+    # # # reverse x axis
+    # # grid = grid[::-1, :]
+    # # # black to white, white to black
+    # # grid = 1 - grid
+    # plt.imsave(os.path.join(action_folder, "grid.png"), grid, cmap="gray")
 
     # Define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2]

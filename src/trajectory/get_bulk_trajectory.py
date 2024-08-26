@@ -29,7 +29,7 @@ def get_trajectory_row_by_row(bin_map: np.ndarray, radius: int, row_interval: in
     trajectory = []
 
     # Initialize an empty visited binary map
-    visited_map = np.zeros(bin_map.shape, dtype=int)
+    visited_map = np.zeros(bin_map.shape, dtype=np.uint8)
 
     # start scanning at `first_row_index + row_interval//2`
     for line_index, row in enumerate(
@@ -86,7 +86,13 @@ def get_trajectory_incremental_cut_inward(
     kernel_radius = np.ones((radius, radius), np.uint8)
     kernel_step_size = np.ones((step_size, step_size), np.uint8)
 
+    # # save bin_map for visualization
+    # cv2.imwrite("bin_map_before.png", bin_map * 255)
+
     bin_map = cv2.erode(bin_map, kernel_radius, iterations=1)
+
+    # # save bin_map for visualization
+    # cv2.imwrite("bin_map_step0.png", bin_map * 255)
 
     trajectories = []
     visited_map = np.zeros_like(bin_map, dtype=np.uint8)
@@ -95,9 +101,13 @@ def get_trajectory_incremental_cut_inward(
     while np.sum(bin_map) > 0:
         print("Processing circle: ", circle_counter)
         # get contours of the bin_map
-        contours, _ = cv2.findContours(
-            bin_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(bin_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        # # draw the contours to copied bin_map
+        # bin_map_copy = deepcopy(bin_map)
+        # bin_map_copy = cv2.cvtColor(bin_map_copy, cv2.COLOR_GRAY2BGR)
+        # cv2.drawContours(bin_map_copy, contours, -1, (0, 0, 255), thickness=1)
+        # cv2.imwrite("bin_map_step_next_contour.png", bin_map_copy)
 
         processed_contours = []
         # Filter out already visited contours
@@ -106,7 +116,7 @@ def get_trajectory_incremental_cut_inward(
             circle_contour = np.concatenate((contour, contour[:1]), axis=0)
             processed_contours.append(circle_contour)
             mask = np.zeros_like(bin_map, dtype=np.uint8)
-            cv2.drawContours(mask, [circle_contour], -1, 255, thickness=cv2.FILLED)
+            cv2.drawContours(mask, [circle_contour], -1, 255, thickness=radius * 2)
             if np.sum(cv2.bitwise_and(mask, visited_map)) == 0:
                 visited_map = cv2.bitwise_or(visited_map, mask)
 
@@ -122,6 +132,8 @@ def get_trajectory_incremental_cut_inward(
 
         # shrink the bin_map by step_size pixels using erosion
         bin_map = cv2.erode(bin_map, kernel_step_size, iterations=1)
+
+        # cv2.imwrite("bin_map_step_next.png", bin_map * 255)
 
         circle_counter += 1
 
