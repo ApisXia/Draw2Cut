@@ -44,7 +44,6 @@ if __name__ == "__main__":
     # load image
     image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # auto-threshold color mask
     color_masks_dict = extract_marks_with_colors(img)
