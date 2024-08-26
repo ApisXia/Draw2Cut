@@ -254,11 +254,11 @@ if __name__ == "__main__":
     # grid = 1 - grid
     plt.imsave(os.path.join(action_folder, "grid.png"), grid, cmap="gray")
 
-    # ! generate gcode, define milimeters here is OK, in the function it will be converted to inches
+    # Define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2]
-    carving_depth = 2.5  # ! minus means nothing will happen
-    feed_rate = 15
-    gcode = generate_gcode(trajectories, z_surface_level, carving_depth, feed_rate)
+    gcode = generate_gcode(
+        trajectories, z_surface_level, CONFIG["carving_depth"], CONFIG["feed_rate"]
+    )
     with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
 

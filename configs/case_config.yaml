@@ -1,4 +1,4 @@
-version: 0.1.4
+version: 0.1.5
 
 case_name: "add_green"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
@@ -18,3 +18,7 @@ device_precision: 1  # mm
 bulk_cutting_style: "cut_inward"  # "row_by_row" or "cut_inward"
 surface_upscale: 10
 spindle_radius: 5
+
+# cutting settings
+carving_depth: 2.5  # mm (minus means nothing will happen)
+feed_rate: 15  # mm/min
