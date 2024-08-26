@@ -4,7 +4,7 @@ from scipy.spatial.distance import euclidean
 from copy import deepcopy
 
 
-def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
+def get_trajectory_row_by_row(bin_map: np.ndarray, radius: int, row_interval: int):
     # row_interval should be smaller than diameter of circle
     assert row_interval <= 2 * radius, "Row interval is greater than circle's diameter."
 
@@ -70,6 +70,65 @@ def get_trajectory(bin_map: np.ndarray, radius: int, row_interval: int):
         trajectories.append(trajectory)
 
     return trajectories, visited_map
+
+
+def get_trajectory_incremental_cut_inward(
+    bin_map: np.ndarray, radius: int, step_size: int
+):
+    assert step_size <= radius * 2, ValueError(
+        "!!! Step size is greater than diameter."
+    )
+
+    # flip the bin_map left-right
+    # bin_map = bin_map[:, ::-1]
+
+    # define kernels for erosion
+    kernel_radius = np.ones((radius, radius), np.uint8)
+    kernel_step_size = np.ones((step_size, step_size), np.uint8)
+
+    bin_map = cv2.erode(bin_map, kernel_radius, iterations=1)
+
+    trajectories = []
+    visited_map = np.zeros_like(bin_map, dtype=np.uint8)
+
+    circle_counter = 0
+    while np.sum(bin_map) > 0:
+        print("Processing circle: ", circle_counter)
+        # get contours of the bin_map
+        contours, _ = cv2.findContours(
+            bin_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        processed_contours = []
+        # Filter out already visited contours
+        for contour in contours:
+            # add the first point to the last point to close the contour
+            circle_contour = np.concatenate((contour, contour[:1]), axis=0)
+            processed_contours.append(circle_contour)
+            mask = np.zeros_like(bin_map, dtype=np.uint8)
+            cv2.drawContours(mask, [circle_contour], -1, 255, thickness=cv2.FILLED)
+            if np.sum(cv2.bitwise_and(mask, visited_map)) == 0:
+                visited_map = cv2.bitwise_or(visited_map, mask)
+
+        # transorm contours to list of points
+        processed_contours = [contour.squeeze() for contour in processed_contours]
+        # change x, y to y, x
+        processed_contours = [
+            [(point[1], point[0]) for point in contour]
+            for contour in processed_contours
+        ]
+
+        trajectories.extend(processed_contours)
+
+        # shrink the bin_map by step_size pixels using erosion
+        bin_map = cv2.erode(bin_map, kernel_step_size, iterations=1)
+
+        circle_counter += 1
+
+    return trajectories, visited_map
+
+
+""" Drawing section"""
 
 
 def draw_trajectoryx10(visited_map, trajectories):
