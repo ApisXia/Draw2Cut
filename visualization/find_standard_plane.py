@@ -48,7 +48,7 @@ if __name__ == "__main__":
     for i in range(len(points_plane)):
         sphere = o3d.geometry.TriangleMesh.create_sphere(radius=5)
         sphere.compute_vertex_normals()
-        sphere.paint_uniform_color([0.1, 0.1, 0.7])
+        sphere.paint_uniform_color([1.0, 0.84, 0.0])
         sphere.translate(points_plane[i])
         object_to_draw.append(sphere)
 
