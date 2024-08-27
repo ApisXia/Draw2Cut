@@ -25,7 +25,8 @@ def find_centerline_groups(binary_image, connectivity=8):
         binary_image, connectivity, cv2.CV_32S
     )
 
-    all_centerline_contours = []
+    all_centerlines = []
+    all_masks = []
 
     # Iterate through each connected component (excluding the background)
     for label in range(1, num_labels):
@@ -34,9 +35,10 @@ def find_centerline_groups(binary_image, connectivity=8):
 
         # Find centerline for the current mask
         centerline_contours = find_centerline(mask)
-        all_centerline_contours.extend(centerline_contours)
+        all_centerlines.extend(centerline_contours)
+        all_masks.append(mask)
 
-    return all_centerline_contours
+    return all_centerlines, all_masks
 
 
 # add filter to smooth the centerline

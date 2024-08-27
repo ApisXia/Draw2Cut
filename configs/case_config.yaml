@@ -1,6 +1,6 @@
-version: 0.1.4
+version: 0.1.5
 
-case_name: "add_green"  # which is also the folder name
+case_name: "addTest02"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 
@@ -13,8 +13,14 @@ y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis len
 
 # trajecoty settings
 smooth_size: 0
-action_supported: ["contour", "behaviour"]
+contour_mark: ["contour"]
+behavior_mark: ["behavior_plane", "behavior_relief"]  # when detected as first, other will be ignored
 device_precision: 1  # mm
 bulk_cutting_style: "cut_inward"  # "row_by_row" or "cut_inward"
 surface_upscale: 10
 spindle_radius: 5
+curvature: 5  # if using behavior_relief type
+
+# cutting settings
+carving_depth: 2.5  # mm (minus means nothing will happen)
+feed_rate: 15  # mm/min
