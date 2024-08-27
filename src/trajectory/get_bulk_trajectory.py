@@ -130,8 +130,6 @@ def get_trajectory_incremental_cut_inward(
             CONFIG["surface_upscale"] * abs(CONFIG["carving_depth"]) * curvature
         )
         z_ratio = min(z_ratio, 1)
-        if CONFIG["carving_depth"] < 0:
-            z_ratio = 0 - z_ratio
 
         # transorm contours to list of points
         processed_contours = [contour.squeeze() for contour in processed_contours]

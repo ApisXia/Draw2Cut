@@ -22,8 +22,8 @@ def generate_gcode(
         gcode += f"G1 Z{(z_surface_level-carving_depth*z_ratio)*0.03937:.4f} F{feed_rate} ; Move spindle down\n"
 
         for point in trajectory:
-            y, x, z_ration = point
-            gcode += f"G1 X{x*0.03937:.4f} Y{y*0.03937:.4f} Z{(z_surface_level-carving_depth*z_ration)*0.03937:.4f} F{feed_rate} ; Move to next point\n"
+            y, x, z_ratio = point
+            gcode += f"G1 X{x*0.03937:.4f} Y{y*0.03937:.4f} Z{(z_surface_level-carving_depth*z_ratio)*0.03937:.4f} F{feed_rate} ; Move to next point\n"
 
         # Move spindle up to the z_surface_level + z_surface_level
         gcode += f"G1 Z{(z_surface_level+lefting_distance)*0.03937:.4f} F{feed_rate} ; Move spindle up\n"

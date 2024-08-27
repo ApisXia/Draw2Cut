@@ -189,10 +189,7 @@ if __name__ == "__main__":
         contour_line = line_dict["contour"][key_contour]["centerline"]
         if line_dict["contour"][key_contour]["related_behavior"] is None:
             # switch x, y to y, x, and add z ratio value (1)
-            z_ratio = 1 if CONFIG["carving_depth"] > 0 else -1
-            switch_contour_line = [
-                (point[1], point[0], z_ratio) for point in contour_line
-            ]
+            switch_contour_line = [(point[1], point[0], 1) for point in contour_line]
             trajectory_holders.append(switch_contour_line)
             continue
 
@@ -310,7 +307,7 @@ if __name__ == "__main__":
     ]
 
     # Define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2]
+    z_surface_level = left_bottom[2] + CONFIG["offset_z_level"]
     gcode = generate_gcode(
         trajectories, z_surface_level, CONFIG["carving_depth"], CONFIG["feed_rate"]
     )
@@ -333,12 +330,13 @@ if __name__ == "__main__":
         "colors"
     ]
 
+    z_assign = 1 if CONFIG["carving_depth"] >= 0 else -1
     d3_trajectories = [
         [
             (
                 -(point[0] + left_bottom[0]),
                 point[1] + left_bottom[1],
-                left_bottom[2] - 5 * point[2],
+                left_bottom[2] + CONFIG["offset_z_level"] - 5 * point[2] * z_assign,
             )
             for point in trajectory
         ]

@@ -118,7 +118,7 @@ def depth_queue(
 
 
 if __name__ == "__main__":
-    case_name = "tech_evaluation-0823-13"
+    case_name = "test0827_5"
     samping_number = 20
     saving_opt = True
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     profile = pipeline.start(config)
 
     sensor = profile.get_device().query_sensors()[1]
-    sensor.set_option(rs.option.exposure, 60)
+    sensor.set_option(rs.option.exposure, 80)
 
     # get camera intrinsics
     intr = (

@@ -1,6 +1,6 @@
 version: 0.1.5
 
-case_name: "addTest02"  # which is also the folder name
+case_name: "test0827_5"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 
@@ -22,5 +22,6 @@ spindle_radius: 5
 curvature: 5  # if using behavior_relief type
 
 # cutting settings
-carving_depth: 2.5  # mm (minus means nothing will happen)
+offset_z_level: 2  # mm (when cutting, it needs to be 0)
+carving_depth: -4  # mm (minus means nothing will happen)
 feed_rate: 15  # mm/min
