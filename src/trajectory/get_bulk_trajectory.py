@@ -3,7 +3,10 @@ import cv2
 from scipy.spatial.distance import euclidean
 from copy import deepcopy
 
+from configs.load_config import CONFIG
 
+
+# TODO: not working now
 def get_trajectory_row_by_row(bin_map: np.ndarray, radius: int, row_interval: int):
     # row_interval should be smaller than diameter of circle
     assert row_interval <= 2 * radius, "Row interval is greater than circle's diameter."
@@ -73,7 +76,7 @@ def get_trajectory_row_by_row(bin_map: np.ndarray, radius: int, row_interval: in
 
 
 def get_trajectory_incremental_cut_inward(
-    bin_map: np.ndarray, radius: int, step_size: int
+    bin_map: np.ndarray, radius: int, step_size: int, curvature: float = 0
 ):
     assert step_size <= radius * 2, ValueError(
         "!!! Step size is greater than diameter."
@@ -120,11 +123,21 @@ def get_trajectory_incremental_cut_inward(
             if np.sum(cv2.bitwise_and(mask, visited_map)) == 0:
                 visited_map = cv2.bitwise_or(visited_map, mask)
 
+        # z ratio set
+        dis_to_boundary = circle_counter * step_size + radius
+        curvature = max(curvature, 0.000001)
+        z_ratio = dis_to_boundary / (
+            CONFIG["surface_upscale"] * abs(CONFIG["carving_depth"]) * curvature
+        )
+        z_ratio = min(z_ratio, 1)
+        if CONFIG["carving_depth"] < 0:
+            z_ratio = 0 - z_ratio
+
         # transorm contours to list of points
         processed_contours = [contour.squeeze() for contour in processed_contours]
         # change x, y to y, x
         processed_contours = [
-            [(point[1], point[0]) for point in contour]
+            [(point[1], point[0], z_ratio) for point in contour]
             for contour in processed_contours
         ]
 
