@@ -9,7 +9,7 @@ from src.mask.extract_mask import extract_marks_with_colors, draw_extracted_mark
 
 if __name__ == "__main__":
     # visualize the extracted marks folder
-    vis_folder = "src/mark/color_cluster_vis"
+    vis_folder = "src/mask/color_cluster_vis"
     os.makedirs(vis_folder, exist_ok=True)
 
     # clear all image start with color_ and cluster_
@@ -18,11 +18,10 @@ if __name__ == "__main__":
             os.remove(os.path.join(vis_folder, file))
 
     # load image
-    image_path = "src/mark/image_color_collection.png"
+    image_path = "src/mask/image_color_collection.png"
     if not os.path.exists(image_path):
         raise ValueError("Image not found")
     img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     color_masks_dict = extract_marks_with_colors(img)
 
@@ -32,16 +31,24 @@ if __name__ == "__main__":
         cv2.imwrite(os.path.join(vis_folder, f"color_{i}.png"), result_image)
         print(f"{color} saved")
 
-    # using kmeans cluster the colors (key in the dict, rgb) into n clusters
+    # using kmeans cluster the colors (key in the dict, bgr) into n clusters
     # split into n dict accordingly, draw separately
-    cluster_num = 7  # best is 5 and 7
+    cluster_num = 9  # best is 5 and 7
     colors = list(color_masks_dict.keys())
-    # all color transformed to hsv
+    # all color transformed to HSV
     colors_hsv = cv2.cvtColor(
-        np.uint8(colors).reshape(-1, 1, 3), cv2.COLOR_RGB2HSV
+        np.uint8(colors).reshape(-1, 1, 3), cv2.COLOR_BGR2HSV
     ).reshape(-1, 3)
+
+    # map hue to x-y plane
+    kmeans_trainings = np.zeros((len(colors_hsv), 4))
+    kmeans_trainings[:, 0] = np.sin(colors_hsv[:, 0] / 90 * np.pi)
+    kmeans_trainings[:, 1] = np.cos(colors_hsv[:, 0] / 90 * np.pi)
+    kmeans_trainings[:, 2] = colors_hsv[:, 1] / 255
+    kmeans_trainings[:, 3] = colors_hsv[:, 2] / 255
+
     kmeans = KMeans(n_clusters=cluster_num)
-    kmeans.fit(colors_hsv)
+    kmeans.fit(kmeans_trainings)
     labels = kmeans.labels_
     print("labels:", labels)
 
@@ -59,7 +66,19 @@ if __name__ == "__main__":
     print("smallest distance:", np.min(distance_matrix[distance_matrix > 0]))
     # print cluster center one by one
     for i, center in enumerate(cluster_centers):
-        print(f"cluster_{i} center:", center)
+        # transform back to hsv
+        center_hsv = np.zeros(3)
+        center_hsv[0] = np.arctan2(center[0], center[1]) / np.pi * 90
+        if center_hsv[0] < 0:
+            center_hsv[0] += 180
+        center_hsv[1] = center[2] * 255
+        center_hsv[2] = center[3] * 255
+
+        center_bgr = cv2.cvtColor(np.uint8([[center_hsv]]), cv2.COLOR_HSV2BGR).reshape(
+            3
+        )
+        # print(f"cluster_{i} center in BGR:", center_bgr)
+        print(f"cluster_{i} center in HSV:", center_hsv)
 
     for i in np.unique(labels):
         filtered_color_masks_dict = {

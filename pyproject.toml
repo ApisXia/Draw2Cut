@@ -5,8 +5,8 @@ description = ""
 authors = ["Atara <dingxia1995@gmail.com>"]
 readme = "README.md"
 packages = [
-    { include = "utils" },
-    { include = "mark", from = "src" },
+    { include = "visualization" },
+    { include = "mask", from = "src" },
 ]
 
 [tool.poetry.dependencies]
@@ -23,6 +23,7 @@ tqdm = "^4.66.4"
 matplotlib = "^3.9.0"
 numpy = "^1.23"
 hdbscan = "^0.8.38.post1"
+shapely = "^2.0.6"
 
 
 [build-system]

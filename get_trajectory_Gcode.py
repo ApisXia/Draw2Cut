@@ -5,8 +5,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-from src.trajectory.traj_to_Gcode import generate_gcode
-from src.trajectory.get_bulk_trajectory import get_trajectory, draw_trajectory
+from shapely.geometry import Polygon
+from Gcode.traj_to_Gcode import generate_gcode
+from src.trajectory.get_bulk_trajectory import (
+    get_trajectory_row_by_row,
+    get_trajectory_incremental_cut_inward,
+    draw_trajectory,
+)
 
 from configs.load_config import CONFIG
 
@@ -28,12 +33,9 @@ with open("src/mask/color_type_values.json", "r") as f:
 ACTION_MAPPING_DICT = {}
 for item in color_type_values:
     if (
-        item["action"] in CONFIG["action_supported"]
+        item["action"] in CONFIG["contour_mark"] + CONFIG["behavior_mark"]
     ):  # currently only support these two functions
         ACTION_MAPPING_DICT[item["type"]] = item["action"]
-# if not find all action type, raise error
-if len(ACTION_MAPPING_DICT) != len(CONFIG["action_supported"]):
-    raise ValueError("Not all action type is found in color_type_values.json")
 
 
 if __name__ == "__main__":
@@ -47,7 +49,6 @@ if __name__ == "__main__":
     # load image
     image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # auto-threshold color mask
     color_masks_dict = extract_marks_with_colors(img)
@@ -66,126 +67,209 @@ if __name__ == "__main__":
     # assign name to semantic mask dict
     img_binaries = {}
     for original_name, new_name in ACTION_MAPPING_DICT.items():
-        img_binaries[new_name] = semantic_color_mask_dict[original_name][::-1, :]
+        if original_name in semantic_color_mask_dict.keys():
+            if new_name in img_binaries:
+                img_binaries[new_name] = cv2.bitwise_or(
+                    img_binaries[new_name],
+                    semantic_color_mask_dict[original_name][::-1, :],
+                )
+            else:
+                img_binaries[new_name] = semantic_color_mask_dict[original_name][
+                    ::-1, :
+                ]
+    if len(img_binaries) == 0:
+        raise ValueError("No action type found in the image")
 
-    # get centerlines and decide loop or line type for each centerline
+    # assign types to the centerlines
     line_dict = {}
-    for mark_type_name in CONFIG["action_supported"]:
-        centerline_contours = find_centerline_groups(img_binaries[mark_type_name])
-        centerline_contours = filter_centerlines(centerline_contours, filter_size=5)
+    for mark_type_name in CONFIG["contour_mark"] + CONFIG["behavior_mark"]:
+        if mark_type_name not in img_binaries:
+            line_dict[mark_type_name] = {}
+            continue
+        all_centerlines, all_masks = find_centerline_groups(
+            img_binaries[mark_type_name]
+        )
+        if CONFIG["smooth_size"] > 0:
+            all_centerlines = filter_centerlines(
+                all_centerlines, filter_size=CONFIG["smooth_size"]
+            )
 
         # Draw the centerlines for visualization
         centerline_image = np.zeros_like(img_binaries[mark_type_name])
-        cv2.drawContours(centerline_image, centerline_contours, -1, (255, 255, 255), 1)
+        cv2.drawContours(centerline_image, all_centerlines, -1, (255, 255, 255), 1)
         cv2.imwrite(
             os.path.join(action_folder, f"centerline_{mark_type_name}.png"),
             centerline_image,
         )
 
         line_dict[mark_type_name] = {}
-        for i, centerline in enumerate(centerline_contours):
+        for i, centerline in enumerate(all_centerlines):
             area = cv2.contourArea(centerline)
             downsampled_centerline = np.asarray(centerline_downsample(centerline))
             line_dict[mark_type_name][i] = {
                 "type": "loop" if area > 10 else "line",
                 "centerline": downsampled_centerline,
+                "mask": all_masks[i],
+                "related_behavior": None,
             }
 
-    # for each "contour" type, check relationship with "behaviour"
+    # sort behavior in CONFIG["behavior_mark"] putting line first
+    for mark_type in CONFIG["behavior_mark"]:
+        line_dict[mark_type] = dict(
+            sorted(
+                line_dict[mark_type].items(),
+                key=lambda item: 0 if item[1]["type"] == "line" else 1,
+            )
+        )
+
+    # for each "contour" type, check relationship with "behavior_plane"
+    reverse_mask_dict = {}
+    for behavior_mark_type in CONFIG["behavior_mark"]:
+        reverse_mask_dict[behavior_mark_type] = {}
+
     for key_contour in line_dict["contour"].keys():
         contour_type = line_dict["contour"][key_contour]["type"]
         contour_line = line_dict["contour"][key_contour]["centerline"]
-        contour_status = "carve_in"
-        contour_related_behaviour = None
+        related_behavior = line_dict["contour"][key_contour]["related_behavior"]
+        contour_polygon = Polygon(contour_line)
 
-        if len(line_dict["behaviour"]) > 0:
-            for key_behaviour in line_dict["behaviour"].keys():
-                behaviour_type = line_dict["behaviour"][key_behaviour]["type"]
-                behaviour_line = line_dict["behaviour"][key_behaviour]["centerline"]
+        # for behavior_mark_type in
+        for behavior_mark_type in CONFIG["behavior_mark"]:
+            if related_behavior is not None:
+                continue
 
+            for key_behaviour in line_dict[behavior_mark_type].keys():
+                behaviour_type = line_dict[behavior_mark_type][key_behaviour]["type"]
+                behaviour_line = line_dict[behavior_mark_type][key_behaviour][
+                    "centerline"
+                ]
+                behaviour_polygon = Polygon(behaviour_line)
+
+                # if behaviour line is inside the contour line, update the mask with filled contour region
+                if contour_type == "loop" and behaviour_type == "line":
+                    if contour_polygon.contains(behaviour_polygon):
+                        contour_mask_binary = np.zeros_like(
+                            img_binaries["contour"], dtype=np.uint8
+                        )
+                        cv2.fillPoly(contour_mask_binary, [contour_line], 255)
+                        line_dict["contour"][key_contour]["mask"] = contour_mask_binary
+                        related_behavior = behavior_mark_type
+
+                # if contour line is inside the behaviour line, draw the behaviour line region, and subtract the contour region
                 if contour_type in ["line", "loop"] and behaviour_type == "loop":
-                    # when contour is line and behaviour is loop, line needs to be inside the loop
-                    inside_ratio = np.sum(
-                        [
-                            cv2.pointPolygonTest(
-                                behaviour_line, (int(point[0]), int(point[1])), False
+                    if behaviour_polygon.contains(contour_polygon):
+                        # get the behavior mask, if not exist, create one
+                        if key_behaviour in reverse_mask_dict.keys():
+                            behavior_mask_binary = reverse_mask_dict[
+                                behavior_mark_type
+                            ][key_behaviour]
+                        else:
+                            behavior_mask_binary = np.zeros_like(
+                                img_binaries[behavior_mark_type], dtype=np.uint8
                             )
-                            for point in contour_line
-                        ]
-                    ) / len(contour_line)
-                    if inside_ratio >= 0.99:
-                        contour_status = "carve_out"
-                        contour_related_behaviour = key_behaviour
-                elif contour_type == "loop" and behaviour_type == "line":
-                    inside_ratio = np.sum(
-                        [
-                            cv2.pointPolygonTest(
-                                contour_line, (int(point[0]), int(point[1])), False
-                            )
-                            for point in behaviour_line
-                        ]
-                    ) / len(behaviour_line)
-                    if inside_ratio >= 0.9:
-                        contour_status = "pocket"
-                        contour_related_behaviour = key_behaviour
+                            cv2.fillPoly(behavior_mask_binary, [behaviour_line], 255)
+                            reverse_mask_dict[behavior_mark_type][
+                                key_behaviour
+                            ] = behavior_mask_binary
+                        related_behavior = behavior_mark_type
 
-        line_dict["contour"][key_contour]["status"] = contour_status
-        line_dict["contour"][key_contour][
-            "related_behaviour"
-        ] = contour_related_behaviour
+        # save each contour mask (comment out)
+        # cv2.imwrite(
+        #     os.path.join(
+        #         action_folder, f"altered_{related_behavior}_mask_{key_contour}.png"
+        #     ),
+        #     line_dict["contour"][key_contour]["mask"],
+        # )
+        line_dict["contour"][key_contour]["related_behavior"] = related_behavior
 
-    # design trajectory for each contour
+    # add not bulk contour to trajectory
     trajectory_holders = []
     for key_contour in line_dict["contour"].keys():
         print("Processing contour: ", key_contour)
         contour_line = line_dict["contour"][key_contour]["centerline"]
-        contour_status = line_dict["contour"][key_contour]["status"]
-        relate_behaviour = line_dict["contour"][key_contour]["related_behaviour"]
-        if relate_behaviour is not None:
-            behaviour_line = line_dict["behaviour"][relate_behaviour]["centerline"]
-
-        if contour_status == "carve_in":
-            # reverse x and y axis
-            contour_line = contour_line[:, ::-1]
-            # convert contour line to list of points
-            contour_line = contour_line.tolist()
-            trajectory_holders.append(contour_line)
+        if line_dict["contour"][key_contour]["related_behavior"] is None:
+            # switch x, y to y, x, and add z ratio value (1)
+            switch_contour_line = [(point[1], point[0], 1) for point in contour_line]
+            trajectory_holders.append(switch_contour_line)
             continue
-        elif contour_status == "carve_out":
-            # draw mask inside behaviour_line
-            carve_out_mask = np.zeros_like(img_binaries["contour"])
-            cv2.fillPoly(carve_out_mask, [behaviour_line], 1)
-            # do and operation with contour binary first
-            img_binary = np.logical_and(
-                img_binaries["contour"].astype(bool), carve_out_mask.astype(bool)
-            )
-            # then do xor operation with carve_out_mask
-            img_binary = np.logical_xor(img_binary, carve_out_mask.astype(bool)).astype(
-                int
-            )
-            # save the mask for visualization
-            cv2.imwrite(
-                os.path.join(action_folder, f"carve_out_mask_c{key_contour}.png"),
-                img_binary * 255,
-            )
-        elif contour_status == "pocket":
-            # draw mask inside contour_line
-            pocket_mask = np.zeros_like(img_binaries["contour"])
-            cv2.fillPoly(pocket_mask, [contour_line], 1)
-            img_binary = pocket_mask
-            # save the mask for visualization
-            cv2.imwrite(
-                os.path.join(action_folder, f"pocket_mask_c{key_contour}.png"),
-                img_binary * 255,
-            )
 
-        # ! transform the binary image to trajectory
-        traj, _ = get_trajectory(
-            img_binary,
-            CONFIG["trajectory_row_interval"],
-            CONFIG["trajectory_row_interval"],
+    # step ? get bulk mask
+    # combine a bulk mask
+    combine_bulk_mask_dict = {}
+    for behavior_mark_type in CONFIG["behavior_mark"]:
+        combine_bulk_mask_dict[behavior_mark_type] = np.zeros_like(
+            img_binaries["contour"], dtype=np.uint8
         )
-        trajectory_holders.extend(traj)
+        for key_contour in line_dict["contour"].keys():
+            if (
+                line_dict["contour"][key_contour]["related_behavior"]
+                is behavior_mark_type
+            ):
+                combine_bulk_mask_dict[behavior_mark_type] = cv2.bitwise_or(
+                    combine_bulk_mask_dict[behavior_mark_type],
+                    line_dict["contour"][key_contour]["mask"],
+                )
+
+    # reverse the bulk mask
+    for behavior_mark_type in CONFIG["behavior_mark"]:
+        for re_mask in reverse_mask_dict[behavior_mark_type].values():
+            combine_bulk_mask_dict[behavior_mark_type] = cv2.bitwise_xor(
+                combine_bulk_mask_dict[behavior_mark_type], re_mask
+            )
+        # save the combined bulk mask
+        cv2.imwrite(
+            os.path.join(
+                action_folder, f"combined_bulk_mask_({behavior_mark_type}).png"
+            ),
+            combine_bulk_mask_dict[behavior_mark_type],
+        )
+
+    # using connect region to separate the bulk mask to several bulk masks
+    for behavior_mark_type in CONFIG["behavior_mark"]:
+        num_labels, labels, _, _ = cv2.connectedComponentsWithStats(
+            combine_bulk_mask_dict[behavior_mark_type], 8, cv2.CV_32S
+        )
+        for label in range(1, num_labels):
+            img_binary = np.zeros_like(img_binaries["contour"])
+            img_binary[labels == label] = 255
+
+            # all img_binary should be uint8
+            img_binary = img_binary.astype(np.uint8)
+
+            # transform the binary image to trajectory
+            if CONFIG["bulk_cutting_style"] == "cut_inward":
+                traj, visited_map = get_trajectory_incremental_cut_inward(
+                    img_binary,
+                    CONFIG["spindle_radius"],
+                    (
+                        4
+                        if behavior_mark_type == "behavior_relief"
+                        else CONFIG["spindle_radius"] * 2 - 2
+                    ),
+                    curvature=(
+                        CONFIG["curvature"]
+                        if behavior_mark_type == "behavior_relief"
+                        else 0
+                    ),
+                )
+            elif CONFIG["bulk_cutting_style"] == "row_by_row":
+                # TODO: deprecated
+                traj, visited_map = get_trajectory_row_by_row(
+                    img_binary,
+                    CONFIG["spindle_radius"],
+                    CONFIG["spindle_radius"],
+                )
+            else:
+                raise ValueError("Unsupported bulk cutting style")
+            trajectory_holders.extend(traj)
+
+            # save the visited map for visualization
+            cv2.imwrite(
+                os.path.join(
+                    action_folder, f"visited_map_({behavior_mark_type})_{label}.png"
+                ),
+                visited_map,
+            )
 
     print("Number of trajectories: ", len(trajectory_holders))
 
@@ -197,7 +281,11 @@ if __name__ == "__main__":
     # downsample the trajectory based on SURFACE_UPSCALE
     trajectory_holders = [
         [
-            (point[0] / CONFIG["surface_upscale"], point[1] / CONFIG["surface_upscale"])
+            (
+                point[0] / CONFIG["surface_upscale"],
+                point[1] / CONFIG["surface_upscale"],
+                point[2],
+            )
             for point in trajectory
         ]
         for trajectory in trajectory_holders
@@ -211,26 +299,18 @@ if __name__ == "__main__":
 
     # offset the trajectories with the left_bottom
     trajectories = [
-        [(point[0] + left_bottom[0], point[1] + left_bottom[1]) for point in trajectory]
+        [
+            (point[0] + left_bottom[0], point[1] + left_bottom[1], point[2])
+            for point in trajectory
+        ]
         for trajectory in trajectory_holders
     ]
 
-    # draw the trajectory in a 120 x 120 grid
-    grid = np.zeros((x_length, y_length))
-    for trajectory in trajectories:
-        for point in trajectory:
-            grid[int(point[0]), int(point[1])] = 1
-    # # reverse x axis
-    # grid = grid[::-1, :]
-    # # black to white, white to black
-    # grid = 1 - grid
-    plt.imsave(os.path.join(action_folder, "grid.png"), grid, cmap="gray")
-
-    # ! generate gcode, define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2]
-    carving_depth = 2.5  # ! minus means nothing will happen
-    feed_rate = 15
-    gcode = generate_gcode(trajectories, z_surface_level, carving_depth, feed_rate)
+    # Define milimeters here is OK, in the function it will be converted to inches
+    z_surface_level = left_bottom[2] + CONFIG["offset_z_level"]
+    gcode = generate_gcode(
+        trajectories, z_surface_level, CONFIG["carving_depth"], CONFIG["feed_rate"]
+    )
     with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
 
@@ -250,12 +330,13 @@ if __name__ == "__main__":
         "colors"
     ]
 
+    z_assign = 1 if CONFIG["carving_depth"] >= 0 else -1
     d3_trajectories = [
         [
             (
                 -(point[0] + left_bottom[0]),
                 point[1] + left_bottom[1],
-                left_bottom[2] + 1,
+                left_bottom[2] + CONFIG["offset_z_level"] - 5 * point[2] * z_assign,
             )
             for point in trajectory
         ]

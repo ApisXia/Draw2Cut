@@ -9,20 +9,19 @@ from src.space_finding.plane import calculate_points_plane
 
 
 if __name__ == "__main__":
-    file_path = CONFIG["data_path"]
-    data_list = glob(file_path)
-    if len(data_list) == 0:
-        raise ValueError("No data found")
+    # read data
+    pointcloud_data = np.load(CONFIG["data_path"])
 
-    points_plane, _ = calculate_points_plane(data_list)
+    points_plane, _ = calculate_points_plane(
+        CONFIG["origin_label"], pointcloud_data, resize_factor=2
+    )
     points_plane = list(points_plane.values())
 
     # load data
-    data = np.load(data_list[9])
-    points = data["points_pos"]
-    colors = data["transformed_color"].reshape((-1, 3))
+    points = pointcloud_data["points_pos"]
+    colors = pointcloud_data["transformed_color"].reshape((-1, 3))
     colors = colors / 255.0
-    depth = data["depth"].reshape((-1))
+    depth = pointcloud_data["depth"].reshape((-1))
 
     # keep depth larger than 0
     mask = depth > 0
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     for i in range(len(points_plane)):
         sphere = o3d.geometry.TriangleMesh.create_sphere(radius=5)
         sphere.compute_vertex_normals()
-        sphere.paint_uniform_color([0.1, 0.1, 0.7])
+        sphere.paint_uniform_color([1.0, 0.84, 0.0])
         sphere.translate(points_plane[i])
         object_to_draw.append(sphere)
 
