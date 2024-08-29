@@ -9,6 +9,7 @@ from sklearn.cluster import DBSCAN
 import hdbscan
 import copy
 from src.preview.cut_status import cut_status
+from Gcode.traj_to_Gcode import generate_gcode
 
 app = Flask(__name__)
 
@@ -292,8 +293,16 @@ def update_depth():
 @app.route('/generate-trajectory', methods=['POST'])
 def generate_trajectory():
     global current_status
-
-    # 返回成功消息给前端
+    gcode = generate_gcode(
+        current_status.cut_points,
+        z_surface_level=0,
+        carving_depth=current_status.cut_depth,
+        feed_rate=100,
+        stop_at_end=False,
+    )
+    with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
+        f.write(gcode)
+    
     return jsonify({"status": "success", "message": "Trajectory generation completed"})
 
 
