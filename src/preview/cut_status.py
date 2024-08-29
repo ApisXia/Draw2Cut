@@ -105,3 +105,4 @@ class cut_status:
         filtered_colors = self.wood_colors[mask]
 
         return cut_status(filtered_points, filtered_colors, self.cut_points, self.cut_colors, self.cut_depth)
+    # def generate_gcode(self):

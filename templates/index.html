@@ -98,9 +98,10 @@
             <ul id="info-list"></ul>
             <button id="auto-smooth" class="green-button">Auto-Smooth</button>
             <ul id="info-list2"></ul>
-            <input type="color" id="color-picker" value="#867d76">
+            <!-- <input type="color" id="color-picker" value="#867d76"> -->
             <input type="range" id="z-slider" min="-50" max="50" value="0">
-            <span id="z-value">0</span>
+            <span id="z-value">Cut Depth</span>
+            <button id="generate-trajectory" class="green-button">Generate Trajectory</button>
         </div>
         <script>
             var scene = new THREE.Scene();
@@ -108,7 +109,7 @@
             var renderer = new THREE.WebGLRenderer();
                 // renderer.setSize(1200, 600);
                 renderer.setSize(document.getElementById("viewer").clientWidth, document.getElementById("viewer").clientWidth / 2);
-            renderer.setPixelRatio(0.5);
+                        // renderer.setPixelRatio(0.5);
                 renderer.setClearColor(0xffffff);
             document.getElementById("viewer").appendChild(renderer.domElement);
 
@@ -217,7 +218,7 @@
                     var li = document.createElement('li');
                     for (var j = 0; j < HightLightList.length; j++) {
                         if (texts[i].includes(HightLightList[j])) {
-                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:gray;'>" + HightLightList[j] + "</span>");
                         }
                     }
                     li.innerHTML = texts[i];
@@ -229,7 +230,7 @@
                     var li = document.createElement('li');
                     for (var j = 0; j < HightLightList.length; j++) {
                         if (texts[i].includes(HightLightList[j])) {
-                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:gray;'>" + HightLightList[j] + "</span>");
                         }
                     }
                     li.innerHTML = texts[i];
@@ -256,15 +257,15 @@
                     });
             });
 
-                document.getElementById('color-picker').addEventListener('input', function () {
-                    var hexColor = this.value;
-                    cutColor = [
-                        parseInt(hexColor.substr(1, 2), 16) / 255,
-                        parseInt(hexColor.substr(3, 2), 16) / 255,
-                        parseInt(hexColor.substr(5, 2), 16) / 255
-                    ];
-                    render();
-                });
+                                                // document.getElementById('color-picker').addEventListener('input', function () {
+                                                //     var hexColor = this.value;
+                                                //     cutColor = [
+                                                //         parseInt(hexColor.substr(1, 2), 16) / 255,
+                                                //         parseInt(hexColor.substr(3, 2), 16) / 255,
+                                                //         parseInt(hexColor.substr(5, 2), 16) / 255
+                                                //     ];
+                                                //     render();
+                                                // });
 
                 document.getElementById('z-slider').addEventListener('input', function () {
                     zOffset = parseFloat(this.value);

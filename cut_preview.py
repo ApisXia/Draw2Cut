@@ -291,13 +291,7 @@ def update_depth():
 
 @app.route('/generate-trajectory', methods=['POST'])
 def generate_trajectory():
-    # 在这里实现你的轨迹生成逻辑
-    # 比如计算并生成轨迹数据，并保存到 backend_data 中
-
-    # 假设你在这里生成了新的数据
-    # trajectory_data = generate_some_trajectory()
-
-    # 你可以将数据附加到 backend_data 或进行其他处理
+    global current_status
 
     # 返回成功消息给前端
     return jsonify({"status": "success", "message": "Trajectory generation completed"})
