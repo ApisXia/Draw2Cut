@@ -107,7 +107,7 @@ if __name__ == "__main__":
             area = cv2.contourArea(centerline)
             downsampled_centerline = np.asarray(centerline_downsample(centerline))
             line_dict[mark_type_name][i] = {
-                "type": "loop" if area > 10 else "line",
+                "type": "loop" if area > 30 else "line",
                 "centerline": downsampled_centerline,
                 "mask": all_masks[i],
                 "related_behavior": None,
@@ -242,7 +242,7 @@ if __name__ == "__main__":
                     img_binary,
                     CONFIG["spindle_radius"],
                     (
-                        4
+                        10
                         if behavior_mark_type == "behavior_relief"
                         else CONFIG["spindle_radius"] * 2 - 2
                     ),
