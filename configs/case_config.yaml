@@ -1,7 +1,12 @@
 version: 0.1.5
 
+<<<<<<< HEAD
+case_name: "9circles"  # which is also the folder name
+data_path_template: "data/{case_name}/*.npz"
+=======
 case_name: "test0827_5"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
+>>>>>>> master
 temp_file_path_template: "temp_files/{case_name}/"
 
 # working space settings

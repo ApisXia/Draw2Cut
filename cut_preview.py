@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template,request
 import numpy as np
 from scipy.spatial import KDTree, cKDTree
 from configs.load_config import CONFIG
@@ -8,9 +8,49 @@ from scipy.optimize import leastsq
 from sklearn.cluster import DBSCAN
 import hdbscan
 import copy
+from src.preview.cut_status import cut_status
+from Gcode.traj_to_Gcode import generate_gcode
 
 app = Flask(__name__)
 
+def build_mesh(wood_points,wood_colors,cut_points,cut_colors,cut_depth = 5):
+    A = wood_points
+    B = wood_colors
+    C = copy.deepcopy(cut_points)
+    C[:, 2] -= cut_depth
+    D = cut_colors
+    A = np.concatenate((A, C), axis=0)
+    B = np.concatenate((B, D), axis=0)
+    pcd = o3d.geometry.PointCloud()
+    pcd.colors = o3d.utility.Vector3dVector(B)
+    pcd.points = o3d.utility.Vector3dVector(A)
+    # o3d.visualization.draw_geometries([pcd])  
+    print(A.shape)
+    mesh = construct_3d_model(A, B)
+    return mesh
+
+def construct_3d_model(points, colors):
+    pcd = o3d.geometry.PointCloud()
+    pcd.colors = o3d.utility.Vector3dVector(colors)
+    pcd.points = o3d.utility.Vector3dVector(points)
+    # 法线估计
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(
+        radius=0.1, max_nn=30))
+
+    # 进行泊松重建
+    print("Performing Poisson surface reconstruction...")
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
+
+    # 去除低密度区域的面片（例如孤立的面片）
+    # densities = np.asarray(densities)
+    # density_threshold = densities.mean()
+    # vertices_to_remove = densities < density_threshold
+    # mesh.remove_vertices_by_mask(vertices_to_remove)
+
+    # cut_points = np.asarray(mesh.points)
+    # cut_colors = np.array([[0.0, 1.0, 0.0]] * cut_points.shape[0])
+    # o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+    return mesh
 
 # Define a function to project points onto a plane
 def project_to_plane(points, plane_model):
@@ -65,51 +105,8 @@ def to_3d(points_2d, plane_model):
 def rgb2float(rgb):
     return np.array([c / 255.0 * 0.7 for c in rgb])
 
-
-def filter_points(wood_points, wood_colors, cut_points, threshold=0.1):
-    """
-    Filter points in set A by removing points that are close enough to points in set B.
-
-    Args:
-    A (numpy.ndarray): Set A, shape (len, 3)
-    B (numpy.ndarray): Set B, shape (len, 3)
-    threshold (float): Distance threshold, default is 0.1
-
-    Returns:
-    filtered_A (numpy.ndarray): Filtered set A
-    """
-    # Create KDTree for set B
-    kdtree = KDTree(cut_points)
-
-    # Remove points in set A that are close enough to points in set B
-    filtered_points = []
-    filtered_colors = []
-    distances, indices = kdtree.query(wood_points, k=1)
-    keep_mask = distances > threshold
-    unkeep_mask = distances <= threshold
-    # wood_points[unkeep_mask, 2] = wood_points[unkeep_mask, 2] - 5
-    # wood_colors[unkeep_mask] = rgb2float([184, 151, 136])
-    cut_points = copy.deepcopy(wood_points[unkeep_mask])
-    cut_colors = copy.deepcopy(wood_colors[unkeep_mask])
-    # cut_points[:, 2] -= 5
-    cut_colors = rgb2float([184, 151, 136]) * np.ones_like(cut_points)
-    # wood_points = wood_points[keep_mask]
-    # wood_colors = wood_colors[keep_mask]
-    # wood_colors[keep_mask] = [255,255,255]
-    return wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
-
-    for wood_point, wood_color in zip(wood_points, wood_colors):
-        dist = 100
-        for cut_point in cut_points:
-            dist = min(dist, np.linalg.norm(wood_point - cut_point))
-        if dist > threshold:
-            filtered_points.append(wood_point)
-            filtered_colors.append(wood_color)
-
-    return np.array(filtered_points), np.array(filtered_colors)
-
-
 temp_file_path = CONFIG["temp_file_path"]
+cut_depth = 5
 # Read wood point cloud data
 wood_data = np.load(os.path.join(temp_file_path, "points_transformed.npz"))
 wood_points = wood_data["points"]
@@ -124,16 +121,16 @@ cut_points[:, 0] = -cut_points[:, 0]
 cut_points[:, 2] -= 1
 cut_colors = cut_data["colors"]
 
-# Filter wood point cloud data
-wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask = (
-    filter_points(wood_points, wood_colors, cut_points, threshold=2)
-)
-print(wood_points.shape)
+original_status = cut_status(wood_points, wood_colors, cut_points, cut_colors, cut_depth)
+
+# # Filter wood point cloud data
+# original_status = original_status.filter_points(threshold=3)
+# print(wood_points.shape)
 
 centroid = np.mean(wood_points, axis=0)
-wood_points -= centroid
-cut_points -= centroid
+original_status = original_status.move_points(centroid)
 
+current_status = copy.deepcopy(original_status)
 
 @app.route("/")
 def index():
@@ -142,19 +139,29 @@ def index():
 
 @app.route("/data", methods=["GET"])
 def get_data():
-    global wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
-    c = copy.deepcopy(cut_points)
-    c[:, 2] -= 5
+    global original_status,current_status
+    current_status = copy.deepcopy(original_status)
+    current_status = current_status.filter_points(threshold=3)
+    current_status = current_status.filter_wood_zone(width=250, height=250)
+
+    mesh = current_status.build_mesh()
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+    colors = np.asarray(mesh.vertex_colors)
     data = {
-        "wood_points": wood_points[keep_mask].tolist(),
-        "wood_colors": wood_colors[keep_mask].tolist(),
-        "cut_points": c.tolist(),
-        "cut_colors": cut_colors.tolist(),
+        # "wood_points": wood_points[keep_mask].tolist(),
+        # "wood_colors": wood_colors[keep_mask].tolist(),
+        # "cut_points": c.tolist(),
+        # "cut_colors": cut_colors.tolist(),
         "texts": [
             "Contour 'Circle' -> 3mm",
             "Cut trajectories visualized in 'Gray'",
-            "number: 3 contours",
+            "number: 9 contours",
         ],
+        "vertices": vertices.tolist(),
+        "triangles": triangles.tolist(),
+        "colors": colors.tolist(),
+        
     }
     return jsonify(data)
 
@@ -162,17 +169,21 @@ def get_data():
 @app.route("/auto-smooth", methods=["POST"])
 def auto_smooth():
     # Process auto-smooth logic and return new data
-    global wood_points, wood_colors, cut_points, cut_colors, keep_mask, unkeep_mask
+    global original_status,current_status
+    current_status = copy.deepcopy(original_status)
+
     # keep_mask = np.zeros(cut_points.shape[0], dtype=bool)
     # cut_points = cut_points[keep_mask]
     # cut_colors = cut_colors[keep_mask]
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(cut_points)
+    pcd.points = o3d.utility.Vector3dVector(original_status.cut_points)
     all_circle_pcds = []
     remaining_pcd = pcd
 
     while True:
         # Fit a plane using RANSAC
+        if remaining_pcd.is_empty():
+            break
         plane_model, inliers = remaining_pcd.segment_plane(
             distance_threshold=0.01, ransac_n=3, num_iterations=1000
         )
@@ -190,7 +201,7 @@ def auto_smooth():
         points_2d = to_2d(projected_points, plane_model)
 
         # Cluster points on the 2D plane using DBSCAN
-        clustering = hdbscan.HDBSCAN(min_cluster_size=200, min_samples=10).fit(
+        clustering = hdbscan.HDBSCAN(min_cluster_size=50, min_samples=100).fit(
             points_2d
         )
         labels = clustering.labels_
@@ -233,30 +244,66 @@ def auto_smooth():
     circle_pcds = o3d.geometry.PointCloud()
     for circle_pcd in all_circle_pcds:
         circle_pcds += circle_pcd
+    # print(len(circle_pcds))
 
-    cut_points = np.array(circle_pcds.points)
+    smooth_cut_points = np.array(circle_pcds.points)
     # cut_colors = np.array([[0.0, 1.0, 0.0]] * cut_points.shape[0])
-    cut_colors = rgb2float([184, 151, 136]) * np.ones_like(cut_points)
+    smooth_cut_colors = rgb2float([184, 151, 136]) * np.ones_like(smooth_cut_points)
 
-    _, _, _, _, keep_mask, unkeep_mask = filter_points(
-        wood_points, wood_colors, cut_points, threshold=2
-    )
+    current_status = cut_status(current_status.wood_points, current_status.wood_colors, smooth_cut_points, smooth_cut_colors, current_status.cut_depth)
+    current_status = current_status.filter_points(threshold=2)
 
-    print(cut_points.shape)
+    print(smooth_cut_points.shape)
 
-    # empty the wood_points
-    # wood_points = np.array([[0, 0, 0]])
-    # wood_colors = np.array([[0, 0, 0]])
-    # cut_points = np.array(([0, 0, 0]))
-    # cut_colors = np.array(([0, 0, 0]))
+    mesh = current_status.build_mesh()
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+    colors = np.asarray(mesh.vertex_colors)
+
     data = {
-        "wood_points": wood_points[keep_mask].tolist(),
-        "wood_colors": wood_colors[keep_mask].tolist(),
-        "cut_points": cut_points.tolist(),
-        "cut_colors": cut_colors.tolist(),
+        "vertices": vertices.tolist(),
+        "triangles": triangles.tolist(),
+        "colors": colors.tolist(),
         "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"],
     }
     return jsonify(data)
+
+@app.route('/update-depth', methods=['POST'])
+def update_depth():
+    data = request.json
+    z_offset = data.get('zOffset', 0)
+
+    global current_status
+    current_status = current_status.cut_depth = z_offset
+
+    mesh = current_status.build_mesh()
+    vertices = np.asarray(mesh.vertices)
+    triangles = np.asarray(mesh.triangles)
+    colors = np.asarray(mesh.vertex_colors)
+
+    data = {
+        "vertices": vertices.tolist(),
+        "triangles": triangles.tolist(),
+        "colors": colors.tolist(),
+        "texts": ["text 'sake' -> 3mm", "visualized in Green", "number: 9 contours"],
+    }
+    return jsonify(data)
+
+
+@app.route('/generate-trajectory', methods=['POST'])
+def generate_trajectory():
+    global current_status
+    gcode = generate_gcode(
+        current_status.cut_points,
+        z_surface_level=0,
+        carving_depth=current_status.cut_depth,
+        feed_rate=100,
+        stop_at_end=False,
+    )
+    with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
+        f.write(gcode)
+    
+    return jsonify({"status": "success", "message": "Trajectory generation completed"})
 
 
 if __name__ == "__main__":

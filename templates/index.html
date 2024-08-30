@@ -98,93 +98,116 @@
             <ul id="info-list"></ul>
             <button id="auto-smooth" class="green-button">Auto-Smooth</button>
             <ul id="info-list2"></ul>
-                        <input type="color" id="color-picker" value="#ff0000">
-                        <input type="range" id="z-slider" min="-50" max="50" value="0">
-                        <span id="z-value">0</span>
+            <!-- <input type="color" id="color-picker" value="#867d76"> -->
+            <input type="range" id="z-slider" min="-50" max="50" value="0">
+            <span id="z-value">Cut Depth</span>
+            <button id="generate-trajectory" class="green-button">Generate Trajectory</button>
         </div>
         <script>
             var scene = new THREE.Scene();
-                        var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             var renderer = new THREE.WebGLRenderer();
-            renderer.setSize(1200, 600);
-            renderer.setPixelRatio(0.5);
-                        renderer.setClearColor(0xffffff);
+                // renderer.setSize(1200, 600);
+                renderer.setSize(document.getElementById("viewer").clientWidth, document.getElementById("viewer").clientWidth / 2);
+                        // renderer.setPixelRatio(0.5);
+                renderer.setClearColor(0xffffff);
             document.getElementById("viewer").appendChild(renderer.domElement);
 
             var controls = new THREE.OrbitControls(camera, renderer.domElement);
-                        var pointCloudData = null;
-                        var cutColor = [1, 0, 0];
-                        var zOffset = 0;
-                        camera.position.z = 5;
+                var backendData = null;
+                var cutColor = [0.525, 0.490, 0.462];
+                var zOffset = 0;
+                camera.position.z = 5;
 
-                        function render() {
-                            if (!pointCloudData) return;
+                function render() {
+                if (!backendData) return;
 
-                            var wood_points = pointCloudData.wood_points;
-                            var wood_colors = pointCloudData.wood_colors;
-                            var cut_points = pointCloudData.cut_points;
-                            var cut_colors = pointCloudData.cut_colors;
+                // var wood_points = pointCloudData.wood_points;
+                // var wood_colors = pointCloudData.wood_colors;
+                // var cut_points = pointCloudData.cut_points;
+                // var cut_colors = pointCloudData.cut_colors;
+                var vertices = backendData.vertices;
+                var triangles = backendData.triangles;
+                var colors = backendData.colors;
 
-                            for (var i = 0; i < cut_colors.length; i++) {
-                                cut_colors[i] = cutColor;
-                            }
+                // for (var i = 0; i < cut_colors.length; i++) {
+                //     cut_colors[i] = cutColor;
+                // }
 
-                            // for (var i = 0; i < cut_points.length; i++) {
-                            //     cut_points[i][2] -= zOffset;
-                            // }
+                // for (var i = 0; i < cut_points.length; i++) {
+                //     cut_points[i][2] -= zOffset;
+                // }
 
-                            var camPosition = camera.position.clone();
-                            var camRotation = camera.rotation.clone();
+                var camPosition = camera.position.clone();
+                var camRotation = camera.rotation.clone();
 
-                        scene.clear();
+                scene.clear();
 
-                var wood_geometry = new THREE.BufferGeometry();
-                var wood_vertices = new Float32Array(wood_points.length * 3);
-                var wood_vertexColors = new Float32Array(wood_points.length * 3);
+                vertices = new Float32Array(vertices.flat());
+                indices = new Uint32Array(triangles.flat());
+                colors = new Float32Array(colors.flat());
 
-                for (var i = 0; i < wood_points.length; i++) {
-                    wood_vertices[i * 3] = wood_points[i][0];
-                    wood_vertices[i * 3 + 1] = wood_points[i][1];
-                    wood_vertices[i * 3 + 2] = wood_points[i][2];
 
-                    wood_vertexColors[i * 3] = wood_colors[i][0];
-                    wood_vertexColors[i * 3 + 1] = wood_colors[i][1];
-                    wood_vertexColors[i * 3 + 2] = wood_colors[i][2];
-                }
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+                geometry.computeVertexNormals();
 
-                wood_geometry.setAttribute('position', new THREE.BufferAttribute(wood_vertices, 3));
-                wood_geometry.setAttribute('color', new THREE.BufferAttribute(wood_vertexColors, 3));
+                const material = new THREE.MeshBasicMaterial({
+                    vertexColors: THREE.VertexColors,
+                    side: THREE.DoubleSide
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                scene.add(mesh);
 
-                var wood_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
-                var wood_pointCloud = new THREE.Points(wood_geometry, wood_material);
-                scene.add(wood_pointCloud);
+                // var wood_geometry = new THREE.BufferGeometry();
+                // var wood_vertices = new Float32Array(wood_points.length * 3);
+                // var wood_vertexColors = new Float32Array(wood_points.length * 3);
 
-                        var cut_geometry = new THREE.BufferGeometry();
-                        var cut_vertices = new Float32Array(cut_points.length * 3);
-                        var cut_vertexColors = new Float32Array(cut_points.length * 3);
+                // for (var i = 0; i < wood_points.length; i++) {
+                //     wood_vertices[i * 3] = wood_points[i][0];
+                //     wood_vertices[i * 3 + 1] = wood_points[i][1];
+                //     wood_vertices[i * 3 + 2] = wood_points[i][2];
 
-                        for (var i = 0; i < cut_points.length; i++) {
-                            cut_vertices[i * 3] = cut_points[i][0];
-                            cut_vertices[i * 3 + 1] = cut_points[i][1];
-                            cut_vertices[i * 3 + 2] = cut_points[i][2] - zOffset;
+                //     wood_vertexColors[i * 3] = wood_colors[i][0];
+                //     wood_vertexColors[i * 3 + 1] = wood_colors[i][1];
+                //     wood_vertexColors[i * 3 + 2] = wood_colors[i][2];
+                // }
 
-                            cut_vertexColors[i * 3] = cut_colors[i][0];
-                            cut_vertexColors[i * 3 + 1] = cut_colors[i][1];
-                            cut_vertexColors[i * 3 + 2] = cut_colors[i][2];
-                        }
+                // wood_geometry.setAttribute('position', new THREE.BufferAttribute(wood_vertices, 3));
+                // wood_geometry.setAttribute('color', new THREE.BufferAttribute(wood_vertexColors, 3));
 
-                        cut_geometry.setAttribute('position', new THREE.BufferAttribute(cut_vertices, 3));
-                        cut_geometry.setAttribute('color', new THREE.BufferAttribute(cut_vertexColors, 3));
+                // var wood_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
+                // var wood_pointCloud = new THREE.Points(wood_geometry, wood_material);
+                // scene.add(wood_pointCloud);
 
-                        var cut_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
-                        var cut_pointCloud = new THREE.Points(cut_geometry, cut_material);
-                        scene.add(cut_pointCloud);
+                // var cut_geometry = new THREE.BufferGeometry();
+                // var cut_vertices = new Float32Array(cut_points.length * 3);
+                // var cut_vertexColors = new Float32Array(cut_points.length * 3);
 
-                        camera.position.copy(camPosition);
-                        camera.rotation.copy(camRotation);
+                // for (var i = 0; i < cut_points.length; i++) {
+                //     cut_vertices[i * 3] = cut_points[i][0];
+                //     cut_vertices[i * 3 + 1] = cut_points[i][1];
+                //     cut_vertices[i * 3 + 2] = cut_points[i][2] - zOffset;
 
-                        controls.update();
-                        renderer.render(scene, camera);
+                //     cut_vertexColors[i * 3] = cut_colors[i][0];
+                //     cut_vertexColors[i * 3 + 1] = cut_colors[i][1];
+                //     cut_vertexColors[i * 3 + 2] = cut_colors[i][2];
+                // }
+
+                // cut_geometry.setAttribute('position', new THREE.BufferAttribute(cut_vertices, 3));
+                // cut_geometry.setAttribute('color', new THREE.BufferAttribute(cut_vertexColors, 3));
+
+                // var cut_material = new THREE.PointsMaterial({ size: 0.05, vertexColors: true });
+                // var cut_pointCloud = new THREE.Points(cut_geometry, cut_material);
+                // scene.add(cut_pointCloud);
+
+                camera.position.copy(camPosition);
+                camera.rotation.copy(camRotation);
+
+                controls.update();
+                renderer.render(scene, camera);
             }
 
             function update(texts) {
@@ -195,7 +218,7 @@
                     var li = document.createElement('li');
                     for (var j = 0; j < HightLightList.length; j++) {
                         if (texts[i].includes(HightLightList[j])) {
-                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:gray;'>" + HightLightList[j] + "</span>");
                         }
                     }
                     li.innerHTML = texts[i];
@@ -207,7 +230,7 @@
                     var li = document.createElement('li');
                     for (var j = 0; j < HightLightList.length; j++) {
                         if (texts[i].includes(HightLightList[j])) {
-                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:green;'>" + HightLightList[j] + "</span>");
+                            texts[i] = texts[i].replace(HightLightList[j], "<span style='color:gray;'>" + HightLightList[j] + "</span>");
                         }
                     }
                     li.innerHTML = texts[i];
@@ -218,7 +241,7 @@
             fetch('/data')
                 .then(response => response.json())
                 .then(data => {
-                    pointCloudData = data;
+                    backendData = data;
                     render();
                     update(data.texts);
                 });
@@ -229,34 +252,46 @@
                 })
                     .then(response => response.json())
                     .then(data => {
-                        pointCloudData = data;
+                        backendData = data;
                         render();
                     });
             });
 
-                document.getElementById('color-picker').addEventListener('input', function () {
-                    var hexColor = this.value;
-                    cutColor = [
-                        parseInt(hexColor.substr(1, 2), 16) / 255,
-                        parseInt(hexColor.substr(3, 2), 16) / 255,
-                        parseInt(hexColor.substr(5, 2), 16) / 255
-                    ];
-                    render();
-                });
+                                                // document.getElementById('color-picker').addEventListener('input', function () {
+                                                //     var hexColor = this.value;
+                                                //     cutColor = [
+                                                //         parseInt(hexColor.substr(1, 2), 16) / 255,
+                                                //         parseInt(hexColor.substr(3, 2), 16) / 255,
+                                                //         parseInt(hexColor.substr(5, 2), 16) / 255
+                                                //     ];
+                                                //     render();
+                                                // });
 
                 document.getElementById('z-slider').addEventListener('input', function () {
                     zOffset = parseFloat(this.value);
                     document.getElementById('z-value').textContent = zOffset;
-                    render();
+
+                    fetch('/update-depth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ zOffset: zOffset })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            backendData = data;
+                            render();
+                        });
             });
 
-    var animate = function () {
-        requestAnimationFrame(animate);
-        controls.update();
-        renderer.render(scene, camera);
-    };
+                var animate = function () {
+                    requestAnimationFrame(animate);
+                    controls.update();
+                    renderer.render(scene, camera);
+                };
 
-    animate();
+                animate();
         </script>
     </div>
 </body>
