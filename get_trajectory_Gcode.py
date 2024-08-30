@@ -331,12 +331,13 @@ if __name__ == "__main__":
     ]
 
     z_assign = 1 if CONFIG["carving_depth"] >= 0 else -1
+    z_assign *= abs(CONFIG["carving_depth"])
     d3_trajectories = [
         [
             (
                 -(point[0] + left_bottom[0]),
                 point[1] + left_bottom[1],
-                left_bottom[2] + CONFIG["offset_z_level"] - 5 * point[2] * z_assign,
+                left_bottom[2] + CONFIG["offset_z_level"] - point[2] * z_assign,
             )
             for point in trajectory
         ]
@@ -355,6 +356,12 @@ if __name__ == "__main__":
     # create point cloud object
     pcd = o3d.geometry.PointCloud()
     points_transformed[:, 0] = -points_transformed[:, 0]
+
+    # point those over left_bottom[2] - 2, z are set to left_bottom[2]
+    points_transformed[np.where(points_transformed[:, 2] > left_bottom[2] - 5), 2] = (
+        left_bottom[2]
+    )
+
     pcd.points = o3d.utility.Vector3dVector(points_transformed)
     pcd.colors = o3d.utility.Vector3dVector(point_colors)
 

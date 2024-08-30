@@ -22,6 +22,6 @@ spindle_radius: 5
 curvature: 5  # if using behavior_relief type
 
 # cutting settings
-offset_z_level: 2  # mm (when cutting, it needs to be 0)
-carving_depth: -4  # mm (minus means nothing will happen)
+offset_z_level: 0  # mm (when cutting, it needs to be 0)
+carving_depth: 4  # mm (minus means nothing will happen)
 feed_rate: 15  # mm/min
