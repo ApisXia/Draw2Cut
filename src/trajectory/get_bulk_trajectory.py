@@ -1,116 +1,33 @@
-import numpy as np
 import cv2
-from scipy.spatial.distance import euclidean
-from copy import deepcopy
+import numpy as np
+
+from scipy.ndimage import distance_transform_edt
 
 from configs.load_config import CONFIG
 
 
-# TODO: not working now
-def get_trajectory_row_by_row(bin_map: np.ndarray, radius: int, row_interval: int):
-    # row_interval should be smaller than diameter of circle
-    assert row_interval <= 2 * radius, "Row interval is greater than circle's diameter."
-
-    # find the starting row
-    first_row_index = next(
-        (i for i in range(bin_map.shape[0]) if 1 in bin_map[i, :]), None
-    )
-    last_row_index = next(
-        (i for i in range(bin_map.shape[0])[::-1] if 1 in bin_map[i, :]), None
-    )
-    starting_row = min(
-        first_row_index + row_interval // 2, (first_row_index + last_row_index) // 2
-    )
-
-    if first_row_index is None:
-        raise ValueError("No white pixel in the binary map.")
-
-    # Initialize the list of visited points and trajectories
-    visited_now = []
-    visited_past = []
-    trajectories = []
-    trajectory = []
-
-    # Initialize an empty visited binary map
-    visited_map = np.zeros(bin_map.shape, dtype=np.uint8)
-
-    # start scanning at `first_row_index + row_interval//2`
-    for line_index, row in enumerate(
-        range(starting_row, bin_map.shape[0], row_interval)
-    ):
-        print("Processing row: ", row)
-        # clean visited now for each row
-        visited_now = []
-        for col in range(bin_map.shape[1])[:: pow(-1, line_index)]:
-            # if the pixel is white ('1') and not visited yet
-            if bin_map[row, col] == 1 and (row, col) not in visited_past:
-                # if the distance to the previous point is larger than radius, start new trajectory
-                if trajectory and euclidean(trajectory[-1], (row, col)) > 2.5 * radius:
-                    trajectories.append(trajectory)
-                    trajectory = []
-
-                # add the position to the current trajectory
-                trajectory.append((row, col))
-
-                # add the position to the visited nodes
-                visited_now.append((row, col))
-                visited_map[row, col] = 1
-
-                # create a patch around to denote the area that circle would cover
-                for i in range(-radius, radius):
-                    for j in range(-radius, radius):
-                        if (
-                            0 <= row + i < bin_map.shape[0]
-                            and 0 <= col + j < bin_map.shape[1]
-                            and np.sqrt(i**2 + j**2) <= radius
-                        ):
-                            visited_now.append((row + i, col + j))
-                            visited_map[row + i, col + j] = 1
-        visited_past = deepcopy(visited_now)
-
-    # add the last trajectory to the list of trajectories
-    if trajectory:
-        trajectories.append(trajectory)
-
-    return trajectories, visited_map
-
-
 def get_trajectory_incremental_cut_inward(
-    bin_map: np.ndarray, radius: int, step_size: int, curvature: float = 0
+    bin_map: np.ndarray,
+    radius: int,
+    step_size: int,
 ):
     assert step_size <= radius * 2, ValueError(
         "!!! Step size is greater than diameter."
     )
-
-    # flip the bin_map left-right
-    # bin_map = bin_map[:, ::-1]
-
     # define kernels for erosion
     kernel_radius = np.ones((radius, radius), np.uint8)
     kernel_step_size = np.ones((step_size, step_size), np.uint8)
 
-    # # save bin_map for visualization
-    # cv2.imwrite("bin_map_before.png", bin_map * 255)
-
+    # shrink the bin_map by radius pixels using erosion
     bin_map = cv2.erode(bin_map, kernel_radius, iterations=1)
-
-    # # save bin_map for visualization
-    # cv2.imwrite("bin_map_step0.png", bin_map * 255)
 
     trajectories = []
     visited_map = np.zeros_like(bin_map, dtype=np.uint8)
 
     circle_counter = 0
     while np.sum(bin_map) > 0:
-        print("Processing circle: ", circle_counter)
         # get contours of the bin_map
         contours, _ = cv2.findContours(bin_map, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        # # draw the contours to copied bin_map
-        # bin_map_copy = deepcopy(bin_map)
-        # bin_map_copy = cv2.cvtColor(bin_map_copy, cv2.COLOR_GRAY2BGR)
-        # cv2.drawContours(bin_map_copy, contours, -1, (0, 0, 255), thickness=1)
-        # cv2.imwrite("bin_map_step_next_contour.png", bin_map_copy)
 
         processed_contours = []
         # Filter out already visited contours
@@ -123,32 +40,111 @@ def get_trajectory_incremental_cut_inward(
             if np.sum(cv2.bitwise_and(mask, visited_map)) == 0:
                 visited_map = cv2.bitwise_or(visited_map, mask)
 
-        # z ratio set
-        dis_to_boundary = circle_counter * step_size + radius
-        curvature = max(curvature, 0.000001)
-        z_ratio = dis_to_boundary / (
-            CONFIG["surface_upscale"] * abs(CONFIG["carving_depth"]) * curvature
-        )
-        z_ratio = min(z_ratio, 1)
-
         # transorm contours to list of points
         processed_contours = [contour.squeeze() for contour in processed_contours]
         # change x, y to y, x
         processed_contours = [
-            [(point[1], point[0], z_ratio) for point in contour]
+            [(point[1], point[0], 1) for point in contour]
             for contour in processed_contours
         ]
 
+        # add the processed contours to the list of trajectories
         trajectories.extend(processed_contours)
 
         # shrink the bin_map by step_size pixels using erosion
         bin_map = cv2.erode(bin_map, kernel_step_size, iterations=1)
 
-        # cv2.imwrite("bin_map_step_next.png", bin_map * 255)
-
         circle_counter += 1
 
     return trajectories, visited_map
+
+
+def get_trajectory_layer_cut(
+    cutting_bulk_map: np.ndarray,
+    reverse_mask_map: np.ndarray,
+    behavior_type: str = "behavior_plane",
+):
+    # get settings from config
+    assert behavior_type in CONFIG["behavior_mark"], ValueError(
+        "!!! Behavior type is not valid."
+    )
+    radius = CONFIG["spindle_radius"]
+    if behavior_type == "behavior_plane":
+        step_size = CONFIG["step_size"]["plane"]
+        slop_caving = 10000000
+        slop_mount = 10000000
+    elif behavior_type == "behavior_relief":
+        step_size = CONFIG["step_size"]["relief"]
+        slop_caving = max(CONFIG["relief_slop"]["caving"], 0)
+        slop_mount = max(CONFIG["relief_slop"]["mount"], 0)
+
+    # step1: depth map for reverse_mask_map
+    depth_reverse = -distance_transform_edt(reverse_mask_map)
+    depth_reverse = kernel_linear(
+        depth_map=depth_reverse,
+        slope=slop_caving,
+        clip_lower=-CONFIG["bulk_carving_depth"] * CONFIG["surface_upscale"],
+        clip_upper=0,
+    )
+    depth_reverse /= CONFIG["surface_upscale"]
+
+    # get mount dist map
+    mount_map = np.bitwise_xor(cutting_bulk_map, reverse_mask_map)
+    depth_mount = distance_transform_edt(mount_map)
+    depth_mount = kernel_linear(
+        depth_map=depth_mount,
+        slope=slop_mount,
+        clip_lower=0,
+        clip_upper=None,
+    )
+    depth_mount /= CONFIG["surface_upscale"]
+
+    # combine to get final depth map
+    combined_depth_map = depth_mount + depth_reverse
+
+    # get bin map with a depth range to cut
+    trajectories = []
+    visited_map_list = []
+    min_depth = np.min(combined_depth_map)
+    z_arange_list = np.arange(0, min_depth, -CONFIG["depth_forward"]).tolist()
+    z_arange_list.append(min_depth)
+
+    layer_counter = 0
+    for idx in range(len(z_arange_list) - 1):
+        print(f"! Working on layer {layer_counter}")
+        z_max = z_arange_list[idx]
+        z_min = z_arange_list[idx + 1]
+        bin_map = np.logical_and(
+            combined_depth_map >= min_depth, combined_depth_map < z_max
+        ).astype(np.uint8)
+
+        if np.sum(bin_map) == 0:
+            continue
+
+        trajectories_layer, visited_map = get_trajectory_incremental_cut_inward(
+            bin_map=bin_map,
+            radius=radius,
+            step_size=step_size,
+        )
+
+        trajectories_layer = [
+            [(point[0], point[1], z_min) for point in contour]
+            for contour in trajectories_layer
+        ]
+
+        trajectories.extend(trajectories_layer)
+        visited_map_list.append(visited_map)
+
+        layer_counter += 1
+
+    return trajectories, visited_map_list
+
+
+""" Depth Kernel Section """
+
+
+def kernel_linear(depth_map, slope, clip_lower, clip_upper):
+    return np.clip(depth_map * slope, clip_lower, clip_upper)
 
 
 """ Drawing section"""

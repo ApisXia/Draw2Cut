@@ -118,7 +118,7 @@ def depth_queue(
 
 
 if __name__ == "__main__":
-    case_name = "zen_test_3"
+    case_name = "green_test_6"
     samping_number = 20
     saving_opt = True
 

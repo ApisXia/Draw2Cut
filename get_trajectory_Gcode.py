@@ -1,20 +1,19 @@
 import os
 import cv2
 import json
+import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 
 from shapely.geometry import Polygon
+
 from Gcode.traj_to_Gcode import generate_gcode
 from src.trajectory.get_bulk_trajectory import (
-    get_trajectory_row_by_row,
-    get_trajectory_incremental_cut_inward,
+    get_trajectory_layer_cut,
     draw_trajectory,
 )
-
 from configs.load_config import CONFIG
-
 from src.mask.extract_mask import (
     extract_marks_with_colors,
     find_in_predefined_colors,
@@ -44,13 +43,17 @@ if __name__ == "__main__":
 
     # action subfolder
     action_folder = os.path.join(temp_file_path, "trajectory_extraction")
-    os.makedirs(action_folder, exist_ok=True)
+    # if exist, remove the folder
+    if os.path.exists(action_folder):
+        shutil.rmtree(action_folder)
+    os.makedirs(action_folder)
 
     # load image
     image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
 
     # auto-threshold color mask
+    print("*** Extracting color masks ***")
     color_masks_dict = extract_marks_with_colors(img)
     colored_masks_img = draw_extracted_marks(color_masks_dict, img.shape)
     cv2.imwrite(os.path.join(action_folder, "colored_masks_img.png"), colored_masks_img)
@@ -107,7 +110,7 @@ if __name__ == "__main__":
             area = cv2.contourArea(centerline)
             downsampled_centerline = np.asarray(centerline_downsample(centerline))
             line_dict[mark_type_name][i] = {
-                "type": "loop" if area > 30 else "line",
+                "type": "loop" if area > 100 else "line",
                 "centerline": downsampled_centerline,
                 "mask": all_masks[i],
                 "related_behavior": None,
@@ -135,8 +138,6 @@ if __name__ == "__main__":
 
         # for behavior_mark_type in
         for behavior_mark_type in CONFIG["behavior_mark"]:
-            if related_behavior is not None:
-                continue
 
             for key_behaviour in line_dict[behavior_mark_type].keys():
                 behaviour_type = line_dict[behavior_mark_type][key_behaviour]["type"]
@@ -183,14 +184,21 @@ if __name__ == "__main__":
         line_dict["contour"][key_contour]["related_behavior"] = related_behavior
 
     # add not bulk contour to trajectory
+    z_arange_list = np.arange(
+        0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward"]
+    ).tolist()
+    z_arange_list.append(-CONFIG["line_cutting_depth"])
     trajectory_holders = []
     for key_contour in line_dict["contour"].keys():
-        print("Processing contour: ", key_contour)
+        print("Processing contour No. ", key_contour)
         contour_line = line_dict["contour"][key_contour]["centerline"]
         if line_dict["contour"][key_contour]["related_behavior"] is None:
-            # switch x, y to y, x, and add z ratio value (1)
-            switch_contour_line = [(point[1], point[0], 1) for point in contour_line]
-            trajectory_holders.append(switch_contour_line)
+            # switch x, y to y, x, and add z value
+            for z_value in z_arange_list:
+                switch_contour_line = [
+                    (point[1], point[0], z_value) for point in contour_line
+                ]
+                trajectory_holders.append(switch_contour_line)
             continue
 
     # step ? get bulk mask
@@ -225,51 +233,50 @@ if __name__ == "__main__":
         )
 
     # using connect region to separate the bulk mask to several bulk masks
+    bulk_counter = 0
     for behavior_mark_type in CONFIG["behavior_mark"]:
         num_labels, labels, _, _ = cv2.connectedComponentsWithStats(
             combine_bulk_mask_dict[behavior_mark_type], 8, cv2.CV_32S
         )
         for label in range(1, num_labels):
+            print(f"Processing bulk No. {bulk_counter}")
             img_binary = np.zeros_like(img_binaries["contour"])
             img_binary[labels == label] = 255
 
             # all img_binary should be uint8
             img_binary = img_binary.astype(np.uint8)
 
+            # find corresponding reverse mask
+            reverse_mask_map = None
+            for _, reverse_mask in reverse_mask_dict[behavior_mark_type].items():
+                if np.sum(cv2.bitwise_and(reverse_mask, img_binary)) > 0:
+                    reverse_mask_map = reverse_mask
+                    break
+            if reverse_mask_map is None:
+                reverse_mask_map = img_binary
+
             # transform the binary image to trajectory
             if CONFIG["bulk_cutting_style"] == "cut_inward":
-                traj, visited_map = get_trajectory_incremental_cut_inward(
-                    img_binary,
-                    CONFIG["spindle_radius"],
-                    (
-                        10
-                        if behavior_mark_type == "behavior_relief"
-                        else CONFIG["spindle_radius"] * 2 - 2
-                    ),
-                    curvature=(
-                        CONFIG["curvature"]
-                        if behavior_mark_type == "behavior_relief"
-                        else 0
-                    ),
-                )
-            elif CONFIG["bulk_cutting_style"] == "row_by_row":
-                # TODO: deprecated
-                traj, visited_map = get_trajectory_row_by_row(
-                    img_binary,
-                    CONFIG["spindle_radius"],
-                    CONFIG["spindle_radius"],
+                traj, visited_map_list = get_trajectory_layer_cut(
+                    cutting_bulk_map=img_binary,
+                    reverse_mask_map=reverse_mask_map,
+                    behavior_type=behavior_mark_type,
                 )
             else:
                 raise ValueError("Unsupported bulk cutting style")
             trajectory_holders.extend(traj)
 
             # save the visited map for visualization
-            cv2.imwrite(
-                os.path.join(
-                    action_folder, f"visited_map_({behavior_mark_type})_{label}.png"
-                ),
-                visited_map,
-            )
+            for idx, v_map in enumerate(visited_map_list):
+                cv2.imwrite(
+                    os.path.join(
+                        action_folder,
+                        f"visited_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
+                    ),
+                    v_map,
+                )
+
+            bulk_counter += 1
 
     print("Number of trajectories: ", len(trajectory_holders))
 
@@ -294,8 +301,8 @@ if __name__ == "__main__":
     # load left_bottom of the image
     preprocess_data = np.load(os.path.join(temp_file_path, "left_bottom_point.npz"))
     left_bottom = preprocess_data["left_bottom_point"]
-    x_length = int(preprocess_data["x_length"]) + 1
-    y_length = int(preprocess_data["y_length"]) + 1
+    # x_length = int(preprocess_data["x_length"]) + 1
+    # y_length = int(preprocess_data["y_length"]) + 1
 
     # offset the trajectories with the left_bottom
     trajectories = [
@@ -308,9 +315,7 @@ if __name__ == "__main__":
 
     # Define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2] + CONFIG["offset_z_level"]
-    gcode = generate_gcode(
-        trajectories, z_surface_level, CONFIG["carving_depth"], CONFIG["feed_rate"]
-    )
+    gcode = generate_gcode(trajectories, z_surface_level, CONFIG["feed_rate"])
     with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
 
@@ -329,15 +334,14 @@ if __name__ == "__main__":
     point_colors = np.load(os.path.join(temp_file_path, "points_transformed.npz"))[
         "colors"
     ]
-
-    z_assign = 1 if CONFIG["carving_depth"] >= 0 else -1
-    z_assign *= abs(CONFIG["carving_depth"])
     d3_trajectories = [
         [
             (
                 -(point[0] + left_bottom[0]),
                 point[1] + left_bottom[1],
-                left_bottom[2] + CONFIG["offset_z_level"] - point[2] * z_assign,
+                left_bottom[2]
+                + CONFIG["offset_z_level"]
+                + point[2] * CONFIG["z_expension"],
             )
             for point in trajectory
         ]

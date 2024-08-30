@@ -1,6 +1,6 @@
-version: 0.1.5
+version: 0.2.0
 
-case_name: "zen_test_3"  # which is also the folder name
+case_name: "green_test_6"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 
@@ -11,17 +11,29 @@ origin_label: "0"
 x_axis_label: ["9", "8"]  # the last one can be used to define the axis length
 y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis length
 
-# trajecoty settings
-smooth_size: 3
+# mask extraction settings
+smooth_size: 0
+surface_upscale: 10
 contour_mark: ["contour"]
 behavior_mark: ["behavior_plane", "behavior_relief"]  # when detected as first, other will be ignored
 device_precision: 1  # mm
-bulk_cutting_style: "cut_inward"  # "row_by_row" or "cut_inward"
-surface_upscale: 10
-spindle_radius: 5
-curvature: 8  # if using behavior_relief type
+
+# planning settings
+bulk_cutting_style: "cut_inward"  # "cut_inward"
+spindle_radius: 10
+step_size: 
+  plane: 18  # mm
+  relief: 18  # mm
+relief_slop:
+  caving: 1  # z / x or y
+  mount: 0.2  # z / x or y
 
 # cutting settings
-offset_z_level: 0  # mm (when cutting, it needs to be 0)
-carving_depth: 5  # mm (minus means nothing will happen)
-feed_rate: 15  # mm/min
+offset_z_level: -1  # mm (when cutting, it needs to be 0)
+line_cutting_depth: 3  # mm (minus means nothing will happen)
+bulk_carving_depth: 3  # mm (minus means nothing will happen)
+depth_forward: 1  # mm (cut every this depth layer)
+feed_rate: 20  # mm/min
+
+# visualization settings
+z_expension: 3  # ratio
