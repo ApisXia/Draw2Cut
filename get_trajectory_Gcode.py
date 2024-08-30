@@ -110,7 +110,7 @@ if __name__ == "__main__":
             area = cv2.contourArea(centerline)
             downsampled_centerline = np.asarray(centerline_downsample(centerline))
             line_dict[mark_type_name][i] = {
-                "type": "loop" if area > 30 else "line",
+                "type": "loop" if area > 100 else "line",
                 "centerline": downsampled_centerline,
                 "mask": all_masks[i],
                 "related_behavior": None,
@@ -253,7 +253,7 @@ if __name__ == "__main__":
                     reverse_mask_map = reverse_mask
                     break
             if reverse_mask_map is None:
-                raise ValueError("Reverse bulk map not found")
+                reverse_mask_map = img_binary
 
             # transform the binary image to trajectory
             if CONFIG["bulk_cutting_style"] == "cut_inward":
