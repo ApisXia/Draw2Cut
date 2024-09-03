@@ -26,12 +26,13 @@ def visualize_cutting_planning(
     object_to_draw.append(coarse_trajectory_pcd)
 
     # create fine trajectory point cloud object using red color
-    fine_trajectory_pcd = o3d.geometry.PointCloud()
-    fine_trajectory_pcd.points = o3d.utility.Vector3dVector(fine_cutting_points)
-    fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
-        np.array([[1, 0, 0]] * len(fine_cutting_points))
-    )
-    object_to_draw.append(fine_trajectory_pcd)
+    if len(fine_cutting_points) > 0:
+        fine_trajectory_pcd = o3d.geometry.PointCloud()
+        fine_trajectory_pcd.points = o3d.utility.Vector3dVector(fine_cutting_points)
+        fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+            np.array([[1, 0, 0]] * len(fine_cutting_points))
+        )
+        object_to_draw.append(fine_trajectory_pcd)
 
     # visualize point cloud
     o3d.visualization.draw_geometries(object_to_draw)
@@ -79,7 +80,7 @@ def visualize_final_surface(
     # Create a mesh from the point cloud using Ball Pivoting Algorithm
     distances = pcd.compute_nearest_neighbor_distance()
     avg_dist = np.mean(distances)
-    radius = 3 * avg_dist
+    radius = avg_dist
     mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
         pcd, o3d.utility.DoubleVector([radius, radius * 2])
     )
