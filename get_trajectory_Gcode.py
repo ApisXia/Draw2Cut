@@ -24,6 +24,11 @@ from src.trajectory.find_centerline_groups import (
     filter_centerlines,
     centerline_downsample,
 )
+from utils.traj_point_transform import (
+    down_sampling_to_real_scale,
+    add_x_y_offset,
+    vis_points_ransformation,
+)
 
 # build action mapping dict
 with open("src/mask/color_type_values.json", "r") as f:
@@ -185,10 +190,15 @@ if __name__ == "__main__":
 
     # add not bulk contour to trajectory
     z_arange_list = np.arange(
-        0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward"]
+        0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward"]["coarse"]
     ).tolist()
     z_arange_list.append(-CONFIG["line_cutting_depth"])
-    trajectory_holders = []
+
+    # store the trajectory of line cutting and coarse bulk cutting
+    coarse_trajectory_holders = []
+    # store the trajectory of fine bulk cutting
+    fine_trajectory_holders = []
+
     for key_contour in line_dict["contour"].keys():
         print("Processing contour No. ", key_contour)
         contour_line = line_dict["contour"][key_contour]["centerline"]
@@ -198,7 +208,7 @@ if __name__ == "__main__":
                 switch_contour_line = [
                     (point[1], point[0], z_value) for point in contour_line
                 ]
-                trajectory_holders.append(switch_contour_line)
+                coarse_trajectory_holders.append(switch_contour_line)
             continue
 
     # step ? get bulk mask
@@ -233,7 +243,8 @@ if __name__ == "__main__":
         )
 
     # using connect region to separate the bulk mask to several bulk masks
-    os.makedirs(os.path.join(action_folder, "cutting_bulk_masks"), exist_ok=True)
+    os.makedirs(os.path.join(action_folder, "cutting_coarse_bulk_masks"), exist_ok=True)
+    os.makedirs(os.path.join(action_folder, "cutting_fine_bulk_masks"), exist_ok=True)
 
     bulk_counter = 0
     for behavior_mark_type in CONFIG["behavior_mark"]:
@@ -259,25 +270,28 @@ if __name__ == "__main__":
 
             # transform the binary image to trajectory
             if CONFIG["bulk_cutting_style"] == "cut_inward":
-                traj, visited_map_list, layered_bulk_mask_list = (
-                    get_trajectory_layer_cut(
-                        cutting_bulk_map=img_binary,
-                        reverse_mask_map=reverse_mask_map,
-                        behavior_type=behavior_mark_type,
-                    )
+                cutting_planning = get_trajectory_layer_cut(
+                    cutting_bulk_map=img_binary,
+                    reverse_mask_map=reverse_mask_map,
+                    behavior_type=behavior_mark_type,
                 )
             else:
                 raise ValueError("Unsupported bulk cutting style")
-            trajectory_holders.extend(traj)
+            coarse_trajectory_holders.extend(cutting_planning["coarse"]["trajectories"])
+            fine_trajectory_holders.extend(cutting_planning["fine"]["trajectories"])
 
             # save the visited map for visualization
-            for idx, (v_map, l_map) in enumerate(
-                zip(visited_map_list, layered_bulk_mask_list)
+            for idx, (v_map, l_map, nc_map) in enumerate(
+                zip(
+                    cutting_planning["coarse"]["visited_maps"],
+                    cutting_planning["coarse"]["layered_bulk_masks"],
+                    cutting_planning["coarse"]["not_cutting_maps"],
+                )
             ):
                 cv2.imwrite(
                     os.path.join(
                         action_folder,
-                        "cutting_bulk_masks",
+                        "cutting_coarse_bulk_masks",
                         f"visited_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
                     ),
                     v_map,
@@ -285,33 +299,66 @@ if __name__ == "__main__":
                 cv2.imwrite(
                     os.path.join(
                         action_folder,
-                        "cutting_bulk_masks",
+                        "cutting_coarse_bulk_masks",
                         f"layered_mask_({behavior_mark_type})_no.{label-1}-{idx}.png",
                     ),
                     l_map * 255,
                 )
+                cv2.imwrite(
+                    os.path.join(
+                        action_folder,
+                        "cutting_coarse_bulk_masks",
+                        f"not_cutting_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
+                    ),
+                    nc_map * 255,
+                )
+            for idx, (v_map, l_map, nc_map) in enumerate(
+                zip(
+                    cutting_planning["fine"]["visited_maps"],
+                    cutting_planning["fine"]["layered_bulk_masks"],
+                    cutting_planning["fine"]["not_cutting_maps"],
+                )
+            ):
+                cv2.imwrite(
+                    os.path.join(
+                        action_folder,
+                        "cutting_fine_bulk_masks",
+                        f"visited_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
+                    ),
+                    v_map,
+                )
+                cv2.imwrite(
+                    os.path.join(
+                        action_folder,
+                        "cutting_fine_bulk_masks",
+                        f"layered_mask_({behavior_mark_type})_no.{label-1}-{idx}.png",
+                    ),
+                    l_map * 255,
+                )
+                cv2.imwrite(
+                    os.path.join(
+                        action_folder,
+                        "cutting_fine_bulk_masks",
+                        f"not_cutting_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
+                    ),
+                    nc_map * 255,
+                )
 
             bulk_counter += 1
 
-    print("Number of trajectories: ", len(trajectory_holders))
+    print(
+        "** [info] ** Number of coarse trajectories: ", len(coarse_trajectory_holders)
+    )
+    print("** [info] ** Number of fine trajectories: ", len(fine_trajectory_holders))
 
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
     canvas = np.zeros_like(img_binaries["contour"])
-    map_image = draw_trajectory(canvas, trajectory_holders)
-    cv2.imwrite(os.path.join(action_folder, "trajectory.png"), map_image)
+    map_image = draw_trajectory(canvas, coarse_trajectory_holders)
+    cv2.imwrite(os.path.join(action_folder, "coarse_trajectory.png"), map_image)
 
     # downsample the trajectory based on SURFACE_UPSCALE
-    trajectory_holders = [
-        [
-            (
-                point[0] / CONFIG["surface_upscale"],
-                point[1] / CONFIG["surface_upscale"],
-                point[2],
-            )
-            for point in trajectory
-        ]
-        for trajectory in trajectory_holders
-    ]
+    coarse_trajectory_holders = down_sampling_to_real_scale(coarse_trajectory_holders)
+    fine_trajectory_holders = down_sampling_to_real_scale(fine_trajectory_holders)
 
     # load left_bottom of the image
     preprocess_data = np.load(os.path.join(temp_file_path, "left_bottom_point.npz"))
@@ -320,17 +367,18 @@ if __name__ == "__main__":
     # y_length = int(preprocess_data["y_length"]) + 1
 
     # offset the trajectories with the left_bottom
-    trajectories = [
-        [
-            (point[0] + left_bottom[0], point[1] + left_bottom[1], point[2])
-            for point in trajectory
-        ]
-        for trajectory in trajectory_holders
-    ]
+    coarse_trajectories = add_x_y_offset(
+        coarse_trajectory_holders, left_bottom[0], left_bottom[1]
+    )
+    fine_trajectories = add_x_y_offset(
+        fine_trajectory_holders, left_bottom[0], left_bottom[1]
+    )
 
     # Define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2] + CONFIG["offset_z_level"]
-    gcode = generate_gcode(trajectories, z_surface_level, CONFIG["feed_rate"])
+    gcode = generate_gcode(
+        coarse_trajectories, fine_trajectories, z_surface_level, CONFIG["feed_rate"]
+    )
     with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
 
@@ -349,26 +397,20 @@ if __name__ == "__main__":
     point_colors = np.load(os.path.join(temp_file_path, "points_transformed.npz"))[
         "colors"
     ]
-    d3_trajectories = [
-        [
-            (
-                -(point[0] + left_bottom[0]),
-                point[1] + left_bottom[1],
-                left_bottom[2]
-                + CONFIG["offset_z_level"]
-                + point[2] * CONFIG["z_expension"],
-            )
-            for point in trajectory
-        ]
-        for trajectory in trajectory_holders
-    ]
-    # combine list of list to list
-    d3_trajectories = [point for trajectory in d3_trajectories for point in trajectory]
-    d3_trajectories = np.array(d3_trajectories)
+
+    # get the cutting trajectory points
+    coarse_cutting_points = vis_points_ransformation(
+        coarse_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
+    )
+    fine_cutting_points = vis_points_ransformation(
+        fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
+    )
+
+    # [ ]: need to add fine cutting trajectory?
     np.savez(
         os.path.join(temp_file_path, "cut_points.npz"),
-        points=d3_trajectories,
-        colors=np.array([[0, 1, 0]] * len(d3_trajectories)),
+        points=coarse_cutting_points,
+        colors=np.array([[0, 1, 0]] * len(coarse_cutting_points)),
     )
 
     # add spheres to the point cloud
@@ -397,13 +439,21 @@ if __name__ == "__main__":
     object_to_draw = []
     object_to_draw.append(pcd)
 
-    # create trajectory point cloud object using green color
-    trajectory_pcd = o3d.geometry.PointCloud()
-    trajectory_pcd.points = o3d.utility.Vector3dVector(d3_trajectories)
-    trajectory_pcd.colors = o3d.utility.Vector3dVector(
-        np.array([[0, 1, 0]] * len(d3_trajectories))
+    # create coarse trajectory point cloud object using green color
+    coarse_trajectory_pcd = o3d.geometry.PointCloud()
+    coarse_trajectory_pcd.points = o3d.utility.Vector3dVector(coarse_cutting_points)
+    coarse_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+        np.array([[0, 1, 0]] * len(coarse_cutting_points))
     )
-    object_to_draw.append(trajectory_pcd)
+    object_to_draw.append(coarse_trajectory_pcd)
+
+    # create fine trajectory point cloud object using red color
+    fine_trajectory_pcd = o3d.geometry.PointCloud()
+    fine_trajectory_pcd.points = o3d.utility.Vector3dVector(fine_cutting_points)
+    fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+        np.array([[1, 0, 0]] * len(fine_cutting_points))
+    )
+    object_to_draw.append(fine_trajectory_pcd)
 
     # visualize point cloud
     o3d.visualization.draw_geometries(object_to_draw)
