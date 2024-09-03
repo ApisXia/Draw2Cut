@@ -24,11 +24,12 @@ from src.trajectory.find_centerline_groups import (
     filter_centerlines,
     centerline_downsample,
 )
-from utils.traj_point_transform import (
+from utils.trajectory_transform import (
     down_sampling_to_real_scale,
     add_x_y_offset,
     vis_points_ransformation,
 )
+from utils.visualization import visualize_cutting_planning
 
 # build action mapping dict
 with open("src/mask/color_type_values.json", "r") as f:
@@ -247,6 +248,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(action_folder, "cutting_fine_bulk_masks"), exist_ok=True)
 
     bulk_counter = 0
+    depth_map_holders = []
     for behavior_mark_type in CONFIG["behavior_mark"]:
         num_labels, labels, _, _ = cv2.connectedComponentsWithStats(
             combine_bulk_mask_dict[behavior_mark_type], 8, cv2.CV_32S
@@ -277,6 +279,8 @@ if __name__ == "__main__":
                 )
             else:
                 raise ValueError("Unsupported bulk cutting style")
+
+            depth_map_holders.append(cutting_planning["depth_map"])
             coarse_trajectory_holders.extend(cutting_planning["coarse"]["trajectories"])
             fine_trajectory_holders.extend(cutting_planning["fine"]["trajectories"])
 
@@ -391,12 +395,18 @@ if __name__ == "__main__":
     #     f.write(gcodes)
 
     # ! (VISUAL) draw trajectory as point on 3d point cloud
-    points_transformed = np.load(
-        os.path.join(temp_file_path, "points_transformed.npz")
-    )["points"]
-    point_colors = np.load(os.path.join(temp_file_path, "points_transformed.npz"))[
-        "colors"
-    ]
+    depth_map_total = np.sum(depth_map_holders, axis=0)
+    scanned_data = np.load(os.path.join(temp_file_path, "points_transformed.npz"))
+    scanned_points = scanned_data["points"]
+    scanned_colors = scanned_data["colors"]
+
+    # flip the x axis
+    scanned_points[:, 0] = -scanned_points[:, 0]
+
+    # point those over left_bottom[2] - 2, z are set to left_bottom[2]
+    scanned_points[np.where(scanned_points[:, 2] > left_bottom[2] - 5), 2] = (
+        left_bottom[2]
+    )
 
     # get the cutting trajectory points
     coarse_cutting_points = vis_points_ransformation(
@@ -413,47 +423,10 @@ if __name__ == "__main__":
         colors=np.array([[0, 1, 0]] * len(coarse_cutting_points)),
     )
 
-    # add spheres to the point cloud
-    # create point cloud object
-    pcd = o3d.geometry.PointCloud()
-    points_transformed[:, 0] = -points_transformed[:, 0]
-
-    # point those over left_bottom[2] - 2, z are set to left_bottom[2]
-    points_transformed[np.where(points_transformed[:, 2] > left_bottom[2] - 5), 2] = (
-        left_bottom[2]
+    visualize_cutting_planning(
+        scanned_points,
+        scanned_colors,
+        depth_map_total,
+        coarse_cutting_points,
+        fine_cutting_points,
     )
-
-    pcd.points = o3d.utility.Vector3dVector(points_transformed)
-    pcd.colors = o3d.utility.Vector3dVector(point_colors)
-
-    # print points_transformed x length and y length
-    print(
-        "points_transformed x length: ",
-        np.max(points_transformed[:, 0]) - np.min(points_transformed[:, 0]),
-    )
-    print(
-        "points_transformed y length: ",
-        np.max(points_transformed[:, 1]) - np.min(points_transformed[:, 1]),
-    )
-
-    object_to_draw = []
-    object_to_draw.append(pcd)
-
-    # create coarse trajectory point cloud object using green color
-    coarse_trajectory_pcd = o3d.geometry.PointCloud()
-    coarse_trajectory_pcd.points = o3d.utility.Vector3dVector(coarse_cutting_points)
-    coarse_trajectory_pcd.colors = o3d.utility.Vector3dVector(
-        np.array([[0, 1, 0]] * len(coarse_cutting_points))
-    )
-    object_to_draw.append(coarse_trajectory_pcd)
-
-    # create fine trajectory point cloud object using red color
-    fine_trajectory_pcd = o3d.geometry.PointCloud()
-    fine_trajectory_pcd.points = o3d.utility.Vector3dVector(fine_cutting_points)
-    fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
-        np.array([[1, 0, 0]] * len(fine_cutting_points))
-    )
-    object_to_draw.append(fine_trajectory_pcd)
-
-    # visualize point cloud
-    o3d.visualization.draw_geometries(object_to_draw)
