@@ -118,6 +118,7 @@ def get_trajectory_layer_cut(
 
     # state saving dictionary
     cutting_planning = {
+        "depth_map": combined_depth_map,
         "coarse": {
             "trajectories": [],
             "visited_maps": [],
