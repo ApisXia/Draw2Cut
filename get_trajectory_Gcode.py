@@ -29,7 +29,7 @@ from utils.trajectory_transform import (
     add_x_y_offset,
     vis_points_ransformation,
 )
-from utils.visualization import visualize_cutting_planning
+from utils.visualization import visualize_cutting_planning, visualize_final_surface
 
 # build action mapping dict
 with open("src/mask/color_type_values.json", "r") as f:
@@ -426,7 +426,23 @@ if __name__ == "__main__":
     visualize_cutting_planning(
         scanned_points,
         scanned_colors,
-        depth_map_total,
         coarse_cutting_points,
         fine_cutting_points,
+    )
+
+    # ! final surface visualization
+    # transform the depth_map_total to 3d point cloud add x, y, z offset
+    depth_map_points = np.argwhere(depth_map_total < 0)
+    # stack the z value to the depth_map_points dim 2
+    depth_map_points = np.concatenate(
+        [depth_map_points, depth_map_total[depth_map_total < 0].reshape(-1, 1)], axis=1
+    )
+
+    depth_map_points = down_sampling_to_real_scale([depth_map_points.tolist()])
+    depth_map_points = vis_points_ransformation(
+        depth_map_points, left_bottom[0], left_bottom[1], left_bottom[2]
+    )
+
+    visualize_final_surface(
+        scanned_points, scanned_colors, depth_map_points, left_bottom[2]
     )
