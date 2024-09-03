@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+from copy import deepcopy
 from scipy.ndimage import (
     distance_transform_edt,
     distance_transform_cdt,
@@ -78,13 +79,10 @@ def get_trajectory_layer_cut(
     assert behavior_type in CONFIG["behavior_mark"], ValueError(
         "!!! Behavior type is not valid."
     )
-    radius = CONFIG["spindle_radius"]
     if behavior_type == "behavior_plane":
-        step_size = CONFIG["step_size"]["plane"]
         slop_caving = 10000000
         slop_mount = 10000000
     elif behavior_type == "behavior_relief":
-        step_size = CONFIG["step_size"]["relief"]
         slop_caving = max(CONFIG["relief_slop"]["caving"], 0)
         slop_mount = max(CONFIG["relief_slop"]["mount"], 0)
 
@@ -118,45 +116,137 @@ def get_trajectory_layer_cut(
     # combine to get final depth map
     combined_depth_map = depth_mount + depth_reverse
 
-    # get bin map with a depth range to cut
-    trajectories = []
-    visited_map_list = []
-    min_depth = np.min(combined_depth_map)
-    z_arange_list = np.arange(0, min_depth, -CONFIG["depth_forward"]).tolist()
+    # state saving dictionary
+    cutting_planning = {
+        "coarse": {
+            "trajectories": [],
+            "visited_maps": [],
+            "layered_bulk_masks": [],
+            "not_cutting_maps": [],
+        },
+        "fine": {
+            "trajectories": [],
+            "visited_maps": [],
+            "layered_bulk_masks": [],
+            "not_cutting_maps": [],
+        },
+    }
+
+    # step1: get bin map with a depth range to do coarse cutting
+    print(f"** [Start] ** Planning on coarse cutting ...")
+    coarse_traj, coarse_visited, coarse_layered_bulk, not_cutting = (
+        arrange_cutting_bin_map(
+            depth_map=combined_depth_map,
+            depth_forward=CONFIG["depth_forward"]["coarse"],
+            cutting_type="coarse",
+            cutting_range="within",
+        )
+    )
+    cutting_planning["coarse"]["trajectories"].extend(coarse_traj)
+    cutting_planning["coarse"]["visited_maps"].extend(coarse_visited)
+    cutting_planning["coarse"]["layered_bulk_masks"].extend(coarse_layered_bulk)
+    cutting_planning["coarse"]["not_cutting_maps"].extend(not_cutting)
+    print(f"** [OK] ** Coarse cutting planning is done.")
+
+    # step2: get bin map with a depth range to do fine cutting
+    print(f"** [Start] ** Planning on fine cutting ...")
+    nc_counter = 0
+    for nc_map in cutting_planning["coarse"]["not_cutting_maps"]:
+        print(
+            f"** [On going] ** Fine cutting planning for not cutting map {nc_counter} ..."
+        )
+        nc_depth = deepcopy(combined_depth_map)
+        nc_depth[nc_map != 1] = 0
+        fine_traj, fine_visited, fine_layered_bulk, not_cutting = (
+            arrange_cutting_bin_map(
+                depth_map=nc_depth,
+                depth_forward=CONFIG["depth_forward"]["fine"],
+                cutting_type="fine",
+                cutting_range="within",
+            )
+        )
+        cutting_planning["fine"]["trajectories"].extend(fine_traj)
+        cutting_planning["fine"]["visited_maps"].extend(fine_visited)
+        cutting_planning["fine"]["layered_bulk_masks"].extend(fine_layered_bulk)
+        cutting_planning["fine"]["not_cutting_maps"].extend(not_cutting)
+        nc_counter += 1
+
+    print(f"** [OK] ** Fine cutting planning is done.")
+
+    return cutting_planning
+
+
+def arrange_cutting_bin_map(
+    depth_map: np.ndarray,
+    depth_forward: float,
+    cutting_type: str = "coarse",  # or "fine"
+    cutting_range: str = "within",  # or "overflow"
+):
+    # check cutting type
+    assert cutting_type in ["coarse", "fine"], ValueError(
+        "!!! Cutting type is not valid."
+    )
+    # check cutting range
+    assert cutting_range in ["within", "overflow"], ValueError(
+        "!!! Cutting range is not valid."
+    )
+
+    # get min depth
+    min_depth = np.min(depth_map)
+    max_depth = np.max(depth_map)
+    max_depth = max_depth if max_depth < 0 else 0
+
+    # get cutting depth range
+    z_arange_list = np.arange(max_depth, min_depth, -depth_forward).tolist()
     z_arange_list.append(min_depth)
 
-    layer_counter = 0
+    # state variables
+    trajectories = []
+    visited_map_list = []
     layered_bulk_mask_list = []
+    # not_cutting_depth = np.zeros_like(depth_map, dtype=np.uint8)
+    not_cutting_map_list = []
+
     for idx in range(len(z_arange_list) - 1):
-        print(f"! Working on layer {layer_counter}")
-        z_max = z_arange_list[idx]
-        z_min = z_arange_list[idx + 1]
+        z_upper = z_arange_list[idx]
+        z_lower = z_arange_list[idx + 1]
+
+        if cutting_range == "within":
+            cutting_z_upper = z_lower
+        elif cutting_range == "overflow":
+            cutting_z_upper = min(z_upper, -1e-5)
+
         bin_map = np.logical_and(
-            combined_depth_map >= min_depth, combined_depth_map < z_max
+            depth_map >= min_depth, depth_map <= cutting_z_upper
         ).astype(np.uint8)
 
         if np.sum(bin_map) == 0:
             continue
 
+        # get not cutting bin map
+        not_cutting_map = np.logical_and(
+            depth_map >= min_depth, depth_map <= min(z_upper, -1e-5)
+        ).astype(np.uint8)
+        not_cutting_map = np.logical_xor(not_cutting_map, bin_map)
+        not_cutting_map_list.append(not_cutting_map)
+
         layered_bulk_mask_list.append(bin_map)
 
         trajectories_layer, visited_map = get_trajectory_incremental_cut_inward(
             bin_map=bin_map,
-            radius=radius,
-            step_size=step_size,
+            radius=CONFIG["spindle_radius"],
+            step_size=CONFIG["step_size"][cutting_type],
         )
 
         trajectories_layer = [
-            [(point[0], point[1], z_min) for point in contour]
+            [(point[0], point[1], z_lower) for point in contour]
             for contour in trajectories_layer
         ]
 
         trajectories.extend(trajectories_layer)
         visited_map_list.append(visited_map)
 
-        layer_counter += 1
-
-    return trajectories, visited_map_list, layered_bulk_mask_list
+    return trajectories, visited_map_list, layered_bulk_mask_list, not_cutting_map_list
 
 
 """ Depth Kernel Section """
@@ -167,34 +257,6 @@ def kernel_linear(depth_map, slope, clip_lower, clip_upper):
 
 
 """ Drawing section"""
-
-
-def draw_trajectoryx10(visited_map, trajectories):
-    # Resize the image to 10 times larger
-    map_image = cv2.resize(map_image, None, fx=10, fy=10)
-
-    # Convert grayscale image to BGR
-    map_image = cv2.cvtColor(map_image, cv2.COLOR_GRAY2BGR)
-
-    # Iterate over the trajectories, draw each one
-    for trajectory in trajectories:
-        if len(trajectory) == 1:
-            # If the trajectory is just one point, draw a red circle with radius 4
-            cv2.circle(
-                map_image,
-                (trajectory[0][1] * 10, trajectory[0][0] * 10),
-                4,
-                (0, 0, 255),
-                thickness=-1,
-            )
-        else:
-            for i in range(1, len(trajectory)):
-                # Draw arrow between consecutive points
-                pt1 = (int(trajectory[i - 1][1] * 10), int(trajectory[i - 1][0] * 10))
-                pt2 = (int(trajectory[i][1] * 10), int(trajectory[i][0] * 10))
-                cv2.arrowedLine(map_image, pt1, pt2, (0, 0, 255), 3)  # Arrow in red BGR
-
-    return map_image
 
 
 def draw_trajectory(map_image, trajectories):
