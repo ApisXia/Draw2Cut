@@ -1,4 +1,4 @@
-version: 0.2.0
+version: 0.2.1
 
 case_name: "green_test_6"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
@@ -20,6 +20,7 @@ device_precision: 1  # mm
 
 # planning settings
 bulk_cutting_style: "cut_inward"  # "cut_inward"
+distance_metric: "euclidean" # "euclidean" or "chessboard"
 spindle_radius: 10
 step_size: 
   plane: 18  # mm
@@ -29,10 +30,10 @@ relief_slop:
   mount: 0.2  # z / x or y
 
 # cutting settings
-offset_z_level: -1  # mm (when cutting, it needs to be 0)
+offset_z_level: 0  # mm (when cutting, it needs to be 0)
 line_cutting_depth: 3  # mm (minus means nothing will happen)
 bulk_carving_depth: 3  # mm (minus means nothing will happen)
-depth_forward: 1  # mm (cut every this depth layer)
+depth_forward: 0.2  # mm (cut every this depth layer)
 feed_rate: 20  # mm/min
 
 # visualization settings

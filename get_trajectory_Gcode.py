@@ -233,6 +233,8 @@ if __name__ == "__main__":
         )
 
     # using connect region to separate the bulk mask to several bulk masks
+    os.makedirs(os.path.join(action_folder, "cutting_bulk_masks"), exist_ok=True)
+
     bulk_counter = 0
     for behavior_mark_type in CONFIG["behavior_mark"]:
         num_labels, labels, _, _ = cv2.connectedComponentsWithStats(
@@ -257,23 +259,36 @@ if __name__ == "__main__":
 
             # transform the binary image to trajectory
             if CONFIG["bulk_cutting_style"] == "cut_inward":
-                traj, visited_map_list = get_trajectory_layer_cut(
-                    cutting_bulk_map=img_binary,
-                    reverse_mask_map=reverse_mask_map,
-                    behavior_type=behavior_mark_type,
+                traj, visited_map_list, layered_bulk_mask_list = (
+                    get_trajectory_layer_cut(
+                        cutting_bulk_map=img_binary,
+                        reverse_mask_map=reverse_mask_map,
+                        behavior_type=behavior_mark_type,
+                    )
                 )
             else:
                 raise ValueError("Unsupported bulk cutting style")
             trajectory_holders.extend(traj)
 
             # save the visited map for visualization
-            for idx, v_map in enumerate(visited_map_list):
+            for idx, (v_map, l_map) in enumerate(
+                zip(visited_map_list, layered_bulk_mask_list)
+            ):
                 cv2.imwrite(
                     os.path.join(
                         action_folder,
+                        "cutting_bulk_masks",
                         f"visited_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
                     ),
                     v_map,
+                )
+                cv2.imwrite(
+                    os.path.join(
+                        action_folder,
+                        "cutting_bulk_masks",
+                        f"layered_mask_({behavior_mark_type})_no.{label-1}-{idx}.png",
+                    ),
+                    l_map * 255,
                 )
 
             bulk_counter += 1

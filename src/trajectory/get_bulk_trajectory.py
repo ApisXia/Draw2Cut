@@ -1,9 +1,19 @@
 import cv2
 import numpy as np
 
-from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import (
+    distance_transform_edt,
+    distance_transform_cdt,
+)
 
 from configs.load_config import CONFIG
+
+if CONFIG["distance_metric"] == "chessboard":
+    DIST_METRIC = distance_transform_cdt
+elif CONFIG["distance_metric"] == "euclidean":
+    DIST_METRIC = distance_transform_edt
+else:
+    raise ValueError("!!! Distance metric is not valid.")
 
 
 def get_trajectory_incremental_cut_inward(
@@ -79,7 +89,10 @@ def get_trajectory_layer_cut(
         slop_mount = max(CONFIG["relief_slop"]["mount"], 0)
 
     # step1: depth map for reverse_mask_map
-    depth_reverse = -distance_transform_edt(reverse_mask_map)
+    depth_reverse = -DIST_METRIC(reverse_mask_map).astype(np.float32)
+    # depth_reverse = -distance_transform_cdt(
+    #     reverse_mask_map, metric="chessboard"
+    # ).astype(np.float32)
     depth_reverse = kernel_linear(
         depth_map=depth_reverse,
         slope=slop_caving,
@@ -90,7 +103,10 @@ def get_trajectory_layer_cut(
 
     # get mount dist map
     mount_map = np.bitwise_xor(cutting_bulk_map, reverse_mask_map)
-    depth_mount = distance_transform_edt(mount_map)
+    depth_mount = DIST_METRIC(mount_map).astype(np.float32)
+    # depth_mount = distance_transform_cdt(mount_map, metric="chessboard").astype(
+    #     np.float32
+    # )
     depth_mount = kernel_linear(
         depth_map=depth_mount,
         slope=slop_mount,
@@ -110,6 +126,7 @@ def get_trajectory_layer_cut(
     z_arange_list.append(min_depth)
 
     layer_counter = 0
+    layered_bulk_mask_list = []
     for idx in range(len(z_arange_list) - 1):
         print(f"! Working on layer {layer_counter}")
         z_max = z_arange_list[idx]
@@ -120,6 +137,8 @@ def get_trajectory_layer_cut(
 
         if np.sum(bin_map) == 0:
             continue
+
+        layered_bulk_mask_list.append(bin_map)
 
         trajectories_layer, visited_map = get_trajectory_incremental_cut_inward(
             bin_map=bin_map,
@@ -137,7 +156,7 @@ def get_trajectory_layer_cut(
 
         layer_counter += 1
 
-    return trajectories, visited_map_list
+    return trajectories, visited_map_list, layered_bulk_mask_list
 
 
 """ Depth Kernel Section """
