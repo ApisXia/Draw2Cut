@@ -94,7 +94,8 @@ def get_trajectory_layer_cut(
     depth_reverse = kernel_linear(
         depth_map=depth_reverse,
         slope=slop_caving,
-        clip_lower=-CONFIG["bulk_carving_depth"] * CONFIG["surface_upscale"],
+        clip_lower=-CONFIG["bulk_carving_depth"][behavior_type]
+        * CONFIG["surface_upscale"],
         clip_upper=0,
     )
     depth_reverse /= CONFIG["surface_upscale"]
