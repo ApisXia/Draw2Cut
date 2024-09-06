@@ -59,6 +59,13 @@ def get_trajectory_incremental_cut_inward(
             for contour in processed_contours
         ]
 
+        # remove contour when total points less than 3
+        processed_contours = [
+            contour
+            for contour in processed_contours
+            if len(contour) >= CONFIG["min_points_per_traj"]
+        ]
+
         # add the processed contours to the list of trajectories
         trajectories.extend(processed_contours)
 
@@ -125,52 +132,73 @@ def get_trajectory_layer_cut(
             "visited_maps": [],
             "layered_bulk_masks": [],
             "not_cutting_maps": [],
+            "not_cutting_ranges": [],
         },
         "fine": {
             "trajectories": [],
             "visited_maps": [],
             "layered_bulk_masks": [],
             "not_cutting_maps": [],
+            "not_cutting_ranges": [],
         },
     }
 
     # step1: get bin map with a depth range to do coarse cutting
     print(f"** [Start] ** Planning on coarse cutting ...")
-    coarse_traj, coarse_visited, coarse_layered_bulk, not_cutting = (
-        arrange_cutting_bin_map(
-            depth_map=combined_depth_map,
-            depth_forward=CONFIG["depth_forward"]["coarse"],
-            cutting_type="coarse",
-            cutting_range="within",
-        )
+    (
+        coarse_traj,
+        coarse_visited,
+        coarse_layered_bulk,
+        not_cutting_maps,
+        not_cutting_z_ranges,
+    ) = arrange_cutting_bin_map(
+        depth_map=combined_depth_map,
+        depth_forward=CONFIG["depth_forward"]["coarse"],
+        cutting_type="coarse",
+        cutting_range="within",
     )
     cutting_planning["coarse"]["trajectories"].extend(coarse_traj)
     cutting_planning["coarse"]["visited_maps"].extend(coarse_visited)
     cutting_planning["coarse"]["layered_bulk_masks"].extend(coarse_layered_bulk)
-    cutting_planning["coarse"]["not_cutting_maps"].extend(not_cutting)
+    cutting_planning["coarse"]["not_cutting_maps"].extend(not_cutting_maps)
+    cutting_planning["coarse"]["not_cutting_ranges"].extend(not_cutting_z_ranges)
     print(f"** [OK] ** Coarse cutting planning is done.")
+
+    if len(cutting_planning["coarse"]["not_cutting_maps"]) == 0:
+        return cutting_planning
 
     # step2: get bin map with a depth range to do fine cutting
     print(f"** [Start] ** Planning on fine cutting ...")
     nc_counter = 0
-    for nc_map in cutting_planning["coarse"]["not_cutting_maps"]:
+    for nc_map, nc_range in zip(
+        cutting_planning["coarse"]["not_cutting_maps"],
+        cutting_planning["coarse"]["not_cutting_ranges"],
+    ):
         print(
             f"** [On going] ** Fine cutting planning for not cutting map {nc_counter} ..."
         )
         nc_depth = deepcopy(combined_depth_map)
         nc_depth[nc_map != 1] = 0
-        fine_traj, fine_visited, fine_layered_bulk, not_cutting = (
-            arrange_cutting_bin_map(
-                depth_map=nc_depth,
-                depth_forward=CONFIG["depth_forward"]["fine"],
-                cutting_type="fine",
-                cutting_range="within",
-            )
+
+        (
+            fine_traj,
+            fine_visited,
+            fine_layered_bulk,
+            not_cutting_maps,
+            not_cutting_z_ranges,
+        ) = arrange_cutting_bin_map(
+            depth_map=nc_depth,
+            depth_forward=CONFIG["depth_forward"]["fine"],
+            cutting_type="fine",
+            cutting_range="within",
+            max_z=nc_range[0],
+            min_z=nc_range[1],
         )
         cutting_planning["fine"]["trajectories"].extend(fine_traj)
         cutting_planning["fine"]["visited_maps"].extend(fine_visited)
         cutting_planning["fine"]["layered_bulk_masks"].extend(fine_layered_bulk)
-        cutting_planning["fine"]["not_cutting_maps"].extend(not_cutting)
+        cutting_planning["fine"]["not_cutting_maps"].extend(not_cutting_maps)
+        cutting_planning["fine"]["not_cutting_ranges"].extend(not_cutting_z_ranges)
         nc_counter += 1
 
     print(f"** [OK] ** Fine cutting planning is done.")
@@ -183,6 +211,8 @@ def arrange_cutting_bin_map(
     depth_forward: float,
     cutting_type: str = "coarse",  # or "fine"
     cutting_range: str = "within",  # or "overflow"
+    max_z: float = None,  # closer to 0 level, define max cutting start depth
+    min_z: float = None,  # farther to 0 level, define min cutting end depth
 ):
     # check cutting type
     assert cutting_type in ["coarse", "fine"], ValueError(
@@ -192,11 +222,20 @@ def arrange_cutting_bin_map(
     assert cutting_range in ["within", "overflow"], ValueError(
         "!!! Cutting range is not valid."
     )
+    # check max_z and min_z
+    if max_z is not None and min_z is not None:
+        assert max_z > min_z, ValueError("!!! Max z is smaller than min z.")
 
     # get min depth
     min_depth = np.min(depth_map)
     max_depth = np.max(depth_map)
     max_depth = max_depth if max_depth < 0 else 0
+
+    # using start_z and end_z if they are provided
+    if max_z is not None:
+        max_depth = np.min([max_depth, max_z])
+    if min_z is not None:
+        min_depth = np.max([min_depth, min_z])
 
     # get cutting depth range
     z_arange_list = np.arange(max_depth, min_depth, -depth_forward).tolist()
@@ -208,6 +247,7 @@ def arrange_cutting_bin_map(
     layered_bulk_mask_list = []
     # not_cutting_depth = np.zeros_like(depth_map, dtype=np.uint8)
     not_cutting_map_list = []
+    not_cutting_z_range_list = []
 
     for idx in range(len(z_arange_list) - 1):
         z_upper = z_arange_list[idx]
@@ -216,21 +256,23 @@ def arrange_cutting_bin_map(
         if cutting_range == "within":
             cutting_z_upper = z_lower
         elif cutting_range == "overflow":
-            cutting_z_upper = min(z_upper, -1e-5)
+            cutting_z_upper = min(z_upper, -1e-8)
 
         bin_map = np.logical_and(
             depth_map >= min_depth, depth_map <= cutting_z_upper
         ).astype(np.uint8)
 
-        if np.sum(bin_map) == 0:
+        if np.sum(bin_map) < 5:
             continue
 
         # get not cutting bin map
         not_cutting_map = np.logical_and(
-            depth_map >= min_depth, depth_map <= min(z_upper, -1e-5)
+            depth_map >= min_depth, depth_map <= min(z_upper, -1e-8)
         ).astype(np.uint8)
         not_cutting_map = np.logical_xor(not_cutting_map, bin_map)
-        not_cutting_map_list.append(not_cutting_map)
+        if np.sum(not_cutting_map) > 5:
+            not_cutting_map_list.append(not_cutting_map)
+            not_cutting_z_range_list.append((z_upper, z_lower))
 
         layered_bulk_mask_list.append(bin_map)
 
@@ -248,7 +290,13 @@ def arrange_cutting_bin_map(
         trajectories.extend(trajectories_layer)
         visited_map_list.append(visited_map)
 
-    return trajectories, visited_map_list, layered_bulk_mask_list, not_cutting_map_list
+    return (
+        trajectories,
+        visited_map_list,
+        layered_bulk_mask_list,
+        not_cutting_map_list,
+        not_cutting_z_range_list,
+    )
 
 
 """ Depth Kernel Section """

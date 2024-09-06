@@ -1,4 +1,4 @@
-version: 0.3.1
+version: 0.3.2
 
 case_name: "bigtea_07"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
@@ -28,6 +28,7 @@ step_size:
 relief_slop:
   caving: 0.18  # z / x or y
   mount: 0.3  # z / x or y
+min_points_per_traj: 3
 
 # cutting settings
 offset_z_level: -2  # mm (when cutting, it needs to be 0)
@@ -43,4 +44,4 @@ feed_rate:
   fine: 15  # mm/min
 
 # visualization settings
-z_expension: 1  # ratio
+z_expension: 3  # ratio
