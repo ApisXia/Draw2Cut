@@ -9,6 +9,7 @@ def visualize_cutting_planning(
     scanned_colors: np.ndarray,
     coarse_cutting_points: np.ndarray,
     fine_cutting_points: np.ndarray,
+    ultra_fine_cutting_points: np.ndarray,
 ):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(scanned_points)
@@ -33,6 +34,17 @@ def visualize_cutting_planning(
             np.array([[1, 0, 0]] * len(fine_cutting_points))
         )
         object_to_draw.append(fine_trajectory_pcd)
+
+    # create ultra fine trajectory point cloud object using blue color
+    if len(ultra_fine_cutting_points) > 0:
+        ultra_fine_trajectory_pcd = o3d.geometry.PointCloud()
+        ultra_fine_trajectory_pcd.points = o3d.utility.Vector3dVector(
+            ultra_fine_cutting_points
+        )
+        ultra_fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+            np.array([[0, 0, 1]] * len(ultra_fine_cutting_points))
+        )
+        object_to_draw.append(ultra_fine_trajectory_pcd)
 
     # visualize point cloud
     o3d.visualization.draw_geometries(object_to_draw)

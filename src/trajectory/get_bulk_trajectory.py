@@ -86,6 +86,10 @@ def get_trajectory_layer_cut(
     assert behavior_type in CONFIG["behavior_mark"], ValueError(
         "!!! Behavior type is not valid."
     )
+    assert len(CONFIG["depth_forward_steps"]) > 0, ValueError(
+        "!!! Depth forward steps is not valid."
+    )
+
     if behavior_type == "behavior_plane":
         slop_caving = 10000000
         slop_mount = 10000000
@@ -93,7 +97,7 @@ def get_trajectory_layer_cut(
         slop_caving = max(CONFIG["relief_slop"]["caving"], 0)
         slop_mount = max(CONFIG["relief_slop"]["mount"], 0)
 
-    # step1: depth map for reverse_mask_map
+    # step1: depth map for reverse_mask_maps
     depth_reverse = -DIST_METRIC(reverse_mask_map).astype(np.float32)
     # depth_reverse = -distance_transform_cdt(
     #     reverse_mask_map, metric="chessboard"
@@ -124,27 +128,33 @@ def get_trajectory_layer_cut(
     # combine to get final depth map
     combined_depth_map = depth_mount + depth_reverse
 
-    # state saving dictionary
+    # define cutting planning dictionary, when length is 1, it is just fine cutting
     cutting_planning = {
         "depth_map": combined_depth_map,
-        "coarse": {
-            "trajectories": [],
-            "visited_maps": [],
-            "layered_bulk_masks": [],
-            "not_cutting_maps": [],
-            "not_cutting_ranges": [],
-        },
-        "fine": {
-            "trajectories": [],
-            "visited_maps": [],
-            "layered_bulk_masks": [],
-            "not_cutting_maps": [],
-            "not_cutting_ranges": [],
-        },
     }
 
-    # step1: get bin map with a depth range to do coarse cutting
-    print(f"** [Start] ** Planning on coarse cutting ...")
+    for idx in range(len(CONFIG["depth_forward_steps"]) - 1):
+        cutting_planning[idx] = {
+            "cutting_stage": "coarse",
+            "stage_idx": idx,
+            "trajectories": [],
+            "visited_maps": [],
+            "layered_bulk_masks": [],
+            "not_cutting_maps": [],
+            "not_cutting_ranges": [],
+        }
+    cutting_planning[len(CONFIG["depth_forward_steps"]) - 1] = {
+        "cutting_stage": "fine",
+        "trajectories": [],
+        "visited_maps": [],
+        "layered_bulk_masks": [],
+        "not_cutting_maps": [],
+        "not_cutting_ranges": [],
+    }
+
+    # step1: start from the first cutting stage, to get not cutting map
+    start_from = CONFIG["start_cutting_step"]
+    print(f"** [Start] ** Planning on cutting No.{start_from} ...")
     (
         coarse_traj,
         coarse_visited,
@@ -153,55 +163,61 @@ def get_trajectory_layer_cut(
         not_cutting_z_ranges,
     ) = arrange_cutting_bin_map(
         depth_map=combined_depth_map,
-        depth_forward=CONFIG["depth_forward"]["coarse"],
-        cutting_type="coarse",
+        depth_forward=CONFIG["depth_forward_steps"][start_from],
+        cutting_type=cutting_planning[start_from]["cutting_stage"],
         cutting_range="within",
     )
-    cutting_planning["coarse"]["trajectories"].extend(coarse_traj)
-    cutting_planning["coarse"]["visited_maps"].extend(coarse_visited)
-    cutting_planning["coarse"]["layered_bulk_masks"].extend(coarse_layered_bulk)
-    cutting_planning["coarse"]["not_cutting_maps"].extend(not_cutting_maps)
-    cutting_planning["coarse"]["not_cutting_ranges"].extend(not_cutting_z_ranges)
-    print(f"** [OK] ** Coarse cutting planning is done.")
+    cutting_planning[0]["trajectories"].extend(coarse_traj)
+    cutting_planning[0]["visited_maps"].extend(coarse_visited)
+    cutting_planning[0]["layered_bulk_masks"].extend(coarse_layered_bulk)
+    cutting_planning[0]["not_cutting_maps"].extend(not_cutting_maps)
+    cutting_planning[0]["not_cutting_ranges"].extend(not_cutting_z_ranges)
+    print(f"** [OK] ** Cutting planning No.{start_from} is done.")
 
-    if len(cutting_planning["coarse"]["not_cutting_maps"]) == 0:
+    if len(cutting_planning[0]["not_cutting_maps"]) == 0:
+        return cutting_planning
+    if len(CONFIG["depth_forward_steps"]) - start_from == 1:
         return cutting_planning
 
     # step2: get bin map with a depth range to do fine cutting
-    print(f"** [Start] ** Planning on fine cutting ...")
-    nc_counter = 0
-    for nc_map, nc_range in zip(
-        cutting_planning["coarse"]["not_cutting_maps"],
-        cutting_planning["coarse"]["not_cutting_ranges"],
-    ):
-        print(
-            f"** [On going] ** Fine cutting planning for not cutting map {nc_counter} ..."
-        )
-        nc_depth = deepcopy(combined_depth_map)
-        nc_depth[nc_map != 1] = 0
+    for idx in range(start_from + 1, len(CONFIG["depth_forward_steps"])):
+        print(f"** [Start] ** Planning on cutting No.{idx} ...")
+        nc_counter = 0
+        for nc_map, nc_range in zip(
+            cutting_planning[idx - 1]["not_cutting_maps"],
+            cutting_planning[idx - 1]["not_cutting_ranges"],
+        ):
+            print(
+                f"** [On going] ** Fine cutting planning for not cutting map {nc_counter} ..."
+            )
+            nc_depth = deepcopy(combined_depth_map)
+            nc_depth[nc_map != 1] = 0
 
-        (
-            fine_traj,
-            fine_visited,
-            fine_layered_bulk,
-            not_cutting_maps,
-            not_cutting_z_ranges,
-        ) = arrange_cutting_bin_map(
-            depth_map=nc_depth,
-            depth_forward=CONFIG["depth_forward"]["fine"],
-            cutting_type="fine",
-            cutting_range="within",
-            max_z=nc_range[0],
-            min_z=nc_range[1],
-        )
-        cutting_planning["fine"]["trajectories"].extend(fine_traj)
-        cutting_planning["fine"]["visited_maps"].extend(fine_visited)
-        cutting_planning["fine"]["layered_bulk_masks"].extend(fine_layered_bulk)
-        cutting_planning["fine"]["not_cutting_maps"].extend(not_cutting_maps)
-        cutting_planning["fine"]["not_cutting_ranges"].extend(not_cutting_z_ranges)
-        nc_counter += 1
+            (
+                fine_traj,
+                fine_visited,
+                fine_layered_bulk,
+                not_cutting_maps,
+                not_cutting_z_ranges,
+            ) = arrange_cutting_bin_map(
+                depth_map=nc_depth,
+                depth_forward=CONFIG["depth_forward_steps"][idx],
+                cutting_type=cutting_planning[idx]["cutting_stage"],
+                cutting_range="within",
+                max_z=nc_range[0],
+                min_z=nc_range[1],
+            )
+            cutting_planning[idx]["trajectories"].extend(fine_traj)
+            cutting_planning[idx]["visited_maps"].extend(fine_visited)
+            cutting_planning[idx]["layered_bulk_masks"].extend(fine_layered_bulk)
+            cutting_planning[idx]["not_cutting_maps"].extend(not_cutting_maps)
+            cutting_planning[idx]["not_cutting_ranges"].extend(not_cutting_z_ranges)
+            nc_counter += 1
 
-    print(f"** [OK] ** Fine cutting planning is done.")
+        print(f"** [OK] ** Cutting planning No.{idx} is done.")
+
+        if len(cutting_planning[idx]["not_cutting_maps"]) == 0:
+            break
 
     return cutting_planning
 

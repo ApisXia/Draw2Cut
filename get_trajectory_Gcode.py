@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
     # add not bulk contour to trajectory
     z_arange_list = np.arange(
-        0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward"]["coarse"]
+        0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward_steps"][0]
     ).tolist()
     z_arange_list.append(-CONFIG["line_cutting_depth"])
 
@@ -199,6 +199,8 @@ if __name__ == "__main__":
     coarse_trajectory_holders = []
     # store the trajectory of fine bulk cutting
     fine_trajectory_holders = []
+    # store the trajectory of ultra fine bulk cutting
+    ultra_fine_trajectory_holders = []
 
     for key_contour in line_dict["contour"].keys():
         print("Processing contour No. ", key_contour)
@@ -281,72 +283,50 @@ if __name__ == "__main__":
                 raise ValueError("Unsupported bulk cutting style")
 
             depth_map_holders.append(cutting_planning["depth_map"])
-            coarse_trajectory_holders.extend(cutting_planning["coarse"]["trajectories"])
-            fine_trajectory_holders.extend(cutting_planning["fine"]["trajectories"])
+            coarse_trajectory_holders.extend(cutting_planning[0]["trajectories"])
+            fine_trajectory_holders.extend(cutting_planning[1]["trajectories"])
+            if len(cutting_planning) > 2:
+                for idx in range(2, len(CONFIG["depth_forward_steps"])):
+                    ultra_fine_trajectory_holders.extend(
+                        cutting_planning[idx]["trajectories"]
+                    )
 
             # save the visited map for visualization
-            for idx, (v_map, l_map, nc_map) in enumerate(
-                zip(
-                    cutting_planning["coarse"]["visited_maps"],
-                    cutting_planning["coarse"]["layered_bulk_masks"],
-                    cutting_planning["coarse"]["not_cutting_maps"],
-                )
-            ):
-                cv2.imwrite(
-                    os.path.join(
-                        action_folder,
-                        "cutting_coarse_bulk_masks",
-                        f"visited_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
-                    ),
-                    v_map,
-                )
-                cv2.imwrite(
-                    os.path.join(
-                        action_folder,
-                        "cutting_coarse_bulk_masks",
-                        f"layered_mask_({behavior_mark_type})_no.{label-1}-{idx}.png",
-                    ),
-                    l_map * 255,
-                )
-                cv2.imwrite(
-                    os.path.join(
-                        action_folder,
-                        "cutting_coarse_bulk_masks",
-                        f"not_cutting_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
-                    ),
-                    nc_map * 255,
-                )
-            for idx, (v_map, l_map, nc_map) in enumerate(
-                zip(
-                    cutting_planning["fine"]["visited_maps"],
-                    cutting_planning["fine"]["layered_bulk_masks"],
-                    cutting_planning["fine"]["not_cutting_maps"],
-                )
-            ):
-                cv2.imwrite(
-                    os.path.join(
-                        action_folder,
-                        "cutting_fine_bulk_masks",
-                        f"visited_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
-                    ),
-                    v_map,
-                )
-                cv2.imwrite(
-                    os.path.join(
-                        action_folder,
-                        "cutting_fine_bulk_masks",
-                        f"layered_mask_({behavior_mark_type})_no.{label-1}-{idx}.png",
-                    ),
-                    l_map * 255,
-                )
-                cv2.imwrite(
-                    os.path.join(
-                        action_folder,
-                        "cutting_fine_bulk_masks",
-                        f"not_cutting_map_({behavior_mark_type})_no.{label-1}-{idx}.png",
-                    ),
-                    nc_map * 255,
-                )
+            for idx_cutting in range(len(CONFIG["depth_forward_steps"])):
+                saving_folder = f"forward_{idx_cutting}_bulk_masks"
+                os.makedirs(os.path.join(action_folder, saving_folder), exist_ok=True)
+
+                for idx_map, (v_map, l_map, nc_map) in enumerate(
+                    zip(
+                        cutting_planning[idx_cutting]["visited_maps"],
+                        cutting_planning[idx_cutting]["layered_bulk_masks"],
+                        cutting_planning[idx_cutting]["not_cutting_maps"],
+                    )
+                ):
+                    cv2.imwrite(
+                        os.path.join(
+                            action_folder,
+                            saving_folder,
+                            f"visited_map_({behavior_mark_type})_no.{label-1}-{idx_map}.png",
+                        ),
+                        v_map,
+                    )
+                    cv2.imwrite(
+                        os.path.join(
+                            action_folder,
+                            saving_folder,
+                            f"layered_mask_({behavior_mark_type})_no.{label-1}-{idx_map}.png",
+                        ),
+                        l_map * 255,
+                    )
+                    cv2.imwrite(
+                        os.path.join(
+                            action_folder,
+                            saving_folder,
+                            f"not_cutting_map_({behavior_mark_type})_no.{label-1}-{idx_map}.png",
+                        ),
+                        nc_map * 255,
+                    )
 
             bulk_counter += 1
 
@@ -354,6 +334,10 @@ if __name__ == "__main__":
         "** [info] ** Number of coarse trajectories: ", len(coarse_trajectory_holders)
     )
     print("** [info] ** Number of fine trajectories: ", len(fine_trajectory_holders))
+    print(
+        "** [info] ** Number of ultra fine trajectories: ",
+        len(ultra_fine_trajectory_holders),
+    )
 
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
     canvas = np.zeros_like(img_binaries["contour"])
@@ -363,6 +347,9 @@ if __name__ == "__main__":
     # downsample the trajectory based on SURFACE_UPSCALE
     coarse_trajectory_holders = down_sampling_to_real_scale(coarse_trajectory_holders)
     fine_trajectory_holders = down_sampling_to_real_scale(fine_trajectory_holders)
+    ultra_fine_trajectory_holders = down_sampling_to_real_scale(
+        ultra_fine_trajectory_holders
+    )
 
     # load left_bottom of the image
     preprocess_data = np.load(os.path.join(temp_file_path, "left_bottom_point.npz"))
@@ -377,11 +364,17 @@ if __name__ == "__main__":
     fine_trajectories = add_x_y_offset(
         fine_trajectory_holders, left_bottom[0], left_bottom[1]
     )
+    ultra_fine_trajectories = add_x_y_offset(
+        ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1]
+    )
 
     # Define milimeters here is OK, in the function it will be converted to inches
     z_surface_level = left_bottom[2] + CONFIG["offset_z_level"]
     gcode = generate_gcode(
-        coarse_trajectories, fine_trajectories, z_surface_level, CONFIG["feed_rate"]
+        coarse_trajectories,
+        fine_trajectories,
+        ultra_fine_trajectories,
+        z_surface_level,
     )
     with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
@@ -415,6 +408,9 @@ if __name__ == "__main__":
     fine_cutting_points = vis_points_ransformation(
         fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
+    ultra_fine_cutting_points = vis_points_ransformation(
+        ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
+    )
 
     # [ ]: need to add fine cutting trajectory?
     np.savez(
@@ -428,6 +424,7 @@ if __name__ == "__main__":
         scanned_colors,
         coarse_cutting_points,
         fine_cutting_points,
+        ultra_fine_cutting_points,
     )
 
     # ! final surface visualization
