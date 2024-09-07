@@ -28,7 +28,7 @@ def generate_gcode(
     )
     # Iterate and generate G-code for fine cutting
     gcode += traj2codes(
-        fine_trajectories, z_surface_level, lefting_distance, coarse_feed_rate
+        fine_trajectories, z_surface_level, lefting_distance, fine_feed_rate
     )
     # Iterate and generate G-code for ultra fine cutting
     gcode += traj2codes(

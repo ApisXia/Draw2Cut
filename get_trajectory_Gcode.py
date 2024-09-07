@@ -401,6 +401,8 @@ if __name__ == "__main__":
     # ! (VISUAL) draw trajectory as point on 3d point cloud
     print("******** Step 6: Visualizing the cutting planning ********")
     depth_map_total = np.sum(depth_map_holders, axis=0)
+    print("** [info] ** Maximum depth: ", -np.min(depth_map_total))
+
     scanned_data = np.load(os.path.join(temp_file_path, "points_transformed.npz"))
     scanned_points = scanned_data["points"]
     scanned_colors = scanned_data["colors"]

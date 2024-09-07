@@ -133,24 +133,25 @@ def get_trajectory_layer_cut(
         "depth_map": combined_depth_map,
     }
 
-    for idx in range(len(CONFIG["depth_forward_steps"]) - 1):
-        cutting_planning[idx] = {
-            "cutting_stage": "coarse",
-            "stage_idx": idx,
-            "trajectories": [],
-            "visited_maps": [],
-            "layered_bulk_masks": [],
-            "not_cutting_maps": [],
-            "not_cutting_ranges": [],
-        }
-    cutting_planning[len(CONFIG["depth_forward_steps"]) - 1] = {
-        "cutting_stage": "fine",
+    cutting_planning[0] = {
+        "cutting_stage": "coarse",
         "trajectories": [],
         "visited_maps": [],
         "layered_bulk_masks": [],
         "not_cutting_maps": [],
         "not_cutting_ranges": [],
     }
+    for idx in range(1, len(CONFIG["depth_forward_steps"])):
+        cutting_planning[idx] = {
+            "cutting_stage": "fine",
+            "trajectories": [],
+            "visited_maps": [],
+            "layered_bulk_masks": [],
+            "not_cutting_maps": [],
+            "not_cutting_ranges": [],
+        }
+    if len(CONFIG["depth_forward_steps"]) == 1:
+        cutting_planning[0]["cutting_stage"] = "fine"
 
     # step1: start from the first cutting stage, to get not cutting map
     start_from = CONFIG["start_cutting_step"]
@@ -274,22 +275,22 @@ def arrange_cutting_bin_map(
         elif cutting_range == "overflow":
             cutting_z_upper = min(z_upper, -1e-8)
 
-        bin_map = np.logical_and(
-            depth_map >= min_depth, depth_map <= cutting_z_upper
-        ).astype(np.uint8)
-
-        if np.sum(bin_map) < 5:
-            continue
+        bin_map = (depth_map <= cutting_z_upper).astype(np.uint8)
 
         # get not cutting bin map
         not_cutting_map = np.logical_and(
             depth_map >= min_depth, depth_map <= min(z_upper, -1e-8)
         ).astype(np.uint8)
         not_cutting_map = np.logical_xor(not_cutting_map, bin_map)
-        if np.sum(not_cutting_map) > 5:
-            not_cutting_map_list.append(not_cutting_map)
-            not_cutting_z_range_list.append((z_upper, z_lower))
 
+        if np.sum(bin_map) < 5 and np.sum(not_cutting_map) < 5:
+            print(
+                f"!! [Warning] !! Bin map and not cutting map are too small. Could be a bug."
+            )
+            continue
+
+        not_cutting_map_list.append(not_cutting_map)
+        not_cutting_z_range_list.append((z_upper, z_lower))
         layered_bulk_mask_list.append(bin_map)
 
         trajectories_layer, visited_map = get_trajectory_incremental_cut_inward(
