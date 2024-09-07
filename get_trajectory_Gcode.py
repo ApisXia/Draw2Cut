@@ -59,7 +59,7 @@ if __name__ == "__main__":
     img = cv2.imread(image_path)
 
     # auto-threshold color mask
-    print("*** Extracting color masks ***")
+    print("******** Step 1: Extracting color masks ********")
     color_masks_dict = extract_marks_with_colors(img)
     colored_masks_img = draw_extracted_marks(color_masks_dict, img.shape)
     cv2.imwrite(os.path.join(action_folder, "colored_masks_img.png"), colored_masks_img)
@@ -71,8 +71,10 @@ if __name__ == "__main__":
         cv2.imwrite(
             os.path.join(semantic_saving_folder, f"semantic_{color_type}.png"), mask
         )
-        print(f"{color_type} saved")
+        print(f"** [info] ** {color_type} mask saved.")
+    print("******** Step 1: Extracting color masks Done ********")
 
+    print("******** Step 2: Extracting centerlines ********")
     # assign name to semantic mask dict
     img_binaries = {}
     for original_name, new_name in ACTION_MAPPING_DICT.items():
@@ -189,6 +191,9 @@ if __name__ == "__main__":
         # )
         line_dict["contour"][key_contour]["related_behavior"] = related_behavior
 
+    print("******** Step 2: Extracting centerlines Done ********")
+
+    print("******** Step 3: Extracting line cutting trajectory ********")
     # add not bulk contour to trajectory
     z_arange_list = np.arange(
         0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward_steps"][0]
@@ -203,7 +208,7 @@ if __name__ == "__main__":
     ultra_fine_trajectory_holders = []
 
     for key_contour in line_dict["contour"].keys():
-        print("Processing contour No. ", key_contour)
+        print("** [info] ** Processing line cutting No. ", key_contour)
         contour_line = line_dict["contour"][key_contour]["centerline"]
         if line_dict["contour"][key_contour]["related_behavior"] is None:
             # switch x, y to y, x, and add z value
@@ -213,9 +218,11 @@ if __name__ == "__main__":
                 ]
                 coarse_trajectory_holders.append(switch_contour_line)
             continue
+    print("******** Step 3: Extracting line cutting trajectory Done ********")
 
     # step ? get bulk mask
     # combine a bulk mask
+    print("******** Step 4: Extracting bulk cutting trajectory ********")
     combine_bulk_mask_dict = {}
     for behavior_mark_type in CONFIG["behavior_mark"]:
         combine_bulk_mask_dict[behavior_mark_type] = np.zeros_like(
@@ -246,9 +253,6 @@ if __name__ == "__main__":
         )
 
     # using connect region to separate the bulk mask to several bulk masks
-    os.makedirs(os.path.join(action_folder, "cutting_coarse_bulk_masks"), exist_ok=True)
-    os.makedirs(os.path.join(action_folder, "cutting_fine_bulk_masks"), exist_ok=True)
-
     bulk_counter = 0
     depth_map_holders = []
     for behavior_mark_type in CONFIG["behavior_mark"]:
@@ -256,7 +260,7 @@ if __name__ == "__main__":
             combine_bulk_mask_dict[behavior_mark_type], 8, cv2.CV_32S
         )
         for label in range(1, num_labels):
-            print(f"Processing bulk No. {bulk_counter}")
+            print(f"** [info] ** Processing bulk cutting No. {bulk_counter}")
             img_binary = np.zeros_like(img_binaries["contour"])
             img_binary[labels == label] = 255
 
@@ -296,12 +300,8 @@ if __name__ == "__main__":
                 saving_folder = f"forward_{idx_cutting}_bulk_masks"
                 os.makedirs(os.path.join(action_folder, saving_folder), exist_ok=True)
 
-                for idx_map, (v_map, l_map, nc_map) in enumerate(
-                    zip(
-                        cutting_planning[idx_cutting]["visited_maps"],
-                        cutting_planning[idx_cutting]["layered_bulk_masks"],
-                        cutting_planning[idx_cutting]["not_cutting_maps"],
-                    )
+                for idx_map, v_map in enumerate(
+                    cutting_planning[idx_cutting]["visited_maps"]
                 ):
                     cv2.imwrite(
                         os.path.join(
@@ -311,6 +311,10 @@ if __name__ == "__main__":
                         ),
                         v_map,
                     )
+
+                for idx_map, l_map in enumerate(
+                    cutting_planning[idx_cutting]["layered_bulk_masks"]
+                ):
                     cv2.imwrite(
                         os.path.join(
                             action_folder,
@@ -319,6 +323,10 @@ if __name__ == "__main__":
                         ),
                         l_map * 255,
                     )
+
+                for idx_map, nc_map in enumerate(
+                    cutting_planning[idx_cutting]["not_cutting_maps"]
+                ):
                     cv2.imwrite(
                         os.path.join(
                             action_folder,
@@ -338,7 +346,9 @@ if __name__ == "__main__":
         "** [info] ** Number of ultra fine trajectories: ",
         len(ultra_fine_trajectory_holders),
     )
+    print("******** Step 4: Extracting bulk cutting trajectory Done ********")
 
+    print("******** Step 5: Drawing and saving Gcode ********")
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
     canvas = np.zeros_like(img_binaries["contour"])
     map_image = draw_trajectory(canvas, coarse_trajectory_holders)
@@ -378,6 +388,7 @@ if __name__ == "__main__":
     )
     with open(os.path.join(temp_file_path, "output.gcode.tap"), "w") as f:
         f.write(gcode)
+    print("******** Step 5: Drawing and saving Gcode Done ********")
 
     # a trajectory from (0, 0) to farthest point
     # trajectory_holders = [[(0, 0), (x_length, y_length)]]
@@ -388,6 +399,7 @@ if __name__ == "__main__":
     #     f.write(gcodes)
 
     # ! (VISUAL) draw trajectory as point on 3d point cloud
+    print("******** Step 6: Visualizing the cutting planning ********")
     depth_map_total = np.sum(depth_map_holders, axis=0)
     scanned_data = np.load(os.path.join(temp_file_path, "points_transformed.npz"))
     scanned_points = scanned_data["points"]
@@ -443,3 +455,4 @@ if __name__ == "__main__":
     visualize_final_surface(
         scanned_points, scanned_colors, depth_map_points, left_bottom[2]
     )
+    print("******** Step 6: Visualizing the cutting planning Done ********")
