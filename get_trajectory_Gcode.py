@@ -29,7 +29,7 @@ from utils.trajectory_transform import (
     add_x_y_offset,
     vis_points_ransformation,
 )
-from utils.visualization import visualize_cutting_planning, visualize_final_surface
+from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic
 
 # build action mapping dict
 with open("src/mask/color_type_values.json", "r") as f:
@@ -455,6 +455,9 @@ if __name__ == "__main__":
     )
 
     visualize_final_surface(
+        scanned_points, scanned_colors, depth_map_points, left_bottom[2]
+    )
+    visualize_final_surface_dynamic(
         scanned_points, scanned_colors, depth_map_points, left_bottom[2]
     )
     print("******** Step 6: Visualizing the cutting planning Done ********")
