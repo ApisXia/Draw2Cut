@@ -175,3 +175,4 @@ src/mask/color_cluster_vis
 src/mask/semantic_color_mask_vis
 temp_files
 colored_masks_img.png
+rendered_frames

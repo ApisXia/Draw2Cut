@@ -29,7 +29,7 @@ from utils.trajectory_transform import (
     add_x_y_offset,
     vis_points_ransformation,
 )
-from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic
+from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic,load_and_render_frames
 
 # build action mapping dict
 with open("src/mask/color_type_values.json", "r") as f:
@@ -457,7 +457,24 @@ if __name__ == "__main__":
     visualize_final_surface(
         scanned_points, scanned_colors, depth_map_points, left_bottom[2]
     )
+    # visualize_final_surface_dynamic(
+    #     scanned_points, scanned_colors, depth_map_points, left_bottom[2],coarse_cutting_points
+    # )
+    # Example of how to use the functions:
+    # First, call the function to precompute and save the frames
+    combined_points = np.vstack([coarse_cutting_points, fine_cutting_points, ultra_fine_cutting_points])
     visualize_final_surface_dynamic(
-        scanned_points, scanned_colors, depth_map_points, left_bottom[2]
+        scanned_points=scanned_points,
+        scanned_colors=scanned_colors,
+        depth_map_points=depth_map_points,
+        z_surface_level=0.0,
+        trajectory=combined_points,
+        num_frames=1000,
+        save_dir="./rendered_frames"
     )
+
+    # Then, load and render the saved frames
+    load_and_render_frames(save_dir="./rendered_frames", num_frames=1000)
+
     print("******** Step 6: Visualizing the cutting planning Done ********")
+

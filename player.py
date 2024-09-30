@@ -1,0 +1,3 @@
+from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic,load_and_render_frames
+
+load_and_render_frames(save_dir="./rendered_frames", num_frames=1000)
