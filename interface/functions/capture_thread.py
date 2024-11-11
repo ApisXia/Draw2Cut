@@ -116,12 +116,13 @@ class CaptureThread(QtCore.QThread):
         super(CaptureThread, self).__init__(parent)
         self._stop_event = threading.Event()
 
-        # [ ]: all these need to be defined in function calling
+        # all these will be updated by the GUI
         self.saving_opt = False
         self.sampling_number = 20
         self.case_name = "default_name"
         self.exposure_level = 140
         self.depth_queue_size = 30
+        self.camera_index = 0
 
         # define a queue to store the depth images
         self.depth_queue = np.zeros((self.depth_queue_size, 720, 1280), dtype=np.uint16)
@@ -141,7 +142,7 @@ class CaptureThread(QtCore.QThread):
 
         if self.use_ordinary_camera:
             # 使用 OpenCV 从普通摄像头获取图像
-            cap = cv2.VideoCapture(0)  # 参数根据摄像头调整
+            cap = cv2.VideoCapture(self.camera_index)
             if not cap.isOpened():
                 self.message_signal.emit("Cannot open camera.", "error")
                 return

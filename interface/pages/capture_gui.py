@@ -6,28 +6,33 @@ import datetime
 import numpy as np
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from interface.capture import CaptureThread
+from interface.functions.capture_thread import CaptureThread
 
 
-class MainWindow(QtWidgets.QWidget):
-    def __init__(self):
-        super(MainWindow, self).__init__()
+class CaptureGUI(QtWidgets.QWidget):
+    def __init__(self, message_box: QtWidgets.QTextEdit = None):
+        super(CaptureGUI, self).__init__()
 
-        self.setWindowTitle("Draw2Cut Interface")
-
-        # page1: capture layout
-        capture_layout = self.create_capture_layout()
-
-        # main layout
+        # setup layout
+        page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addLayout(capture_layout)
-        main_layout.addWidget(self.message_box)
+        main_layout.addLayout(page_layout)
+
+        if message_box is not None:
+            self.message_box = message_box
+        else:
+            # define left message box
+            self.message_box = QtWidgets.QTextEdit()
+            self.message_box.setReadOnly(True)
+            self.message_box.setFixedHeight(100)
+            main_layout.addWidget(self.message_box)
 
         self.setLayout(main_layout)
 
+        # [ ]: not correct?
         self.capture_thread = CaptureThread()
 
-    def create_capture_layout(self):
+    def create_layout(self):
         # set tab pages
         self.tab_widget = QtWidgets.QTabWidget()
         self.tab_widget.setTabPosition(QtWidgets.QTabWidget.East)
@@ -73,12 +78,11 @@ class MainWindow(QtWidgets.QWidget):
         self.tab_widget.addTab(self.image_tab, "Color Image")
         self.tab_widget.addTab(self.depth_tab, "Depth Image")
 
-        # define left message box
-        self.message_box = QtWidgets.QTextEdit()
-        self.message_box.setReadOnly(True)
-        self.message_box.setFixedHeight(100)
-
         # right side control panel
+        self.camera_label = QtWidgets.QLabel("Select Camera:")
+        self.camera_combo = QtWidgets.QComboBox()
+        self.populate_cameras()
+
         self.case_name_label = QtWidgets.QLabel("Case Name:")
         self.case_name_edit = QtWidgets.QLineEdit("temp_case")
 
@@ -109,6 +113,8 @@ class MainWindow(QtWidgets.QWidget):
 
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
+        controls_layout.addWidget(self.camera_label)
+        controls_layout.addWidget(self.camera_combo)
         controls_layout.addWidget(self.case_name_label)
         controls_layout.addWidget(self.case_name_edit)
         controls_layout.addWidget(self.exposure_label)
@@ -137,6 +143,8 @@ class MainWindow(QtWidgets.QWidget):
             del self.capture_thread
 
         self.capture_thread = CaptureThread()
+        selected_camera = self.camera_combo.currentData()
+        self.capture_thread.camera_index = selected_camera
         self.capture_thread.case_name = self.case_name_edit.text()
         self.capture_thread.exposure_level = self.exposure_spin.value()
         self.capture_thread.sampling_number = self.sampling_number_spin.value()
@@ -172,6 +180,7 @@ class MainWindow(QtWidgets.QWidget):
                 os.makedirs(saving_path)
 
         self.capture_thread.start()
+        self.camera_combo.setEnabled(False)
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.save_checkbox.setEnabled(False)
@@ -182,6 +191,7 @@ class MainWindow(QtWidgets.QWidget):
             self.capture_thread.wait()
             # 清理线程实例
             del self.capture_thread
+        self.camera_combo.setEnabled(True)
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.save_checkbox.setEnabled(True)
@@ -201,9 +211,9 @@ class MainWindow(QtWidgets.QWidget):
 
     @QtCore.pyqtSlot(str, str)
     def append_message(self, message, msg_type="info"):
-        """在消息框中追加带格式的消息"""
+        """add formatted message to the message box"""
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
-        # 根据消息类型设置颜色
+        # based on message type, set color
         color = "black"
         if msg_type == "info":
             color = "blue"
@@ -211,7 +221,7 @@ class MainWindow(QtWidgets.QWidget):
             color = "orange"
         elif msg_type == "error":
             color = "red"
-        # 使用 HTML 格式化消息
+        # use HTML to format message
         formatted_message = (
             f'<span style="color:{color};">[{current_time}] {message}</span>'
         )
@@ -242,9 +252,26 @@ class MainWindow(QtWidgets.QWidget):
         )
         return qt_pixmap
 
+    def populate_cameras(self):
+        """list all available cameras"""
+        self.camera_combo.clear()
+        available_cameras = self.get_available_cameras()
+        for index in available_cameras:
+            self.camera_combo.addItem(f"Cam {index}", index)
+
+    def get_available_cameras(self, max_cameras=5):
+        """detect all available cameras"""
+        available = []
+        for index in range(max_cameras):
+            cap = cv2.VideoCapture(index)
+            if cap.isOpened():
+                available.append(index)
+                cap.release()
+        return available
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    window = MainWindow()
+    window = CaptureGUI()
     window.show()
     sys.exit(app.exec_())
