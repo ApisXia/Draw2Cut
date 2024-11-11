@@ -25,6 +25,10 @@ class ReplayGUI(QtWidgets.QWidget, MessageBoxMixin):
     def __init__(self, message_box: QtWidgets.QTextEdit = None):
         super(ReplayGUI, self).__init__()
 
+        # set close event
+        self.stop_event = threading.Event()
+        self.thread = None
+
         # setup layout
         page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
@@ -72,6 +76,11 @@ class ReplayGUI(QtWidgets.QWidget, MessageBoxMixin):
 
     def replay(self):
         """start replaying the frames"""
+        if self.thread and self.thread.is_alive():
+            self.stop_event.set()
+            self.thread.join()
+            self.stop_event.clear()
+
         thread = threading.Thread(target=self.visualize)
         thread.start()
 
@@ -87,6 +96,9 @@ class ReplayGUI(QtWidgets.QWidget, MessageBoxMixin):
     ):
         """load and render frames from the given directory"""
         for frame in range(1, num_frames + 1):
+            if self.stop_event.is_set():
+                break
+
             frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
             if os.path.exists(frame_file_path):
                 mesh = o3d.io.read_triangle_mesh(frame_file_path)
@@ -133,6 +145,13 @@ class ReplayGUI(QtWidgets.QWidget, MessageBoxMixin):
         # 设置视图中心
         self.gl_view.opts["center"] = center_point
         self.gl_view.update()
+
+    def closeEvent(self, event):
+        """define the close event"""
+        self.stop_event.set()
+        if self.thread and self.thread.is_alive():
+            self.thread.join()
+        event.accept()
 
 
 if __name__ == "__main__":

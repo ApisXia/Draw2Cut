@@ -16,7 +16,7 @@ class MainWindow(QtWidgets.QWidget):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Draw2Cut Interface")
-        self.setFixedSize(1680, 840)
+        self.setFixedSize(1600, 900)
 
         # define message box
         self.message_box = QtWidgets.QTextEdit()

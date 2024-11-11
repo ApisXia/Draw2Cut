@@ -10,7 +10,7 @@ class MessageBoxMixin:
         # based on message type, set color
         color = "black"
         if msg_type == "info":
-            color = "blue"
+            color = "green"
         elif msg_type == "warning":
             color = "orange"
         elif msg_type == "error":
