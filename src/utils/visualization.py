@@ -1,6 +1,6 @@
 import numpy as np
 import open3d as o3d
-from tqdm import tqdm 
+from tqdm import tqdm
 from scipy.spatial import KDTree
 import os
 
@@ -100,6 +100,7 @@ def visualize_final_surface(
 
     # Visualize the point cloud
     o3d.visualization.draw_geometries([mesh])
+
 
 # def visualize_final_surface_dynamic(
 #     scanned_points: np.ndarray,
@@ -335,7 +336,8 @@ def visualize_final_surface(
 #         vis.poll_events()
 #         vis.update_renderer()
 
-    # vis.destroy_window()
+# vis.destroy_window()
+
 
 def visualize_final_surface_dynamic(
     scanned_points: np.ndarray,
@@ -344,7 +346,7 @@ def visualize_final_surface_dynamic(
     z_surface_level: float,
     trajectory: np.ndarray,
     num_frames: int = 10,
-    save_dir: str = "./rendered_frames"
+    save_dir: str = "./rendered_frames",
 ):
     # Filter out surface points above the specified z level
     surface_mask = scanned_points[:, 2] > z_surface_level - 1
@@ -361,7 +363,7 @@ def visualize_final_surface_dynamic(
 
     # 使用 tqdm 显示预处理的进度条
     for frame in tqdm(range(1, num_frames + 1), desc="Saving frames"):
-        current_trajectory = trajectory[:frame * points_per_frame]
+        current_trajectory = trajectory[: frame * points_per_frame]
 
         # 查找所有轨迹点的最近邻depth_map_points
         dists, indices = depth_map_kdtree.query(current_trajectory[:, :2], k=1)
@@ -408,45 +410,32 @@ def visualize_final_surface_dynamic(
         frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
         o3d.io.write_triangle_mesh(frame_file_path, mesh)
 
-def set_camera_view(vis, intrinsic_matrix, extrinsic_matrix):
-    # 获取视角控制器
-    view_ctl = vis.get_view_control()
-    
-    # 创建一个新的摄像机参数对象
-    cam_params = view_ctl.convert_to_pinhole_camera_parameters()
-    
-    # 设置新的摄像机参数
-    cam_params.intrinsic.set_intrinsics(640, 480, intrinsic_matrix[0, 0], intrinsic_matrix[1, 1], intrinsic_matrix[0, 2], intrinsic_matrix[1, 2])
-    cam_params.extrinsic = extrinsic_matrix
-    
-    # 应用新的视角
-    view_ctl.convert_from_pinhole_camera_parameters(cam_params)
 
-# def load_and_render_frames(save_dir: str, num_frames: int):
-#     vis = o3d.visualization.Visualizer()
-#     vis.create_window()
-#     view_control = vis.get_view_control()
-#     # 使用 tqdm 显示渲染进度条
-#     for frame in tqdm(range(1, num_frames + 1), desc="Rendering frames"):
-#         frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
+# def set_camera_view(vis, intrinsic_matrix, extrinsic_matrix):
+#     # 获取视角控制器
+#     view_ctl = vis.get_view_control()
 
-#         if os.path.exists(frame_file_path):
-#             mesh = o3d.io.read_triangle_mesh(frame_file_path)
-#             current_camera_params = view_control.convert_to_pinhole_camera_parameters()
-#             vis.clear_geometries()
-#             vis.add_geometry(mesh)
-#             view_control.convert_from_pinhole_camera_parameters(current_camera_params)
-#             vis.poll_events()
-#             vis.update_renderer()
+#     # 创建一个新的摄像机参数对象
+#     cam_params = view_ctl.convert_to_pinhole_camera_parameters()
 
-#     # vis.destroy_window()
-#     vis.run()
+#     # 设置新的摄像机参数
+#     cam_params.intrinsic.set_intrinsics(
+#         640,
+#         480,
+#         intrinsic_matrix[0, 0],
+#         intrinsic_matrix[1, 1],
+#         intrinsic_matrix[0, 2],
+#         intrinsic_matrix[1, 2],
+#     )
+#     cam_params.extrinsic = extrinsic_matrix
 
-import open3d as o3d
-import os
-from tqdm import tqdm
+#     # 应用新的视角
+#     view_ctl.convert_from_pinhole_camera_parameters(cam_params)
 
-def load_and_render_frames(save_dir: str, num_frames: int):
+import time
+
+
+def load_and_render_frames(save_dir: str, num_frames: int, target_fps: int = 30):
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window()
 
@@ -460,47 +449,58 @@ def load_and_render_frames(save_dir: str, num_frames: int):
         vis.add_geometry(mesh)
 
     # 用于控制播放的标志
-    start_render = [False]  # 用列表包装以便在回调中修改
+    render_state = {
+        "start": False,
+        "last_frame_time": time.time(),
+        "frame_idx": 1,
+        "frame_time": 1.0 / target_fps,
+    }
 
     # 键盘回调函数，按 's' 键时开始播放
     def start_render_callback(vis):
-        start_render[0] = True
+        render_state["start"] = True
         print("Rendering started!")
         return False  # 返回 False 不会阻塞事件
 
     # 注册 's' 键的回调函数 (小写's')
-    vis.register_key_callback(ord('S'), start_render_callback)
+    vis.register_key_callback(ord("S"), start_render_callback)
 
     # 先显示初始帧，等待按下 's' 键
     print("Press 'S' to start rendering.")
-    while not start_render[0]:
+    while not render_state["start"]:
         vis.poll_events()
         vis.update_renderer()
+        time.sleep(0.01)  # 减少空闲等待的 CPU 使用
 
     # 开始渲染帧
-    for frame in tqdm(range(2, num_frames + 1), desc="Rendering frames"):
-        frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
+    while render_state["frame_idx"] < num_frames:
+        current_time = time.time()
+        elapsed = current_time - render_state["last_frame_time"]
 
-        if os.path.exists(frame_file_path):
-            new_mesh = o3d.io.read_triangle_mesh(frame_file_path)
+        # 控制帧率
+        if elapsed >= render_state["frame_time"]:
+            frame_file_path = os.path.join(
+                save_dir, f"frame_{render_state['frame_idx']:03d}.ply"
+            )
 
-            # 保存当前视角
-            # current_camera_params = view_control.convert_to_pinhole_camera_parameters()
+            if os.path.exists(frame_file_path):
+                new_mesh = o3d.io.read_triangle_mesh(frame_file_path)
+                vis.remove_geometry(mesh, reset_bounding_box=False)
+                vis.add_geometry(new_mesh, reset_bounding_box=False)
+                mesh = new_mesh
 
-            # 通过更新几何体而不是清除几何体来避免视角重置
-            vis.remove_geometry(mesh, reset_bounding_box=False)
-            vis.add_geometry(new_mesh, reset_bounding_box=False)
+            # 更新时间和帧索引
+            render_state["last_frame_time"] = current_time
+            render_state["frame_idx"] += 1
 
-            # 恢复之前的视角
-            # view_control.convert_from_pinhole_camera_parameters(current_camera_params)
+            # 如果处理时间超过预期，可能需要跳过一些帧
+            frames_to_skip = int(elapsed / render_state["frame_time"])
+            if frames_to_skip > 1:
+                render_state["frame_idx"] += frames_to_skip - 1
+                print(f"Skipped {frames_to_skip-1} frames to maintain performance")
 
-            # 更新 mesh 引用
-            mesh = new_mesh
-
-            vis.poll_events()
-            vis.update_renderer()
+        vis.poll_events()
+        vis.update_renderer()
+        time.sleep(0.001)  # 短暂睡眠以减少 CPU 使用
 
     vis.run()
-
-
-
