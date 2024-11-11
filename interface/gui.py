@@ -15,8 +15,19 @@ class MainWindow(QtWidgets.QWidget):
 
         self.setWindowTitle("Draw2Cut Interface")
 
-        # ? set up for page 1
+        # page1: capture layout
+        capture_layout = self.create_capture_layout()
 
+        # main layout
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.addLayout(capture_layout)
+        main_layout.addWidget(self.message_box)
+
+        self.setLayout(main_layout)
+
+        self.capture_thread = CaptureThread()
+
+    def create_capture_layout(self):
         # set tab pages
         self.tab_widget = QtWidgets.QTabWidget()
         self.tab_widget.setTabPosition(QtWidgets.QTabWidget.East)
@@ -96,11 +107,6 @@ class MainWindow(QtWidgets.QWidget):
         self.stop_button.clicked.connect(self.stop_capture)
         self.stop_button.setEnabled(False)
 
-        # vertical layout for image display + message box
-        image_layout = QtWidgets.QVBoxLayout()
-        image_layout.addWidget(self.tab_widget)
-        image_layout.addWidget(self.message_box)
-
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
         controls_layout.addWidget(self.case_name_label)
@@ -116,14 +122,12 @@ class MainWindow(QtWidgets.QWidget):
         controls_layout.addWidget(self.start_button)
         controls_layout.addWidget(self.stop_button)
 
-        # horizontal layout for main window
-        main_layout = QtWidgets.QHBoxLayout()
-        main_layout.addLayout(image_layout)
-        main_layout.addLayout(controls_layout)
+        # horizontal layout for capture
+        capture_layout = QtWidgets.QHBoxLayout()
+        capture_layout.addWidget(self.tab_widget)
+        capture_layout.addLayout(controls_layout)
 
-        self.setLayout(main_layout)
-
-        self.capture_thread = CaptureThread()
+        return capture_layout
 
     def start_capture(self):
         # if has running thread, stop it first, then start a new one
