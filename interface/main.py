@@ -21,12 +21,20 @@ class MainWindow(QtWidgets.QWidget):
         self.message_box.setReadOnly(True)
         self.message_box.setFixedHeight(100)
 
+        # create pages
+        self.pages = QtWidgets.QTabWidget()
+
         # page1: capture layout
-        capture_layout = CaptureGUI(message_box=self.message_box)
+        self.capture_layout = CaptureGUI(message_box=self.message_box)
+        self.pages.addTab(self.capture_layout, "Step1: Capture")
+
+        # page2: generate trajectory
+        self.trajectory_layout = CaptureGUI(message_box=self.message_box)
+        self.pages.addTab(self.trajectory_layout, "Step2: Planning")
 
         # main layout
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addWidget(capture_layout)
+        main_layout.addWidget(self.pages)
         main_layout.addWidget(self.message_box)
 
         self.setLayout(main_layout)

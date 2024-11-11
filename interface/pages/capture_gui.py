@@ -33,15 +33,7 @@ class CaptureGUI(QtWidgets.QWidget):
         self.capture_thread = CaptureThread()
 
     def create_layout(self):
-        # set tab pages
-        self.tab_widget = QtWidgets.QTabWidget()
-        self.tab_widget.setTabPosition(QtWidgets.QTabWidget.East)
-        self.image_tab = QtWidgets.QWidget()
-        self.depth_tab = QtWidgets.QWidget()
-        self.image_layout = QtWidgets.QVBoxLayout()
-        self.depth_layout = QtWidgets.QVBoxLayout()
-
-        # left side image display
+        # image display
         self.image_label = QtWidgets.QLabel()
         self.image_label.setFixedSize(1280, 720)
         self.image_label.setStyleSheet(
@@ -50,8 +42,7 @@ class CaptureGUI(QtWidgets.QWidget):
             background-color: lightgray;
         """
         )
-
-        # left side depth display
+        # depth display
         self.depth_label = QtWidgets.QLabel()
         self.depth_label.setFixedSize(1280, 720)
         self.depth_label.setStyleSheet(
@@ -61,22 +52,19 @@ class CaptureGUI(QtWidgets.QWidget):
         """
         )
 
-        # add all to tabs
-        self.image_layout.addWidget(self.image_label)
-        self.depth_layout.addWidget(self.depth_label)
+        # use stacked layout to switch between image and depth
+        self.stacked_layout = QtWidgets.QStackedLayout()
+        self.stacked_layout.addWidget(self.image_label)
+        self.stacked_layout.addWidget(self.depth_label)
 
-        # 设置 image_layout 的边距和间距
-        self.image_layout.setContentsMargins(0, 0, 0, 0)  # 左、上、右、下边距
-        self.image_layout.setSpacing(0)  # 控件之间的间距
+        # add switch button
+        self.switch_button = QtWidgets.QPushButton("Show Depth")
+        self.switch_button.clicked.connect(self.switch_display)
 
-        # 设置 depth_layout 的边距和间距
-        self.depth_layout.setContentsMargins(0, 0, 0, 0)
-        self.depth_layout.setSpacing(0)
-
-        self.image_tab.setLayout(self.image_layout)
-        self.depth_tab.setLayout(self.depth_layout)
-        self.tab_widget.addTab(self.image_tab, "Color Image")
-        self.tab_widget.addTab(self.depth_tab, "Depth Image")
+        # add overlay description for each display
+        self.display_widget = QtWidgets.QWidget()
+        self.display_layout = QtWidgets.QStackedLayout()
+        self.display_widget.setLayout(self.display_layout)
 
         # right side control panel
         self.camera_label = QtWidgets.QLabel("Select Camera:")
@@ -123,6 +111,7 @@ class CaptureGUI(QtWidgets.QWidget):
         controls_layout.addWidget(self.sampling_number_spin)
         controls_layout.addWidget(self.depth_queue_label)
         controls_layout.addWidget(self.depth_queue_spin)
+        controls_layout.addWidget(self.switch_button)
         controls_layout.addStretch()
         controls_layout.addWidget(self.save_checkbox)
         controls_layout.addWidget(self.start_button)
@@ -130,7 +119,7 @@ class CaptureGUI(QtWidgets.QWidget):
 
         # horizontal layout for capture
         capture_layout = QtWidgets.QHBoxLayout()
-        capture_layout.addWidget(self.tab_widget)
+        capture_layout.addLayout(self.stacked_layout)
         capture_layout.addLayout(controls_layout)
 
         return capture_layout
@@ -251,6 +240,17 @@ class CaptureGUI(QtWidgets.QWidget):
             QtCore.Qt.KeepAspectRatio,
         )
         return qt_pixmap
+
+    def switch_display(self):
+        """switch between image and depth display"""
+        current_index = self.stacked_layout.currentIndex()
+        next_index = (current_index + 1) % self.stacked_layout.count()
+        self.stacked_layout.setCurrentIndex(next_index)
+        # set button text
+        if next_index == 0:
+            self.switch_button.setText("Show Depth")
+        else:
+            self.switch_button.setText("Show Color Image")
 
     def populate_cameras(self):
         """list all available cameras"""

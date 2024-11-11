@@ -163,10 +163,11 @@ class CaptureThread(QtCore.QThread):
 
                 # add qr code localization
                 color_image_with_qr = localize_qr_codes(frame, resize_factor=2)
+                fake_depth_image = cv2.cvtColor(color_image_with_qr, cv2.COLOR_BGR2GRAY)
 
                 # send signal to update the image and the depth (fake)
                 self.image_updated.emit(color_image_with_qr)
-                self.depth_updated.emit(color_image_with_qr)
+                self.depth_updated.emit(fake_depth_image)
 
                 cv2.waitKey(1)
 
