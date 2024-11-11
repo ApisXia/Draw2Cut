@@ -6,10 +6,12 @@ import datetime
 import numpy as np
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+
 from interface.functions.capture_thread import CaptureThread
+from interface.functions.gui_mixins import MessageBoxMixin
 
 
-class CaptureGUI(QtWidgets.QWidget):
+class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
     def __init__(self, message_box: QtWidgets.QTextEdit = None):
         super(CaptureGUI, self).__init__()
 
@@ -197,33 +199,6 @@ class CaptureGUI(QtWidgets.QWidget):
         """update the depth in the label"""
         qt_img = self.convert_cv_qt(cv_img)
         self.depth_label.setPixmap(qt_img)
-
-    @QtCore.pyqtSlot(str, str)
-    def append_message(self, message, msg_type="info"):
-        """add formatted message to the message box"""
-        current_time = datetime.datetime.now().strftime("%H:%M:%S")
-        # based on message type, set color
-        color = "black"
-        if msg_type == "info":
-            color = "blue"
-        elif msg_type == "warning":
-            color = "orange"
-        elif msg_type == "error":
-            color = "red"
-        # use HTML to format message
-        formatted_message = (
-            f'<span style="color:{color};">[{current_time}] {message}</span>'
-        )
-        self.message_box.append(formatted_message)
-
-        # 限制消息框中的最大消息数量
-        max_blocks = 100  # 设置最大消息条数
-        if self.message_box.document().blockCount() > max_blocks:
-            cursor = self.message_box.textCursor()
-            cursor.movePosition(QtGui.QTextCursor.Start)
-            cursor.select(QtGui.QTextCursor.BlockUnderCursor)
-            cursor.removeSelectedText()
-            cursor.deleteChar()
 
     def convert_cv_qt(self, cv_img):
         """convert cv image to qt image"""

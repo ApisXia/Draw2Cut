@@ -12,9 +12,11 @@ import pyqtgraph.opengl as gl
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from interface.functions.gui_mixins import MessageBoxMixin
 
-class ReplayGUI(QtWidgets.QWidget):
-    """This is only for testing embedding open3D in PyQt5
+
+class ReplayGUI(QtWidgets.QWidget, MessageBoxMixin):
+    """This is only for testing
 
     Args:
         QtWidgets (_type_): _description_
@@ -46,7 +48,7 @@ class ReplayGUI(QtWidgets.QWidget):
         # create GLViewWidget
         self.gl_view = gl.GLViewWidget()
         self.gl_view.setFixedSize(1280, 720)
-        self.gl_view.opts["distance"] = 80  # set camera distance
+        self.gl_view.opts["distance"] = 320  # set camera distance
 
         # add grid
         self.glo = gl.GLGridItem()
@@ -69,12 +71,12 @@ class ReplayGUI(QtWidgets.QWidget):
         return layout
 
     def replay(self):
-        """启动 Open3D 可视化的线程"""
+        """start replaying the frames"""
         thread = threading.Thread(target=self.visualize)
         thread.start()
 
     def visualize(self):
-        """调用 Open3D 可视化和渲染函数"""
+        """call the function to load and render frames"""
         num_frames = 1000
         save_dir = "./rendered_frames"
 
@@ -83,25 +85,25 @@ class ReplayGUI(QtWidgets.QWidget):
     def load_and_render_frames(
         self, save_dir: str, num_frames: int, target_fps: int = 30
     ):
-        """加载并渲染保存的帧到 GLViewWidget"""
+        """load and render frames from the given directory"""
         for frame in range(1, num_frames + 1):
             frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
             if os.path.exists(frame_file_path):
                 mesh = o3d.io.read_triangle_mesh(frame_file_path)
                 if not mesh.has_vertices():
-                    continue  # 跳过无效的网格
+                    continue  # skip if no vertices
 
-                # 获取顶点和面
+                # get vertices and faces
                 vertices = np.asarray(mesh.vertices)
                 faces = np.asarray(mesh.triangles)
 
-                # 获取颜色，如果没有颜色则设为白色
+                # get colors
                 if mesh.has_vertex_colors():
                     colors = np.asarray(mesh.vertex_colors)
                 else:
-                    colors = np.ones_like(vertices)  # 白色
+                    colors = np.ones_like(vertices)  # white
 
-                # 创建 GLMeshItem
+                # create GLMeshItem
                 mesh_item = gl.GLMeshItem(
                     vertexes=vertices,
                     faces=faces,
@@ -110,12 +112,27 @@ class ReplayGUI(QtWidgets.QWidget):
                     drawFaces=True,
                     drawEdges=True,
                 )
-                mesh_item.setGLOptions("opaque")  # 设置渲染选项
+                mesh_item.setGLOptions("opaque")  # set opaque
                 self.gl_view.clear()
                 self.gl_view.addItem(mesh_item)
 
-                # 控制帧率
+                # center view on vertices
+                if frame == 1:
+                    self.center_view_on_vertices(vertices)
+
+                # sleep for target fps
                 time.sleep(1.0 / target_fps)
+
+    def center_view_on_vertices(self, vertices):
+        if vertices.size == 0:
+            return
+        # 计算所有顶点的平均值作为中心点
+        center = vertices.mean(axis=0)
+        center_point = QtGui.QVector3D(center[0], center[1], center[2])
+
+        # 设置视图中心
+        self.gl_view.opts["center"] = center_point
+        self.gl_view.update()
 
 
 if __name__ == "__main__":
