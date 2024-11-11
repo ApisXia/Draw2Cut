@@ -8,6 +8,7 @@ import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from interface.pages.capture_gui import CaptureGUI
+from interface.pages.replay_gui import ReplayGUI
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -15,6 +16,7 @@ class MainWindow(QtWidgets.QWidget):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Draw2Cut Interface")
+        self.setFixedSize(1680, 840)
 
         # define message box
         self.message_box = QtWidgets.QTextEdit()
@@ -28,9 +30,9 @@ class MainWindow(QtWidgets.QWidget):
         self.capture_layout = CaptureGUI(message_box=self.message_box)
         self.pages.addTab(self.capture_layout, "Step1: Capture")
 
-        # page2: generate trajectory
-        self.trajectory_layout = CaptureGUI(message_box=self.message_box)
-        self.pages.addTab(self.trajectory_layout, "Step2: Planning")
+        # test page: replay
+        self.replay_layout = ReplayGUI(message_box=self.message_box)
+        self.pages.addTab(self.replay_layout, "Test: Replay")
 
         # main layout
         main_layout = QtWidgets.QVBoxLayout()
