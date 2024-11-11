@@ -186,6 +186,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.save_checkbox.setEnabled(True)
+        self.append_message("Capture stopped.", "info")
 
     # receive the images from the capture thread
     @QtCore.pyqtSlot(np.ndarray)
