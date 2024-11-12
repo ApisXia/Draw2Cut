@@ -30,6 +30,10 @@ class MainWindow(QtWidgets.QWidget):
         self.capture_layout = CaptureGUI(message_box=self.message_box)
         self.pages.addTab(self.capture_layout, "Step1: Capture")
 
+        # [ ]: Add Page 2 here
+
+        # [ ]: Add Page 3 here
+
         # test page: replay
         self.replay_layout = ReplayGUI(message_box=self.message_box)
         self.pages.addTab(self.replay_layout, "Test: Replay")
