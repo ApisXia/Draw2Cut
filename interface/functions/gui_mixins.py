@@ -29,3 +29,8 @@ class MessageBoxMixin:
             cursor.select(QtGui.QTextCursor.BlockUnderCursor)
             cursor.removeSelectedText()
             cursor.deleteChar()
+    
+    def write(self, message):
+        message = message.rstrip()
+        if message: 
+            self.append_message(message)

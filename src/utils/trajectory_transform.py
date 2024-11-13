@@ -39,7 +39,7 @@ def vis_points_ransformation(
     z_offset: int,
 ):
     # add the offset to the trajectories
-    vis_trajectories = [
+    vis_trajectory = [
         [
             (
                 -(point[0] + x_offset),
@@ -52,8 +52,8 @@ def vis_points_ransformation(
     ]
     # combine list of list to list
     vis_trajectories = [
-        point for trajectory in vis_trajectories for point in trajectory
+        point for trajectory in vis_trajectory for point in trajectory
     ]
     vis_trajectories = np.array(vis_trajectories)
 
-    return vis_trajectories
+    return vis_trajectories, vis_trajectory

@@ -8,7 +8,9 @@ import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from interface.pages.capture_gui import CaptureGUI
+from interface.pages.separate_gui import SeperateGUI
 from interface.pages.replay_gui import ReplayGUI
+from interface.pages.trajectory_gui import TrajectoryGUI
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -31,8 +33,12 @@ class MainWindow(QtWidgets.QWidget):
         self.pages.addTab(self.capture_layout, "Step1: Capture")
 
         # [ ]: Add Page 2 here
+        self.separate_layout = SeperateGUI(message_box=self.message_box)
+        self.pages.addTab(self.separate_layout, "Step2: Separate")
 
         # [ ]: Add Page 3 here
+        self.trajectory_layout = TrajectoryGUI(message_box=self.message_box)
+        self.pages.addTab(self.trajectory_layout, "Step3: Trajectory")
 
         # test page: replay
         self.replay_layout = ReplayGUI(message_box=self.message_box)
