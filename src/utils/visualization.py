@@ -431,7 +431,7 @@ def visualize_final_surface_dynamic(
         # offsetted_z_list = []
         # for point in surface_points:
         #     dist, idx = kdtree.query(point[:2])
-        #     if dist < 2:
+        #     if dist < 2:/
         #         offsetted_z_list.append(current_depth_map_points[idx][2])
         #     else:
         #         offsetted_z_list.append(point[2])

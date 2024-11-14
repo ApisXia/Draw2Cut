@@ -230,6 +230,9 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         coarse_cutting_points = np.load(os.path.join(temp_file_path, "coarse_points.npz"))["points"]
         fine_cutting_points = np.load(os.path.join(temp_file_path, "fine_points.npz"))["points"]
         ultra_fine_cutting_points = np.load(os.path.join(temp_file_path, "ultra_fine_points.npz"))["points"]
+        
+        self.gl_view.clear()
+        
         scatter = gl.GLScatterPlotItem(
             pos=scanned_points,
             size=0.5,
@@ -293,6 +296,66 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
             self.center_view_on_vertices(vertices)
     
+    def replay(self):
+        """start replaying the frames"""
+        if self.thread and self.thread.is_alive():
+            self.stop_event.set()
+            self.thread.join()
+            self.stop_event.clear()
+
+        thread = threading.Thread(target=self.cutting_replay)
+        thread.start()
+    
+    def cutting_replay(self):
+        num_frames = 1000
+        save_dir = os.path.join(CONFIG["temp_file_path"], "cutting_moive")
+        # save_dir = "./rendered_frames"
+        self.load_and_render_frames(save_dir, num_frames)
+
+    def load_and_render_frames(
+        self, save_dir: str, num_frames: int, target_fps: int = 30
+    ):
+        """load and render frames from the given directory"""
+        for frame in range(1, num_frames + 1):
+            if self.stop_event.is_set():
+                break
+
+            frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
+            if os.path.exists(frame_file_path):
+                mesh = o3d.io.read_triangle_mesh(frame_file_path)
+                if not mesh.has_vertices():
+                    continue  # skip if no vertices
+
+                # get vertices and faces
+                vertices = np.asarray(mesh.vertices)
+                faces = np.asarray(mesh.triangles)
+
+                # get colors
+                if mesh.has_vertex_colors():
+                    colors = np.asarray(mesh.vertex_colors)
+                else:
+                    colors = np.ones_like(vertices)  # white
+
+                # create GLMeshItem
+                mesh_item = gl.GLMeshItem(
+                    vertexes=vertices,
+                    faces=faces,
+                    vertexColors=colors,
+                    smooth=False,
+                    drawFaces=True,
+                    drawEdges=True,
+                )
+                mesh_item.setGLOptions("opaque")  # set opaque
+                self.gl_view.clear()
+                self.gl_view.addItem(mesh_item)
+
+                # center view on vertices
+                if frame == 1:
+                    self.center_view_on_vertices(vertices)
+
+                # sleep for target fps
+                time.sleep(1.0 / target_fps)
+        
     def center_view_on_vertices(self, vertices):
         if vertices.size == 0:
             return
@@ -326,9 +389,6 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     #     points=scanned_points,
     #     colors=scanned_colors,
     # )
-    
-    def replay(self):
-        pass
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
