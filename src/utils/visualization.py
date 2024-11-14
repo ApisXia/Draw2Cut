@@ -374,32 +374,43 @@ def visualize_final_surface(
 #         vis.poll_events()
 #         vis.update_renderer()
 
-# vis.destroy_window()
-
+# # vis.destroy_window()
+# import cupy as cp
+# from cuml.neighbors import NearestNeighbors
+# because 3d construction have to run on cpu, so run on cuda is not very useful
 
 def visualize_final_surface_dynamic(
     scanned_points: np.ndarray,
     scanned_colors: np.ndarray,
     depth_map_points: np.ndarray,
     z_surface_level: float,
-    trajectory: np.ndarray,
+    trajectory: list,
     num_frames: int = 10,
 ):
+    # scanned_points = cp.asarray(scanned_points)
+    # # scanned_colors = cp.asarray(scanned_colors)
+    # depth_map_points = cp.asarray(depth_map_points)
+    
     # Filter out surface points above the specified z level
     surface_mask = scanned_points[:, 2] > z_surface_level - 1
     surface_points = scanned_points[surface_mask]
 
     # 构建 KD 树，加速最近邻查找
     depth_map_kdtree = KDTree(depth_map_points[:, :2])
+    # depth_map_kdtree = NearestNeighbors(n_neighbors=1,algorithm='brute')
+    # depth_map_kdtree.fit(depth_map_points[:, :2])
 
     saveDir = os.path.join(CONFIG["temp_file_path"], "cutting_moive")
     # 创建保存帧文件的目录
     if not os.path.exists(saveDir):
         os.makedirs(saveDir)
 
+    chunk_size = max(1, len(trajectory) // num_frames)
     # 使用 tqdm 显示预处理的进度条
-    for frame in tqdm(range(len(trajectory)), desc="Saving frames"):
-        points_to_combine = [point for sublist in trajectory[:frame+1] for point in sublist]
+    for frame in tqdm(range(0,len(trajectory),chunk_size), desc="Saving frames"):
+        end_frame = min(frame + chunk_size, len(trajectory))
+        points_to_combine = [point for sublist in trajectory[:end_frame] for point in sublist]
+        # current_trajectory = cp.array(points_to_combine)
         current_trajectory = np.array(points_to_combine)
 
         # 查找所有轨迹点的最近邻depth_map_points
@@ -412,18 +423,24 @@ def visualize_final_surface_dynamic(
         kdtree = KDTree(current_depth_map_points[:, :2])
 
         # 更新表面点的 z 坐标
-        offsetted_z_list = []
-        for point in surface_points:
-            dist, idx = kdtree.query(point[:2])
-            if dist < 2:
-                offsetted_z_list.append(current_depth_map_points[idx][2])
-            else:
-                offsetted_z_list.append(point[2])
+        surface_points_2d = surface_points[:, :2]
+        dists, indices = kdtree.query(surface_points_2d)
+        nearest_z_values = current_depth_map_points[indices.flatten(), 2]
+        offsetted_z = np.where(dists.flatten() < 2, nearest_z_values, surface_points[:, 2])
+
+        # offsetted_z_list = []
+        # for point in surface_points:
+        #     dist, idx = kdtree.query(point[:2])
+        #     if dist < 2:
+        #         offsetted_z_list.append(current_depth_map_points[idx][2])
+        #     else:
+        #         offsetted_z_list.append(point[2])
 
         # 更新表面点和扫描点的 z 坐标
-        surface_points[:, 2] = np.array(offsetted_z_list)
+        surface_points[:, 2] = offsetted_z
         new_scanned_points = np.copy(scanned_points)
         new_scanned_points[surface_mask] = surface_points
+        # new_scanned_points = cp.asnumpy(new_scanned_points)
 
         # 创建点云对象
         pcd = o3d.geometry.PointCloud()
@@ -443,7 +460,7 @@ def visualize_final_surface_dynamic(
         #     pcd, o3d.utility.DoubleVector([radius, radius * 2])
         # )
 
-        print("Performing Poisson surface reconstruction...")
+        # print("Performing Poisson surface reconstruction...")
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
 
         # 保存当前帧的网格文件
