@@ -40,9 +40,9 @@ class MainWindow(QtWidgets.QWidget):
         self.trajectory_layout = TrajectoryGUI(message_box=self.message_box)
         self.pages.addTab(self.trajectory_layout, "Step3: Trajectory")
 
-        # test page: replay
-        self.replay_layout = ReplayGUI(message_box=self.message_box)
-        self.pages.addTab(self.replay_layout, "Test: Replay")
+        # # test page: replay
+        # self.replay_layout = ReplayGUI(message_box=self.message_box)
+        # self.pages.addTab(self.replay_layout, "Test: Replay")
 
         # main layout
         main_layout = QtWidgets.QVBoxLayout()

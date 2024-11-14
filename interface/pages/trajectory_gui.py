@@ -193,28 +193,28 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     
     def start_trajectory(self):
         if self.step == 0:
-            # self.smooth_size = self.smooth_size_spin.value()
-            # self.spindle_radius = self.spindle_radius_spin.value()
-            # self.offset_z_level = self.offset_z_level_spin.value()
-            # self.line_cutting_depth = self.line_cutting_depth_spin.value()
-            # self.behavior_relief = self.behavior_relief_spin.value()
-            # self.behavior_plane = self.behavior_plane_spin.value()
-            # self.case_path = self.case_path_eidt.text()
+            self.smooth_size = self.smooth_size_spin.value()
+            self.spindle_radius = self.spindle_radius_spin.value()
+            self.offset_z_level = self.offset_z_level_spin.value()
+            self.line_cutting_depth = self.line_cutting_depth_spin.value()
+            self.behavior_relief = self.behavior_relief_spin.value()
+            self.behavior_plane = self.behavior_plane_spin.value()
+            self.case_path = self.case_path_eidt.text()
 
-            # # Create a QThread and Worker
-            # self.thread = QtCore.QThread()
-            # self.worker = Worker(self.smooth_size, self.offset_z_level, self.line_cutting_depth,self)
-            # self.worker.moveToThread(self.thread)
+            # Create a QThread and Worker
+            self.thread = QtCore.QThread()
+            self.worker = Worker(self.smooth_size, self.offset_z_level, self.line_cutting_depth,self)
+            self.worker.moveToThread(self.thread)
 
-            # self.worker.finished.connect(self.thread.quit)
-            # self.worker.finished.connect(self.worker.deleteLater)
-            # self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
 
-            # self.thread.finished.connect(self.visualize_cutting_planning)
+            self.thread.finished.connect(self.visualize_cutting_planning)
 
-            # # Start the thread
-            # self.thread.started.connect(self.worker.run)
-            # self.thread.start()
+            # Start the thread
+            self.thread.started.connect(self.worker.run)
+            self.thread.start()
             self.visualize_cutting_planning()
             self.start_button.setText("final_visualize")
             self.step = 1
