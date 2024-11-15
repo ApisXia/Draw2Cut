@@ -95,7 +95,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         # self.gl_view.addItem(self.glo)
 
         self.case_label = QtWidgets.QLabel("Select Case:")
-        self.case_path = CONFIG["case_folder"]
+        self.case_path = ""
         self.case_path_eidt = QtWidgets.QLineEdit(self.case_path)
         self.case_choose_button = QtWidgets.QPushButton()
         folder_icon = self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon)
@@ -192,6 +192,12 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.case_path_eidt.setText(self.case_path)
     
     def start_trajectory(self):
+        if self.case_path:
+            case_name = os.path.basename(self.case_path.rstrip("/"))
+            CONFIG["temp_file_path"] = CONFIG["temp_file_path_template"].format(
+            case_name=case_name
+            )
+
         if self.step == 0:
             self.smooth_size = self.smooth_size_spin.value()
             self.spindle_radius = self.spindle_radius_spin.value()
@@ -215,7 +221,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             # Start the thread
             self.thread.started.connect(self.worker.run)
             self.thread.start()
-            self.visualize_cutting_planning()
+            # self.visualize_cutting_planning()
             self.start_button.setText("final_visualize")
             self.step = 1
         else:

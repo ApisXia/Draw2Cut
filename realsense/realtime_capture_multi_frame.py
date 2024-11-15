@@ -116,9 +116,7 @@ def depth_queue(
     average_depth_image = np.sum(DEPTH_QUEUE * DEPTH_VALID_QUEUE, axis=0) / valid_sum
     return average_depth_image
 
-
-if __name__ == "__main__":
-    case_name = "bigtea_09"
+def capture(case_name):
     samping_number = 20
     saving_opt = True
 
@@ -246,3 +244,9 @@ if __name__ == "__main__":
 
     pipeline.stop()
     exit()
+
+
+
+if __name__ == "__main__":
+    case_name = "bigtea_09"
+    capture(case_name)

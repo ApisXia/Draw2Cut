@@ -149,6 +149,19 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # Pop up windows to ask
         if self.save_checkbox.isChecked():
+            
+            # in order to keep the file structure, use string to deal with the yaml file instead of yaml library
+            import re
+            with open("configs/case_config.yaml", "r") as f:
+                yaml_content = f.read()
+            yaml_content = re.sub(r'(?<=case_name:\s)["\'].*?["\']', f'"{self.capture_thread.case_name}"', yaml_content)
+
+            with open("configs/case_config.yaml", "w") as file:
+                file.write(yaml_content)
+            
+            from configs.load_config import reload_config
+            CONFIG = reload_config()
+
             saving_path = os.path.join("data", self.capture_thread.case_name)
             if os.path.exists(saving_path):
                 reply = QtWidgets.QMessageBox.question(

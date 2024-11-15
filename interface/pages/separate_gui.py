@@ -64,7 +64,7 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
 
         self.case_label = QtWidgets.QLabel("Select Case:")
-        self.case_path = CONFIG["case_folder"]
+        self.case_path = ""
         self.case_path_eidt = QtWidgets.QLineEdit(self.case_path)
         self.case_choose_button = QtWidgets.QPushButton()
         folder_icon = self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon)
@@ -133,12 +133,20 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.x_axis = self.x_axis_label_input.text()
         self.y_axis = self.y_axis_label_input.text()
         self.case_path = self.case_path_eidt.text()
+        if self.case_path != "":
+            case_name = os.path.basename(self.case_path.rstrip("/"))
+            CONFIG["temp_file_path"] = CONFIG["temp_file_path_template"].format(
+            case_name=case_name
+            )
         self.message_box.append("Start Separation")
         self.message_box.append(f"Origin Label: {self.origin}")
         self.message_box.append(f"X Axis Label: {self.x_axis}")
         self.message_box.append(f"Y Axis Label: {self.y_axis}")
         self.message_box.append(f"Case Path: {self.case_path}")
-        data_path = os.path.join(self.case_path, "point_cloud.npz")
+        if self.case_path != "":
+            data_path = os.path.join(self.case_path, "point_cloud.npz")
+        else:
+            data_path = CONFIG["data_path"]
         sys.stdout = self
         seperate_wood_surface(data_path,self.origin,self.x_axis,self.y_axis)
 

@@ -1,6 +1,6 @@
 version: 0.4.1
 
-case_name: "bigtea_09"  # which is also the folder name
+case_name: "temp_case"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 case_folder_template: "data/{case_name}/"
