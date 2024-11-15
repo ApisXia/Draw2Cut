@@ -477,14 +477,16 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     # Example of how to use the functions:
     # First, call the function to precompute and save the frames
     combined_vis_trajectory = corse_vis_trajectory + fine_vis_trajectory + ultra_vis_trajectory
-    visualize_final_surface_dynamic(
-        scanned_points=scanned_points,
-        scanned_colors=scanned_colors,
-        depth_map_points=depth_map_points,
-        z_surface_level=0.0,
-        trajectory=combined_vis_trajectory,
-        num_frames=1000,
-    )
+
+    # time cost, so default is false
+    # visualize_final_surface_dynamic(
+    #     scanned_points=scanned_points,
+    #     scanned_colors=scanned_colors,
+    #     depth_map_points=depth_map_points,
+    #     z_surface_level=0.0,
+    #     trajectory=combined_vis_trajectory,
+    #     num_frames=1000,
+    # )
 
     # Then, load and render the saved frames
     # load_and_render_frames(save_dir="./rendered_frames", num_frames=1000)
