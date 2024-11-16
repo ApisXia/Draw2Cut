@@ -10,20 +10,15 @@ from src.space_finding.plane import calculate_points_plane
 
 from configs.load_config import CONFIG
 
-if __name__ == "__main__":
-    # read data
-    pointcloud_data = np.load(CONFIG["data_path"])
+def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis_label:str):
 
-    # define the path to save the temporary files
+    pointcloud_data = np.load(data_path)
     temp_file_path = CONFIG["temp_file_path"]
+
     os.makedirs(temp_file_path, exist_ok=True)
 
-    origin_label = CONFIG["origin_label"]
-    x_axis_label = CONFIG["x_axis_label"]
-    y_axis_label = CONFIG["y_axis_label"]
-
     points_plane, _ = calculate_points_plane(
-        CONFIG["origin_label"], pointcloud_data, resize_factor=2
+        origin_label, pointcloud_data, resize_factor=2
     )
     if origin_label not in points_plane:
         raise ValueError("origin_label not found in data")
@@ -250,3 +245,12 @@ if __name__ == "__main__":
 
     # # visualize point cloud
     # o3d.visualization.draw_geometries(object_to_draw)
+
+if __name__ == "__main__":
+    # read data
+    data_path = CONFIG["data_path"]
+    origin_label = CONFIG["origin_label"]
+    x_axis_label = CONFIG["x_axis_label"]
+    y_axis_label = CONFIG["y_axis_label"]
+
+    seperate_wood_surface(data_path, origin_label, x_axis_label, y_axis_label)

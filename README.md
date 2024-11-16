@@ -9,7 +9,10 @@
 - The environment of this project is managed by `poetry`, install it using the following command after creating environment using `anaconda` or `virenv`.
 
 ``` bash
+sudo apt-get install libzbar0
 pip install poetry
+poetry install
+poetry shell
 ```
 
 ## 2. Scan the wood

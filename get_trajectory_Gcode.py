@@ -3,7 +3,6 @@ import cv2
 import json
 import shutil
 import numpy as np
-import matplotlib.pyplot as plt
 import open3d as o3d
 
 from shapely.geometry import Polygon
@@ -31,19 +30,18 @@ from utils.trajectory_transform import (
 )
 from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic,load_and_render_frames
 
-# build action mapping dict
-with open("src/mask/color_type_values.json", "r") as f:
-    color_type_values = json.load(f)
+def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth = 2,gl_view=None):
+    # build action mapping dict
+    with open("src/mask/color_type_values.json", "r") as f:
+        color_type_values = json.load(f)
 
-ACTION_MAPPING_DICT = {}
-for item in color_type_values:
-    if (
-        item["action"] in CONFIG["contour_mark"] + CONFIG["behavior_mark"]
-    ):  # currently only support these two functions
-        ACTION_MAPPING_DICT[item["type"]] = item["action"]
+    ACTION_MAPPING_DICT = {}
+    for item in color_type_values:
+        if (
+            item["action"] in CONFIG["contour_mark"] + CONFIG["behavior_mark"]
+        ):  # currently only support these two functions
+            ACTION_MAPPING_DICT[item["type"]] = item["action"]
 
-
-if __name__ == "__main__":
     # define the path to save the temporary files
     temp_file_path = CONFIG["temp_file_path"]
 
@@ -100,9 +98,9 @@ if __name__ == "__main__":
         all_centerlines, all_masks = find_centerline_groups(
             img_binaries[mark_type_name]
         )
-        if CONFIG["smooth_size"] > 0:
+        if smooth_size > 0:
             all_centerlines = filter_centerlines(
-                all_centerlines, filter_size=CONFIG["smooth_size"]
+                all_centerlines, filter_size=smooth_size
             )
 
         # Draw the centerlines for visualization
@@ -196,9 +194,9 @@ if __name__ == "__main__":
     print("******** Step 3: Extracting line cutting trajectory ********")
     # add not bulk contour to trajectory
     z_arange_list = np.arange(
-        0, -CONFIG["line_cutting_depth"], -CONFIG["depth_forward_steps"][0]
+        0, -line_cutting_depth, -CONFIG["depth_forward_steps"][0]
     ).tolist()
-    z_arange_list.append(-CONFIG["line_cutting_depth"])
+    z_arange_list.append(-line_cutting_depth)
 
     # store the trajectory of line cutting and coarse bulk cutting
     coarse_trajectory_holders = []
@@ -379,7 +377,7 @@ if __name__ == "__main__":
     )
 
     # Define milimeters here is OK, in the function it will be converted to inches
-    z_surface_level = left_bottom[2] + CONFIG["offset_z_level"]
+    z_surface_level = left_bottom[2] + offset_z_level
     gcode = generate_gcode(
         coarse_trajectories,
         fine_trajectories,
@@ -416,30 +414,46 @@ if __name__ == "__main__":
     )
 
     # get the cutting trajectory points
-    coarse_cutting_points = vis_points_ransformation(
+    coarse_cutting_points,corse_vis_trajectory = vis_points_ransformation(
         coarse_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    fine_cutting_points = vis_points_ransformation(
+    fine_cutting_points,fine_vis_trajectory = vis_points_ransformation(
         fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    ultra_fine_cutting_points = vis_points_ransformation(
+    ultra_fine_cutting_points,ultra_vis_trajectory = vis_points_ransformation(
         ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
     # [ ]: need to add fine cutting trajectory?
     np.savez(
-        os.path.join(temp_file_path, "cut_points.npz"),
+        os.path.join(temp_file_path, "coarse_points.npz"),
         points=coarse_cutting_points,
         colors=np.array([[0, 1, 0]] * len(coarse_cutting_points)),
     )
-
-    visualize_cutting_planning(
-        scanned_points,
-        scanned_colors,
-        coarse_cutting_points,
-        fine_cutting_points,
-        ultra_fine_cutting_points,
+    np.savez(
+        os.path.join(temp_file_path, "fine_points.npz"),
+        points=fine_cutting_points,
+        colors=np.array([[0, 0, 1]] * len(fine_cutting_points)),
     )
+    np.savez(
+        os.path.join(temp_file_path, "ultra_fine_points.npz"),
+        points=ultra_fine_cutting_points,
+        colors=np.array([[1, 0, 0]] * len(ultra_fine_cutting_points)),
+    )
+    np.savez(
+        os.path.join(temp_file_path, "scanned_points.npz"),
+        points=scanned_points,
+        colors=scanned_colors,
+    )
+    
+
+    # visualize_cutting_planning(
+    #     scanned_points,
+    #     scanned_colors,
+    #     coarse_cutting_points,
+    #     fine_cutting_points,
+    #     ultra_fine_cutting_points,
+    # )
 
     # ! final surface visualization
     # transform the depth_map_total to 3d point cloud add x, y, z offset
@@ -450,7 +464,7 @@ if __name__ == "__main__":
     )
 
     depth_map_points = down_sampling_to_real_scale([depth_map_points.tolist()])
-    depth_map_points = vis_points_ransformation(
+    depth_map_points,_ = vis_points_ransformation(
         depth_map_points, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
@@ -462,19 +476,28 @@ if __name__ == "__main__":
     # )
     # Example of how to use the functions:
     # First, call the function to precompute and save the frames
-    combined_points = np.vstack([coarse_cutting_points, fine_cutting_points, ultra_fine_cutting_points])
-    visualize_final_surface_dynamic(
-        scanned_points=scanned_points,
-        scanned_colors=scanned_colors,
-        depth_map_points=depth_map_points,
-        z_surface_level=0.0,
-        trajectory=combined_points,
-        num_frames=1000,
-        save_dir="./rendered_frames"
-    )
+    combined_vis_trajectory = corse_vis_trajectory + fine_vis_trajectory + ultra_vis_trajectory
+
+    # time cost, so default is false
+    # visualize_final_surface_dynamic(
+    #     scanned_points=scanned_points,
+    #     scanned_colors=scanned_colors,
+    #     depth_map_points=depth_map_points,
+    #     z_surface_level=0.0,
+    #     trajectory=combined_vis_trajectory,
+    #     num_frames=1000,
+    # )
 
     # Then, load and render the saved frames
-    load_and_render_frames(save_dir="./rendered_frames", num_frames=1000)
+    # load_and_render_frames(save_dir="./rendered_frames", num_frames=1000)
 
     print("******** Step 6: Visualizing the cutting planning Done ********")
 
+# list of list -> trajectory_holders
+
+if __name__ == "__main__":
+    smooth_size = CONFIG["smooth_size"]
+    offset_z_level = CONFIG["offset_z_level"]
+    line_cutting_depth = CONFIG["line_cutting_depth"]
+    
+    get_trajectory_Gcode(smooth_size, offset_z_level, line_cutting_depth)

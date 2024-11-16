@@ -3,7 +3,8 @@ import open3d as o3d
 from tqdm import tqdm
 from scipy.spatial import KDTree
 import os
-
+import pyqtgraph.opengl as gl
+from configs.load_config import CONFIG
 
 def visualize_cutting_planning(
     scanned_points: np.ndarray,
@@ -11,44 +12,74 @@ def visualize_cutting_planning(
     coarse_cutting_points: np.ndarray,
     fine_cutting_points: np.ndarray,
     ultra_fine_cutting_points: np.ndarray,
+    gl_view: gl.GLViewWidget = None,
 ):
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(scanned_points)
-    pcd.colors = o3d.utility.Vector3dVector(scanned_colors)
+    if gl_view is None:
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(scanned_points)
+        pcd.colors = o3d.utility.Vector3dVector(scanned_colors)
 
-    object_to_draw = []
-    object_to_draw.append(pcd)
+        object_to_draw = []
+        object_to_draw.append(pcd)
 
-    # create coarse trajectory point cloud object using green color
-    coarse_trajectory_pcd = o3d.geometry.PointCloud()
-    coarse_trajectory_pcd.points = o3d.utility.Vector3dVector(coarse_cutting_points)
-    coarse_trajectory_pcd.colors = o3d.utility.Vector3dVector(
-        np.array([[0, 1, 0]] * len(coarse_cutting_points))
-    )
-    object_to_draw.append(coarse_trajectory_pcd)
-
-    # create fine trajectory point cloud object using red color
-    if len(fine_cutting_points) > 0:
-        fine_trajectory_pcd = o3d.geometry.PointCloud()
-        fine_trajectory_pcd.points = o3d.utility.Vector3dVector(fine_cutting_points)
-        fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
-            np.array([[1, 0, 0]] * len(fine_cutting_points))
+        # create coarse trajectory point cloud object using green color
+        coarse_trajectory_pcd = o3d.geometry.PointCloud()
+        coarse_trajectory_pcd.points = o3d.utility.Vector3dVector(coarse_cutting_points)
+        coarse_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+            np.array([[0, 1, 0]] * len(coarse_cutting_points))
         )
-        object_to_draw.append(fine_trajectory_pcd)
+        object_to_draw.append(coarse_trajectory_pcd)
 
-    # create ultra fine trajectory point cloud object using blue color
-    if len(ultra_fine_cutting_points) > 0:
-        ultra_fine_trajectory_pcd = o3d.geometry.PointCloud()
-        ultra_fine_trajectory_pcd.points = o3d.utility.Vector3dVector(
-            ultra_fine_cutting_points
-        )
-        ultra_fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
-            np.array([[0, 0, 1]] * len(ultra_fine_cutting_points))
-        )
-        object_to_draw.append(ultra_fine_trajectory_pcd)
+        # create fine trajectory point cloud object using red color
+        if len(fine_cutting_points) > 0:
+            fine_trajectory_pcd = o3d.geometry.PointCloud()
+            fine_trajectory_pcd.points = o3d.utility.Vector3dVector(fine_cutting_points)
+            fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+                np.array([[1, 0, 0]] * len(fine_cutting_points))
+            )
+            object_to_draw.append(fine_trajectory_pcd)
 
-    # visualize point cloud
-    o3d.visualization.draw_geometries(object_to_draw)
+        # create ultra fine trajectory point cloud object using blue color
+        if len(ultra_fine_cutting_points) > 0:
+            ultra_fine_trajectory_pcd = o3d.geometry.PointCloud()
+            ultra_fine_trajectory_pcd.points = o3d.utility.Vector3dVector(
+                ultra_fine_cutting_points
+            )
+            ultra_fine_trajectory_pcd.colors = o3d.utility.Vector3dVector(
+                np.array([[0, 0, 1]] * len(ultra_fine_cutting_points))
+            )
+            object_to_draw.append(ultra_fine_trajectory_pcd)
+
+        # visualize point cloud
+        o3d.visualization.draw_geometries(object_to_draw)
+    else:
+        scatter = gl.GLScatterPlotItem(
+            pos=scanned_points,
+            size=0.5,
+            color = scanned_colors,
+        )
+        gl_view.addItem(scatter)
+
+        # create coarse trajectory point cloud object using green color
+        coarse_trajectory_scatter = gl.GLScatterPlotItem(pos=coarse_cutting_points, 
+                                                         color=np.array([[0, 1, 0]] * len(coarse_cutting_points)), 
+                                                         size=0.5)
+        gl_view.addItem(coarse_trajectory_scatter)
+
+        # create fine trajectory point cloud object using red color
+        if len(fine_cutting_points) > 0:
+            fine_trajectory_scatter = gl.GLScatterPlotItem(pos=fine_cutting_points, 
+                                                           color=np.array([[1, 0, 0]] * len(fine_cutting_points)), 
+                                                           size=0.5)
+            gl_view.addItem(fine_trajectory_scatter)
+
+        # create ultra fine trajectory point cloud object using blue color
+        if len(ultra_fine_cutting_points) > 0:
+            ultra_fine_trajectory_scatter = gl.GLScatterPlotItem(pos=ultra_fine_cutting_points, 
+                                                                 color=np.array([[0, 0, 1]] * len(ultra_fine_cutting_points)), 
+                                                                 size=0.5)
+            gl_view.addItem(ultra_fine_trajectory_scatter)
+
 
 
 def visualize_final_surface(
@@ -91,15 +122,22 @@ def visualize_final_surface(
     )
 
     # Create a mesh from the point cloud using Ball Pivoting Algorithm
-    distances = pcd.compute_nearest_neighbor_distance()
-    avg_dist = np.mean(distances)
-    radius = avg_dist
-    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
-        pcd, o3d.utility.DoubleVector([radius, radius * 2])
-    )
+    # distances = pcd.compute_nearest_neighbor_distance()
+    # avg_dist = np.mean(distances)
+    # radius = avg_dist
+    # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+    #     pcd, o3d.utility.DoubleVector([radius, radius * 2])
+    # )
+
+    print("Performing Poisson surface reconstruction...")
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
+
+    save_dir = CONFIG["temp_file_path"]
+    frame_file_path = os.path.join(save_dir, f"final_surface.ply")
+    o3d.io.write_triangle_mesh(frame_file_path, mesh)
 
     # Visualize the point cloud
-    o3d.visualization.draw_geometries([mesh])
+    # o3d.visualization.draw_geometries([mesh])
 
 
 # def visualize_final_surface_dynamic(
@@ -336,34 +374,44 @@ def visualize_final_surface(
 #         vis.poll_events()
 #         vis.update_renderer()
 
-# vis.destroy_window()
-
+# # vis.destroy_window()
+# import cupy as cp
+# from cuml.neighbors import NearestNeighbors
+# because 3d construction have to run on cpu, so run on cuda is not very useful
 
 def visualize_final_surface_dynamic(
     scanned_points: np.ndarray,
     scanned_colors: np.ndarray,
     depth_map_points: np.ndarray,
     z_surface_level: float,
-    trajectory: np.ndarray,
+    trajectory: list,
     num_frames: int = 10,
-    save_dir: str = "./rendered_frames",
 ):
+    # scanned_points = cp.asarray(scanned_points)
+    # # scanned_colors = cp.asarray(scanned_colors)
+    # depth_map_points = cp.asarray(depth_map_points)
+    
     # Filter out surface points above the specified z level
     surface_mask = scanned_points[:, 2] > z_surface_level - 1
     surface_points = scanned_points[surface_mask]
 
-    points_per_frame = len(trajectory) // num_frames
-
     # 构建 KD 树，加速最近邻查找
     depth_map_kdtree = KDTree(depth_map_points[:, :2])
+    # depth_map_kdtree = NearestNeighbors(n_neighbors=1,algorithm='brute')
+    # depth_map_kdtree.fit(depth_map_points[:, :2])
 
+    saveDir = os.path.join(CONFIG["temp_file_path"], "cutting_moive")
     # 创建保存帧文件的目录
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if not os.path.exists(saveDir):
+        os.makedirs(saveDir)
 
+    chunk_size = max(1, len(trajectory) // num_frames)
     # 使用 tqdm 显示预处理的进度条
-    for frame in tqdm(range(1, num_frames + 1), desc="Saving frames"):
-        current_trajectory = trajectory[: frame * points_per_frame]
+    for frame in tqdm(range(0,len(trajectory),chunk_size), desc="Saving frames"):
+        end_frame = min(frame + chunk_size, len(trajectory))
+        points_to_combine = [point for sublist in trajectory[:end_frame] for point in sublist]
+        # current_trajectory = cp.array(points_to_combine)
+        current_trajectory = np.array(points_to_combine)
 
         # 查找所有轨迹点的最近邻depth_map_points
         dists, indices = depth_map_kdtree.query(current_trajectory[:, :2], k=1)
@@ -375,39 +423,48 @@ def visualize_final_surface_dynamic(
         kdtree = KDTree(current_depth_map_points[:, :2])
 
         # 更新表面点的 z 坐标
-        offsetted_z_list = []
-        for point in surface_points:
-            dist, idx = kdtree.query(point[:2])
-            if dist < 2:
-                offsetted_z_list.append(current_depth_map_points[idx][2])
-            else:
-                offsetted_z_list.append(point[2])
+        surface_points_2d = surface_points[:, :2]
+        dists, indices = kdtree.query(surface_points_2d)
+        nearest_z_values = current_depth_map_points[indices.flatten(), 2]
+        offsetted_z = np.where(dists.flatten() < 2, nearest_z_values, surface_points[:, 2])
+
+        # offsetted_z_list = []
+        # for point in surface_points:
+        #     dist, idx = kdtree.query(point[:2])
+        #     if dist < 2:/
+        #         offsetted_z_list.append(current_depth_map_points[idx][2])
+        #     else:
+        #         offsetted_z_list.append(point[2])
 
         # 更新表面点和扫描点的 z 坐标
-        surface_points[:, 2] = np.array(offsetted_z_list)
+        surface_points[:, 2] = offsetted_z
         new_scanned_points = np.copy(scanned_points)
         new_scanned_points[surface_mask] = surface_points
+        # new_scanned_points = cp.asnumpy(new_scanned_points)
 
         # 创建点云对象
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(new_scanned_points)
         pcd.colors = o3d.utility.Vector3dVector(scanned_colors)
 
-        # 估计法线
+            # Estimate normals
         pcd.estimate_normals(
             search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
         )
 
-        # 使用 Ball Pivoting 算法创建网格
-        distances = pcd.compute_nearest_neighbor_distance()
-        avg_dist = np.mean(distances)
-        radius = avg_dist
-        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
-            pcd, o3d.utility.DoubleVector([radius, radius * 2])
-        )
+        # Create a mesh from the point cloud using Ball Pivoting Algorithm
+        # distances = pcd.compute_nearest_neighbor_distance()
+        # avg_dist = np.mean(distances)
+        # radius = avg_dist
+        # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+        #     pcd, o3d.utility.DoubleVector([radius, radius * 2])
+        # )
+
+        # print("Performing Poisson surface reconstruction...")
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
 
         # 保存当前帧的网格文件
-        frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
+        frame_file_path = os.path.join(saveDir, f"frame_{frame:03d}.ply")
         o3d.io.write_triangle_mesh(frame_file_path, mesh)
 
 

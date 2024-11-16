@@ -8,3 +8,14 @@ CONFIG["data_path"] = CONFIG["data_path_template"].format(case_name=CONFIG["case
 CONFIG["temp_file_path"] = CONFIG["temp_file_path_template"].format(
     case_name=CONFIG["case_name"]
 )
+CONFIG["case_folder"] = CONFIG["case_folder_template"].format(case_name=CONFIG["case_name"])
+
+def reload_config():
+    with open("configs/case_config.yaml", "r") as f:
+        CONFIG = yaml.safe_load(f)
+    CONFIG["data_path"] = CONFIG["data_path_template"].format(case_name=CONFIG["case_name"])
+    CONFIG["temp_file_path"] = CONFIG["temp_file_path_template"].format(
+        case_name=CONFIG["case_name"]
+    )
+    CONFIG["case_folder"] = CONFIG["case_folder_template"].format(case_name=CONFIG["case_name"])
+    return CONFIG

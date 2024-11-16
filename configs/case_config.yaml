@@ -1,13 +1,14 @@
 version: 0.4.1
 
-case_name: "add_green"  # which is also the folder name
+case_name: "temp_case"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
+case_folder_template: "data/{case_name}/"
 
 # working space settings
 default_x_length: 296  # mm, from back to front
 default_y_length: 523.3  # mm, from left to right
-origin_label: "0"  # later needs to be "10"
+origin_label: "10"  # later needs to be "10"
 x_axis_label: ["9", "8"]  # the last one can be used to define the axis length
 y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis length
 

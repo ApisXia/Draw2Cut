@@ -15,6 +15,9 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
     def __init__(self, message_box: QtWidgets.QTextEdit = None):
         super(CaptureGUI, self).__init__()
 
+        # debugging setting
+        self.use_ordinary_camera = False
+
         # setup layout
         page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
@@ -37,7 +40,9 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
-        self.image_label.setFixedSize(1280, 720)
+        self.image_label.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
         self.image_label.setStyleSheet(
             """
             border: 1px solid black;
@@ -46,7 +51,9 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
         # depth display
         self.depth_label = QtWidgets.QLabel()
-        self.depth_label.setFixedSize(1280, 720)
+        self.depth_label.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+        )
         self.depth_label.setStyleSheet(
             """
             border: 1px solid black;
@@ -69,9 +76,10 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.display_widget.setLayout(self.display_layout)
 
         # right side control panel
-        self.camera_label = QtWidgets.QLabel("Select Camera:")
-        self.camera_combo = QtWidgets.QComboBox()
-        self.populate_cameras()
+        if self.use_ordinary_camera:
+            self.camera_label = QtWidgets.QLabel("Select Camera:")
+            self.camera_combo = QtWidgets.QComboBox()
+            self.populate_cameras()
 
         self.case_name_label = QtWidgets.QLabel("Case Name:")
         self.case_name_edit = QtWidgets.QLineEdit("temp_case")
@@ -79,7 +87,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.exposure_label = QtWidgets.QLabel("Exposure Level:")
         self.exposure_spin = QtWidgets.QSpinBox()
         self.exposure_spin.setRange(1, 500)
-        self.exposure_spin.setValue(140)
+        self.exposure_spin.setValue(100)
 
         self.sampling_number_label = QtWidgets.QLabel("Image Sampling Number:")
         self.sampling_number_spin = QtWidgets.QSpinBox()
@@ -103,8 +111,9 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
-        controls_layout.addWidget(self.camera_label)
-        controls_layout.addWidget(self.camera_combo)
+        if self.use_ordinary_camera:
+            controls_layout.addWidget(self.camera_label)
+            controls_layout.addWidget(self.camera_combo)
         controls_layout.addWidget(self.case_name_label)
         controls_layout.addWidget(self.case_name_edit)
         controls_layout.addWidget(self.exposure_label)
@@ -121,8 +130,8 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # horizontal layout for capture
         capture_layout = QtWidgets.QHBoxLayout()
-        capture_layout.addLayout(self.stacked_layout)
-        capture_layout.addLayout(controls_layout)
+        capture_layout.addLayout(self.stacked_layout, stretch=6)
+        capture_layout.addLayout(controls_layout, stretch=1)
 
         return capture_layout
 
@@ -134,13 +143,15 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
             del self.capture_thread
 
         self.capture_thread = CaptureThread()
-        selected_camera = self.camera_combo.currentData()
-        self.capture_thread.camera_index = selected_camera
+        if self.use_ordinary_camera:
+            selected_camera = self.camera_combo.currentData()
+            self.capture_thread.camera_index = selected_camera
         self.capture_thread.case_name = self.case_name_edit.text()
         self.capture_thread.exposure_level = self.exposure_spin.value()
         self.capture_thread.sampling_number = self.sampling_number_spin.value()
         self.capture_thread.depth_queue_size = self.depth_queue_spin.value()
         self.capture_thread.saving_opt = self.save_checkbox.isChecked()
+        self.capture_thread.use_ordinary_camera = self.use_ordinary_camera
 
         # connect the signal to slot
         self.capture_thread.image_updated.connect(self.update_image)
@@ -149,6 +160,25 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # Pop up windows to ask
         if self.save_checkbox.isChecked():
+
+            # in order to keep the file structure, use string to deal with the yaml file instead of yaml library
+            import re
+
+            with open("configs/case_config.yaml", "r") as f:
+                yaml_content = f.read()
+            yaml_content = re.sub(
+                r'(?<=case_name:\s)["\'].*?["\']',
+                f'"{self.capture_thread.case_name}"',
+                yaml_content,
+            )
+
+            with open("configs/case_config.yaml", "w") as file:
+                file.write(yaml_content)
+
+            from configs.load_config import reload_config
+
+            CONFIG = reload_config()
+
             saving_path = os.path.join("data", self.capture_thread.case_name)
             if os.path.exists(saving_path):
                 reply = QtWidgets.QMessageBox.question(
@@ -171,7 +201,8 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
                 os.makedirs(saving_path)
 
         self.capture_thread.start()
-        self.camera_combo.setEnabled(False)
+        if self.use_ordinary_camera:
+            self.camera_combo.setEnabled(False)
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.save_checkbox.setEnabled(False)
@@ -182,7 +213,8 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.capture_thread.wait()
             # 清理线程实例
             del self.capture_thread
-        self.camera_combo.setEnabled(True)
+        if self.use_ordinary_camera:
+            self.camera_combo.setEnabled(True)
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.save_checkbox.setEnabled(True)
