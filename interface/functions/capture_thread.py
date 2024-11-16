@@ -121,17 +121,17 @@ class CaptureThread(QtCore.QThread):
         self.sampling_number = 20
         self.case_name = "default_name"
         self.exposure_level = 140
-        self.depth_queue_size = 30
+        self.depth_queue_size = 50
         self.camera_index = 0
 
         # define a queue to store the depth images
-        self.depth_queue = np.zeros((self.depth_queue_size, 720, 1280), dtype=np.uint16)
+        self.depth_queue = np.zeros((self.depth_queue_size, 800, 1280), dtype=np.uint16)
         self.depth_valid_queue = np.zeros(
-            (self.depth_queue_size, 720, 1280), dtype=bool
+            (self.depth_queue_size, 800, 1280), dtype=bool
         )
 
         # debug setting
-        self.use_ordinary_camera = True
+        self.use_ordinary_camera = False
 
     def run(self):
         self.message_signal.emit("Start capturing images...", "info")
@@ -214,9 +214,11 @@ class CaptureThread(QtCore.QThread):
             color_image = np.asanyarray(color_frame.get_data())
             if len(image_list) < self.sampling_number:
                 image_list.append(color_image)
-            elif len(image_list) == self.sampling_number - 1:
+                # print(f"Image {len(image_list)} is collected.")
+            elif len(image_list) == self.sampling_number:
                 # [ ] set that to message center later
                 print("Color Image collection is done.")
+                self.message_signal.emit("Color Image collection is done.", "info")
 
             # 在彩色图像上绘制 QR 码
             color_image_with_qr = localize_qr_codes(
@@ -242,19 +244,16 @@ class CaptureThread(QtCore.QThread):
 
             depth_colormap = cv2.applyColorMap(depth_image_display, cv2.COLORMAP_PLASMA)
 
-            combined_image = np.hstack(
-                (
-                    cv2.cvtColor(color_image_with_qr, cv2.COLOR_RGB2BGR),
-                    depth_colormap,
-                )
+            self.image_updated.emit(
+                cv2.cvtColor(color_image_with_qr, cv2.COLOR_BGR2RGB)
             )
-
-            # 发出信号更新界面
-            self.image_updated.emit(combined_image)
+            self.depth_updated.emit(depth_colormap)
 
             if self.saving_opt and self._stop_event.is_set():
                 # 执行保存操作
                 print("Saving point cloud...")
+                self.message_signal.emit("Saving point cloud...", "info")
+
                 # Convert the scaled NumPy array back to an Open3D image
                 depth = o3d.geometry.Image(depth_image.astype(np.float32))
                 color = o3d.geometry.Image(color_image)
@@ -300,6 +299,8 @@ class CaptureThread(QtCore.QThread):
                     color_image=image_list,
                 )
                 print(f"*** Saving point cloud is Done. ***")
+                self.message_signal.emit("Saving point cloud is Done.", "info")
+                break
 
         pipeline.stop()
 

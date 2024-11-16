@@ -22,11 +22,10 @@ def get_trajectory_incremental_cut_inward(
     radius: int,
     step_size: int,
 ):
-    assert step_size <= radius * 2, ValueError(
-        "!!! Step size is greater than diameter."
-    )
+    assert step_size >= 3, ValueError("!!! Step size is too small.")
+
     # define kernels for erosion
-    kernel_radius = np.ones((radius, radius), np.uint8)
+    kernel_radius = np.ones((radius * 2 + 1, radius * 2 + 1), np.uint8)
     kernel_step_size = np.ones((step_size, step_size), np.uint8)
 
     # shrink the bin_map by radius pixels using erosion

@@ -44,16 +44,14 @@ def vis_points_ransformation(
             (
                 -(point[0] + x_offset),
                 point[1] + y_offset,
-                z_offset + CONFIG["offset_z_level"] + point[2] * CONFIG["z_expension"],
+                z_offset + point[2] * CONFIG["z_expension"],
             )
             for point in trajectory
         ]
         for trajectory in trajectories
     ]
     # combine list of list to list
-    vis_trajectories = [
-        point for trajectory in vis_trajectory for point in trajectory
-    ]
+    vis_trajectories = [point for trajectory in vis_trajectory for point in trajectory]
     vis_trajectories = np.array(vis_trajectories)
 
     return vis_trajectories, vis_trajectory
