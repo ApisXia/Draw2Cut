@@ -94,7 +94,11 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
     def refresh_folder_list(self):
         case_list = [
             os.path.basename(os.path.normpath(path))
-            for path in glob(CONFIG["case_folder_template"].format(case_name="*"))
+            for path in sorted(
+                glob(CONFIG["case_folder_template"].format(case_name="*")),
+                key=os.path.getmtime,
+                reverse=True,
+            )
         ]
 
         if len(case_list) > 0:
@@ -110,6 +114,7 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.append_message("Please input correct x axis labels", "error")
             self.x_axis_label_input.setFocus()
             return False
+        return True
 
     def check_y_axis_label(self):
         y_axis_label = self.y_axis_label_input.text().split(",")
@@ -117,6 +122,7 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.append_message("Please input correct y axis labels", "error")
             self.y_axis_label_input.setFocus()
             return False
+        return True
 
     def start_separation(self):
         # check x_axis and y_axis label
