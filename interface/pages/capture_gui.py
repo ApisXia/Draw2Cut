@@ -133,8 +133,8 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # horizontal layout for capture
         capture_layout = QtWidgets.QHBoxLayout()
-        capture_layout.addLayout(self.stacked_layout, stretch=6)
-        capture_layout.addLayout(controls_layout, stretch=1)
+        capture_layout.addLayout(self.stacked_layout)
+        capture_layout.addLayout(controls_layout)
 
         return capture_layout
 
