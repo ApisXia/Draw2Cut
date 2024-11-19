@@ -3,14 +3,16 @@ import cv2
 
 import numpy as np
 import open3d as o3d
+from glob import glob
 from copy import deepcopy
 
-from glob import glob
+from configs.load_config import CONFIG
 from src.space_finding.plane import calculate_points_plane
 
-from configs.load_config import CONFIG
 
-def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis_label:str):
+def seperate_wood_surface(
+    data_path: str, origin_label: str, x_axis_label: str, y_axis_label: str
+):
 
     pointcloud_data = np.load(data_path)
     temp_file_path = CONFIG["temp_file_path"]
@@ -245,6 +247,7 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
 
     # # visualize point cloud
     # o3d.visualization.draw_geometries(object_to_draw)
+
 
 if __name__ == "__main__":
     # read data

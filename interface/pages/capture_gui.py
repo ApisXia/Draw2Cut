@@ -41,6 +41,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
+        self.image_label.setFixedSize(1280, 800)
         self.image_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
@@ -52,6 +53,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
         # depth display
         self.depth_label = QtWidgets.QLabel()
+        self.depth_label.setFixedSize(1280, 800)
         self.depth_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
