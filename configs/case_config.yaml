@@ -5,6 +5,11 @@ data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 case_folder_template: "data/{case_name}/"
 
+# capture settings
+exposure_level: 100
+image_sampling_size: 20
+depth_queue_size: 50
+
 # working space settings
 default_x_length: 296  # mm, from back to front
 default_y_length: 523.3  # mm, from left to right

@@ -7,6 +7,7 @@ import numpy as np
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from configs.load_config import CONFIG
 from interface.functions.capture_thread import CaptureThread
 from interface.functions.gui_mixins import MessageBoxMixin
 
@@ -87,17 +88,17 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.exposure_label = QtWidgets.QLabel("Exposure Level:")
         self.exposure_spin = QtWidgets.QSpinBox()
         self.exposure_spin.setRange(1, 500)
-        self.exposure_spin.setValue(100)
+        self.exposure_spin.setValue(CONFIG["exposure_level"])
 
         self.sampling_number_label = QtWidgets.QLabel("Image Sampling Number:")
         self.sampling_number_spin = QtWidgets.QSpinBox()
         self.sampling_number_spin.setRange(1, 50)
-        self.sampling_number_spin.setValue(20)
+        self.sampling_number_spin.setValue(CONFIG["image_sampling_size"])
 
         self.depth_queue_label = QtWidgets.QLabel("Depth Queue Size:")
         self.depth_queue_spin = QtWidgets.QSpinBox()
         self.depth_queue_spin.setRange(1, 100)
-        self.depth_queue_spin.setValue(50)
+        self.depth_queue_spin.setValue(CONFIG["depth_queue_size"])
 
         self.save_checkbox = QtWidgets.QCheckBox("Save Data")
         self.save_checkbox.setChecked(True)
