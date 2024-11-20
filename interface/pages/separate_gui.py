@@ -158,9 +158,7 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
 
         temp_output_path = CONFIG["temp_file_path"]
-        seperate_image_path = os.path.join(
-            temp_output_path, "image_based_cropped_image_zoom.png"
-        )
+        seperate_image_path = os.path.join(temp_output_path, "wrapped_image_zoom.png")
         if os.path.exists(seperate_image_path):
             self.show_image(seperate_image_path)
 

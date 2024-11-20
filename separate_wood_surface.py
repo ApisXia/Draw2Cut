@@ -170,45 +170,9 @@ def seperate_wood_surface(
         & mask_plane
     )
     extract_mask = extract_mask & mask_plane
-
     # get the corresponding color for these points, and wrap them into a 2d image
     extract_color = colors[extract_mask, :]
     extract_points = points_transformed[extract_mask, :]
-
-    # ! test wrap just based on color image
-    mask_reshape = mask_plane.reshape((800, 1280))
-    coords = np.argwhere(mask_reshape)
-
-    min_x = np.min(coords[:, 0])
-    max_x = np.max(coords[:, 0])
-    min_y = np.min(coords[:, 1])
-    max_y = np.max(coords[:, 1])
-
-    image_based_cropped_image = (
-        pointcloud_data["transformed_color"]
-        .reshape((800, 1280, 3))[min_x:max_x, min_y:max_y, :]
-        .astype(np.uint8)
-    )
-    image_based_cropped_image = cv2.cvtColor(
-        image_based_cropped_image, cv2.COLOR_BGR2RGB
-    )
-
-    cv2.imwrite(
-        os.path.join(temp_file_path, "image_based_cropped_image.png"),
-        image_based_cropped_image,
-    )
-
-    image_based_cropped_image = cv2.resize(
-        image_based_cropped_image,
-        (0, 0),
-        fx=CONFIG["surface_upscale"],
-        fy=CONFIG["surface_upscale"],
-        interpolation=cv2.INTER_CUBIC,
-    )
-    cv2.imwrite(
-        os.path.join(temp_file_path, "image_based_cropped_image_zoom.png"),
-        image_based_cropped_image,
-    )
 
     x_size = int((x_max - x_min) / CONFIG["device_precision"])
     y_size = int((y_max - y_min) / CONFIG["device_precision"])
