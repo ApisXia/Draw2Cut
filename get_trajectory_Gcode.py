@@ -61,7 +61,7 @@ def get_trajectory_Gcode(
     os.makedirs(action_folder)
 
     # load image
-    image_path = os.path.join(temp_file_path, "image_based_cropped_image_zoom.png")
+    image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
     img = cv2.imread(image_path)
 
     # auto-threshold color mask
