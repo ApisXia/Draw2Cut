@@ -16,6 +16,12 @@ def find_centerline(binary_image):
     centerline_contours, _ = cv2.findContours(
         skeleton, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
+
+    # remove center line less than 2 points
+    centerline_contours = [
+        contour for contour in centerline_contours if len(contour) > 2
+    ]
+
     return centerline_contours
 
 

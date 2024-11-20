@@ -1,4 +1,4 @@
-version: 0.4.1
+version: 0.5.0
 
 case_name: "temp_case"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
@@ -41,12 +41,12 @@ offset_z_level: 0  # mm (decide this by comparing machine measured z level and t
 line_cutting_depth: 2  # mm (minus means nothing will happen)
 bulk_carving_depth: 
   behavior_relief: 10.5  # mm (minus means nothing will happen)
-  behavior_plane: 2  # mm (minus means nothing will happen)
-depth_forward_steps: [3, 2, 1, 0.6, 0.4, 0.3, 0.2]  # mm
+  behavior_plane: 10.5  # mm (minus means nothing will happen)
+depth_forward_steps: [2, 1, 0.6, 0.4, 0.3, 0.2]  # mm
 start_cutting_step: 0  # 0, 1, 2, 3, 4
 feed_rate: 
-  coarse: 20  # mm/min, all cutting rate, except the last one
-  fine: 20  # mm/min, the last cutting rate
+  coarse: 15  # mm/min, all cutting rate, except the last one
+  fine: 15  # mm/min, the last cutting rate
 
 # visualization settings
-z_expension: 3  # ratio
+z_expension: 1  # ratio
