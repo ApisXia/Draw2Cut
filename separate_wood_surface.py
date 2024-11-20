@@ -170,6 +170,30 @@ def seperate_wood_surface(
         & mask_plane
     )
     extract_mask = extract_mask & mask_plane
+
+    # fix holes in the extract_mask
+    extract_mask = extract_mask.reshape(800, 1280)
+    from skimage.morphology import (
+        remove_small_objects,
+        remove_small_holes,
+        dilation,
+        disk,
+    )
+
+    extract_mask = remove_small_objects(extract_mask, min_size=70)
+    extract_mask = remove_small_holes(extract_mask, area_threshold=70)
+    # extract_mask = dilation(
+    #     extract_mask, disk(9)
+    # )  # [ ]: this can control extra bundary
+
+    extract_mask = extract_mask.reshape(-1)
+
+    # update x_min, x_max, y_min, y_max
+    x_min = np.min(points_transformed[extract_mask, 0])
+    x_max = np.max(points_transformed[extract_mask, 0])
+    y_min = np.min(points_transformed[extract_mask, 1])
+    y_max = np.max(points_transformed[extract_mask, 1])
+
     # get the corresponding color for these points, and wrap them into a 2d image
     extract_color = colors[extract_mask, :]
     extract_points = points_transformed[extract_mask, :]
@@ -186,7 +210,7 @@ def seperate_wood_surface(
     # 创建一个掩码，标记需要填充的区域
     mask = np.all(wrapped_image == 0, axis=2).astype(np.uint8)
     # 使用 inpaint 函数填充
-    wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_TELEA)
+    wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_NS)
     wrapped_image = cv2.cvtColor(wrapped_image, cv2.COLOR_BGR2RGB)
 
     # increase the size by 10 and save the wrapped image
