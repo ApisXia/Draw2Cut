@@ -149,9 +149,9 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
         # self.message_box.append(f"X Axis Label: {self.x_axis}")
         # self.message_box.append(f"Y Axis Label: {self.y_axis}")
 
-        sys.stdout = self
         seperate_wood_surface(
             data_path,
+            temp_file_path,
             self.origin_label_input.text(),
             self.x_axis_label_input.text().split(","),
             self.y_axis_label_input.text().split(","),

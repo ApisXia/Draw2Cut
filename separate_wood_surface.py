@@ -11,13 +11,14 @@ from src.space_finding.plane import calculate_points_plane
 
 
 def seperate_wood_surface(
-    data_path: str, origin_label: str, x_axis_label: str, y_axis_label: str
+    data_path: str,
+    temp_file_path: str,
+    origin_label: str,
+    x_axis_label: str,
+    y_axis_label: str,
 ):
 
     pointcloud_data = np.load(data_path)
-    temp_file_path = CONFIG["temp_file_path"]
-
-    os.makedirs(temp_file_path, exist_ok=True)
 
     points_plane, _ = calculate_points_plane(
         origin_label, pointcloud_data, resize_factor=2
@@ -278,5 +279,9 @@ if __name__ == "__main__":
     origin_label = CONFIG["origin_label"]
     x_axis_label = CONFIG["x_axis_label"]
     y_axis_label = CONFIG["y_axis_label"]
+    temp_file_path = CONFIG["temp_file_path"]
+    os.makedirs(temp_file_path, exist_ok=True)
 
-    seperate_wood_surface(data_path, origin_label, x_axis_label, y_axis_label)
+    seperate_wood_surface(
+        data_path, temp_file_path, origin_label, x_axis_label, y_axis_label
+    )
