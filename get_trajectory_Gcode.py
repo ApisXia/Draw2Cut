@@ -28,9 +28,17 @@ from utils.trajectory_transform import (
     add_x_y_offset,
     vis_points_ransformation,
 )
-from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic,load_and_render_frames
+from utils.visualization import (
+    visualize_cutting_planning,
+    visualize_final_surface,
+    visualize_final_surface_dynamic,
+    load_and_render_frames,
+)
 
-def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth = 2,gl_view=None):
+
+def get_trajectory_Gcode(
+    smooth_size=0, offset_z_level=-1.5, line_cutting_depth=2, gl_view=None
+):
     # build action mapping dict
     with open("src/mask/color_type_values.json", "r") as f:
         color_type_values = json.load(f)
@@ -53,7 +61,7 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     os.makedirs(action_folder)
 
     # load image
-    image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
+    image_path = os.path.join(temp_file_path, "image_based_cropped_image_zoom.png")
     img = cv2.imread(image_path)
 
     # auto-threshold color mask
@@ -414,13 +422,13 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     )
 
     # get the cutting trajectory points
-    coarse_cutting_points,corse_vis_trajectory = vis_points_ransformation(
+    coarse_cutting_points, corse_vis_trajectory = vis_points_ransformation(
         coarse_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    fine_cutting_points,fine_vis_trajectory = vis_points_ransformation(
+    fine_cutting_points, fine_vis_trajectory = vis_points_ransformation(
         fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    ultra_fine_cutting_points,ultra_vis_trajectory = vis_points_ransformation(
+    ultra_fine_cutting_points, ultra_vis_trajectory = vis_points_ransformation(
         ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
@@ -445,7 +453,6 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
         points=scanned_points,
         colors=scanned_colors,
     )
-    
 
     # visualize_cutting_planning(
     #     scanned_points,
@@ -464,7 +471,7 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     )
 
     depth_map_points = down_sampling_to_real_scale([depth_map_points.tolist()])
-    depth_map_points,_ = vis_points_ransformation(
+    depth_map_points, _ = vis_points_ransformation(
         depth_map_points, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
@@ -476,7 +483,9 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     # )
     # Example of how to use the functions:
     # First, call the function to precompute and save the frames
-    combined_vis_trajectory = corse_vis_trajectory + fine_vis_trajectory + ultra_vis_trajectory
+    combined_vis_trajectory = (
+        corse_vis_trajectory + fine_vis_trajectory + ultra_vis_trajectory
+    )
 
     # time cost, so default is false
     # visualize_final_surface_dynamic(
@@ -493,11 +502,12 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
 
     print("******** Step 6: Visualizing the cutting planning Done ********")
 
+
 # list of list -> trajectory_holders
 
 if __name__ == "__main__":
     smooth_size = CONFIG["smooth_size"]
     offset_z_level = CONFIG["offset_z_level"]
     line_cutting_depth = CONFIG["line_cutting_depth"]
-    
+
     get_trajectory_Gcode(smooth_size, offset_z_level, line_cutting_depth)
