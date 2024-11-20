@@ -56,7 +56,8 @@ def filter_centerlines(centerline_contours, filter_size=5):
     return smoothed_centerline_contours
 
 
-def centerline_downsample(centerline_contour, downsample_factor: int = 2):
+# [ ] Now just temporary solution, need to be improved
+def centerline_downsample(centerline_contour, downsample_factor: int = 1):
     downsampled_contour = centerline_contour[::downsample_factor]
     # add the first point to the end to make it a closed loop
     downsampled_contour = np.concatenate(
