@@ -35,9 +35,6 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.setLayout(main_layout)
 
     def create_layout(self):
-        # create layout
-        layout = QtWidgets.QHBoxLayout()
-
         # image display
         self.image_label = QtWidgets.QLabel()
         self.image_label.setFixedSize(1280, 800)
@@ -158,8 +155,7 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.y_axis_label_input.text().split(","),
         )
 
-        temp_output_path = CONFIG["temp_file_path"]
-        seperate_image_path = os.path.join(temp_output_path, "wrapped_image_zoom.png")
+        seperate_image_path = os.path.join(temp_file_path, "wrapped_image_zoom.png")
         if os.path.exists(seperate_image_path):
             self.show_image(seperate_image_path)
 

@@ -1,21 +1,18 @@
 import os
 import sys
-import cv2
 import time
-import shutil
-import datetime
 import threading
 import numpy as np
 import open3d as o3d
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
+from glob import glob
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from interface.functions.gui_mixins import MessageBoxMixin
 from configs.load_config import CONFIG
-
 from get_trajectory_Gcode import get_trajectory_Gcode
+from interface.functions.gui_mixins import MessageBoxMixin
 
 
 class QTextEditStream:
@@ -91,74 +88,57 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # create GLViewWidget
         self.gl_view = gl.GLViewWidget()
-        self.gl_view.setFixedSize(1280, 720)
+        self.gl_view.setFixedSize(1280, 800)
         self.gl_view.opts["distance"] = 320  # set camera distance
         # self.gl_view.setBackgroundColor((255, 255, 255))
 
-        # # add grid
-        # self.glo = gl.GLGridItem()
-        # self.glo.scale(2, 2, 1)
-        # self.glo.setDepthValue(10)  # set grid depth
-        # self.gl_view.addItem(self.glo)
+        # control layout
+        self.case_select_label = QtWidgets.QLabel("Select Case:")
+        self.case_select_combo = QtWidgets.QComboBox()
+        self.refresh_folder_list()
 
-        self.case_label = QtWidgets.QLabel("Select Case:")
-        self.case_path = ""
-        self.case_path_eidt = QtWidgets.QLineEdit(self.case_path)
-        self.case_choose_button = QtWidgets.QPushButton()
-        folder_icon = self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon)
-        self.case_choose_button.setIcon(folder_icon)
-        self.case_choose_button.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #E0E0E0;
-                border: 1px solid #A0A0A0;
-                padding: 5px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #C0C0C0;
-            }
-            QPushButton:pressed {
-                background-color: #A0A0A0;
-            }
-        """
-        )
-        self.case_choose_button.clicked.connect(self.select_folder)
+        self.case_refresh_button = QtWidgets.QPushButton()
+        self.case_refresh_button.setText("Refresh")
+        self.case_refresh_button.clicked.connect(self.refresh_folder_list)
 
         self.smooth_size_label = QtWidgets.QLabel("Smooth_size:")
         self.smooth_size_spin = QtWidgets.QSpinBox()
         self.smooth_size_spin.setRange(0, 10)
-        self.smooth_size_spin.setValue(0)
+        self.smooth_size_spin.setValue(CONFIG["smooth_size"])
 
         self.spindle_radius_label = QtWidgets.QLabel("Spindle_radius:")
         self.spindle_radius_spin = QtWidgets.QDoubleSpinBox()
         self.spindle_radius_spin.setRange(0, 10)
         self.spindle_radius_spin.setDecimals(1)
-        self.spindle_radius_spin.setValue(5)
+        self.spindle_radius_spin.setValue(CONFIG["spindle_radius"])
 
         self.offset_z_level_label = QtWidgets.QLabel("Offset_z_level:")
         self.offset_z_level_spin = QtWidgets.QDoubleSpinBox()
-        self.offset_z_level_spin.setRange(-5, 5)
+        self.offset_z_level_spin.setRange(-10, 10)
         self.offset_z_level_spin.setDecimals(1)
-        self.offset_z_level_spin.setValue(-1.5)
+        self.offset_z_level_spin.setValue(CONFIG["offset_z_level"])
 
         self.line_cutting_depth_label = QtWidgets.QLabel("Line_cutting_depth:")
         self.line_cutting_depth_spin = QtWidgets.QDoubleSpinBox()
         self.line_cutting_depth_spin.setDecimals(1)
-        self.line_cutting_depth_spin.setRange(0, 10)
-        self.line_cutting_depth_spin.setValue(2)
+        self.line_cutting_depth_spin.setRange(0, 20)
+        self.line_cutting_depth_spin.setValue(CONFIG["line_cutting_depth"])
 
         self.behavior_relief_label = QtWidgets.QLabel("Behavior_relief:")
         self.behavior_relief_spin = QtWidgets.QDoubleSpinBox()
         self.behavior_relief_spin.setDecimals(1)
         self.behavior_relief_spin.setRange(0, 20)
-        self.behavior_relief_spin.setValue(10.5)
+        self.behavior_relief_spin.setValue(
+            CONFIG["bulk_carving_depth"]["behavior_relief"]
+        )
 
         self.behavior_plane_label = QtWidgets.QLabel("Behavior_plane:")
         self.behavior_plane_spin = QtWidgets.QDoubleSpinBox()
         self.behavior_plane_spin.setDecimals(1)
         self.behavior_plane_spin.setRange(0, 20)
-        self.behavior_relief_spin.setValue(2)
+        self.behavior_plane_spin.setValue(
+            CONFIG["bulk_carving_depth"]["behavior_plane"]
+        )
 
         self.start_button = QtWidgets.QPushButton("Start trajectory")
         self.start_button.clicked.connect(self.start_trajectory)
@@ -170,10 +150,10 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
-        controls_layout.addWidget(self.case_label)
+        controls_layout.addWidget(self.case_select_label)
         case_path_layout = QtWidgets.QHBoxLayout()
-        case_path_layout.addWidget(self.case_path_eidt)
-        case_path_layout.addWidget(self.case_choose_button)
+        case_path_layout.addWidget(self.case_select_combo)
+        case_path_layout.addWidget(self.case_refresh_button)
         controls_layout.addLayout(case_path_layout)
         controls_layout.addWidget(self.smooth_size_label)
         controls_layout.addWidget(self.smooth_size_spin)
@@ -197,18 +177,33 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         return layout
 
-    def select_folder(self):
-        self.case_path = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "select case", options=QtWidgets.QFileDialog.ShowDirsOnly
-        )
-        self.case_path_eidt.setText(self.case_path)
+    # add function to refresh folder list
+    def refresh_folder_list(self):
+        case_list = [
+            os.path.basename(os.path.normpath(path))
+            for path in sorted(
+                glob(CONFIG["case_folder_template"].format(case_name="*")),
+                key=os.path.getmtime,
+                reverse=True,
+            )
+        ]
+
+        if len(case_list) > 0:
+            self.case_select_combo.clear()
+            self.case_select_combo.addItems(case_list)
+        else:
+            self.append_message("No case folder found", "error")
 
     def start_trajectory(self):
-        if self.case_path:
-            case_name = os.path.basename(self.case_path.rstrip("/"))
-            CONFIG["temp_file_path"] = CONFIG["temp_file_path_template"].format(
-                case_name=case_name
-            )
+        case_name = self.case_select_combo.currentText()
+        if not case_name:
+            self.message_box.append("Can not get viable case name", "error")
+            return
+
+        data_path = CONFIG["data_path_template"].format(case_name=case_name)
+        temp_file_path = CONFIG["temp_file_path_template"].format(case_name=case_name)
+        if not os.path.exists(temp_file_path):
+            os.makedirs(temp_file_path)
 
         if self.step == 0:
             self.smooth_size = self.smooth_size_spin.value()
@@ -217,7 +212,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.line_cutting_depth = self.line_cutting_depth_spin.value()
             self.behavior_relief = self.behavior_relief_spin.value()
             self.behavior_plane = self.behavior_plane_spin.value()
-            self.case_path = self.case_path_eidt.text()
+            self.case_path = data_path
 
             # Create a QThread and Worker
             self.thread = QtCore.QThread()
