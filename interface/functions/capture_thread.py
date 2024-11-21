@@ -112,8 +112,8 @@ class CaptureThread(QtCore.QThread):
     depth_updated = QtCore.pyqtSignal(np.ndarray)
     message_signal = QtCore.pyqtSignal(str, str)
 
-    def __init__(self, parent=None):
-        super(CaptureThread, self).__init__(parent)
+    def __init__(self):
+        super(CaptureThread, self).__init__()
         self._stop_event = threading.Event()
 
         # all these will be updated by the GUI
