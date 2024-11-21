@@ -39,17 +39,21 @@ class Worker(QtCore.QObject):
     output_signal = QtCore.pyqtSignal(str)
     finished = QtCore.pyqtSignal()
 
-    def __init__(self, smooth_size, offset_z_level, line_cutting_depth, gui):
+    def __init__(
+        self, temp_file_path, smooth_size, offset_z_level, line_cutting_depth, gui
+    ):
         super().__init__()
         self.smooth_size = smooth_size
         self.offset_z_level = offset_z_level
         self.line_cutting_depth = line_cutting_depth
         self.gui = gui
+        self.temp_file_path = temp_file_path
 
     def run(self):
         # Run get_trajectory_Gcode in the worker thread and send output messages to the main thread
         sys.stdout = QTextEditStream(self.gui)
         get_trajectory_Gcode(
+            self.temp_file_path,
             self.smooth_size,
             self.offset_z_level,
             self.line_cutting_depth,
@@ -204,6 +208,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         temp_file_path = CONFIG["temp_file_path_template"].format(case_name=case_name)
         if not os.path.exists(temp_file_path):
             os.makedirs(temp_file_path)
+        self.temp_file_path = temp_file_path
 
         if self.step == 0:
             self.smooth_size = self.smooth_size_spin.value()
@@ -217,7 +222,11 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             # Create a QThread and Worker
             self.thread = QtCore.QThread()
             self.worker = Worker(
-                self.smooth_size, self.offset_z_level, self.line_cutting_depth, self
+                temp_file_path,
+                self.smooth_size,
+                self.offset_z_level,
+                self.line_cutting_depth,
+                self,
             )
             self.worker.moveToThread(self.thread)
 
@@ -239,21 +248,20 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.step = 0
 
     def visualize_cutting_planning(self):
-        temp_file_path = CONFIG["temp_file_path"]
-        scanned_points = np.load(os.path.join(temp_file_path, "scanned_points.npz"))[
-            "points"
-        ]
-        scanned_colors = np.load(os.path.join(temp_file_path, "scanned_points.npz"))[
-            "colors"
-        ]
-        coarse_cutting_points = np.load(
-            os.path.join(temp_file_path, "coarse_points.npz")
+        scanned_points = np.load(
+            os.path.join(self.temp_file_path, "scanned_points.npz")
         )["points"]
-        fine_cutting_points = np.load(os.path.join(temp_file_path, "fine_points.npz"))[
-            "points"
-        ]
+        scanned_colors = np.load(
+            os.path.join(self.temp_file_path, "scanned_points.npz")
+        )["colors"]
+        coarse_cutting_points = np.load(
+            os.path.join(self.temp_file_path, "coarse_points.npz")
+        )["points"]
+        fine_cutting_points = np.load(
+            os.path.join(self.temp_file_path, "fine_points.npz")
+        )["points"]
         ultra_fine_cutting_points = np.load(
-            os.path.join(temp_file_path, "ultra_fine_points.npz")
+            os.path.join(self.temp_file_path, "ultra_fine_points.npz")
         )["points"]
 
         self.gl_view.clear()
@@ -295,8 +303,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.gl_view.opts["center"] = pg.Vector(center[0], center[1], center[2])
 
     def visualize_final_surface(self):
-        temp_file_path = CONFIG["temp_file_path"]
-        final_surface_path = os.path.join(temp_file_path, "final_surface.ply")
+        final_surface_path = os.path.join(self.temp_file_path, "final_surface.ply")
         if os.path.exists(final_surface_path):
             mesh = o3d.io.read_triangle_mesh(final_surface_path)
             if not mesh.has_vertices():
@@ -339,7 +346,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
     def cutting_replay(self):
         num_frames = 1000
-        save_dir = os.path.join(CONFIG["temp_file_path"], "cutting_moive")
+        save_dir = os.path.join(self.temp_file_path, "cutting_moive")
         # save_dir = "./rendered_frames"
         self.load_and_render_frames(save_dir, num_frames)
 

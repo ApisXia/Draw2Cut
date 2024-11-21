@@ -37,7 +37,11 @@ from utils.visualization import (
 
 
 def get_trajectory_Gcode(
-    smooth_size=0, offset_z_level=-1.5, line_cutting_depth=2, gl_view=None
+    temp_file_path,
+    smooth_size=0,
+    offset_z_level=-1.5,
+    line_cutting_depth=2,
+    gl_view=None,
 ):
     # build action mapping dict
     with open("src/mask/color_type_values.json", "r") as f:
@@ -49,9 +53,6 @@ def get_trajectory_Gcode(
             item["action"] in CONFIG["contour_mark"] + CONFIG["behavior_mark"]
         ):  # currently only support these two functions
             ACTION_MAPPING_DICT[item["type"]] = item["action"]
-
-    # define the path to save the temporary files
-    temp_file_path = CONFIG["temp_file_path"]
 
     # action subfolder
     action_folder = os.path.join(temp_file_path, "trajectory_extraction")
@@ -476,7 +477,11 @@ def get_trajectory_Gcode(
     )
 
     visualize_final_surface(
-        scanned_points, scanned_colors, depth_map_points, left_bottom[2]
+        scanned_points,
+        scanned_colors,
+        depth_map_points,
+        left_bottom[2],
+        temp_file_path,
     )
     # visualize_final_surface_dynamic(
     #     scanned_points, scanned_colors, depth_map_points, left_bottom[2],coarse_cutting_points
