@@ -85,7 +85,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.populate_cameras()
 
         self.case_name_label = QtWidgets.QLabel("Case Name:")
-        self.case_name_edit = QtWidgets.QLineEdit("temp_case")
+        self.case_name_edit = QtWidgets.QLineEdit(CONFIG["case_name"])
 
         self.exposure_label = QtWidgets.QLabel("Exposure Level:")
         self.exposure_spin = QtWidgets.QSpinBox()
