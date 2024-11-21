@@ -91,7 +91,7 @@ def extract_marks_with_colors(
     # gray_image = cv2.equalizeHist(gray_image)
 
     # 使用高斯模糊去噪
-    blurred_image = cv2.GaussianBlur(gray_image, (9, 9), 2)
+    # blurred_image = cv2.GaussianBlur(gray_image, (9, 9), 2)
 
     # use OTSU thresholding to get binary image with multiple channels
     b_channel, g_channel, r_channel = cv2.split(image)

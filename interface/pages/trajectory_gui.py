@@ -17,6 +17,7 @@ from configs.load_config import CONFIG
 
 from get_trajectory_Gcode import get_trajectory_Gcode
 
+
 class QTextEditStream:
     def __init__(self, text_edit):
         self.text_edit = text_edit
@@ -29,11 +30,12 @@ class QTextEditStream:
                 self.text_edit.message_box,
                 "append",
                 QtCore.Qt.QueuedConnection,
-                QtCore.Q_ARG(str, message)
+                QtCore.Q_ARG(str, message),
             )
 
     def flush(self):
         pass  # This method is required for compatibility with print()
+
 
 class Worker(QtCore.QObject):
     # Define a signal to send output messages to the GUI
@@ -50,8 +52,14 @@ class Worker(QtCore.QObject):
     def run(self):
         # Run get_trajectory_Gcode in the worker thread and send output messages to the main thread
         sys.stdout = QTextEditStream(self.gui)
-        get_trajectory_Gcode(self.smooth_size, self.offset_z_level, self.line_cutting_depth,self.gui.gl_view)
+        get_trajectory_Gcode(
+            self.smooth_size,
+            self.offset_z_level,
+            self.line_cutting_depth,
+            self.gui.gl_view,
+        )
         self.finished.emit()  # Emit finished signal when done
+
 
 class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     def __init__(self, message_box: QtWidgets.QTextEdit = None):
@@ -60,7 +68,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         # set close event
         self.stop_event = threading.Event()
         self.thread = None
-    
+
         # setup layout
         page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
@@ -76,7 +84,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             main_layout.addWidget(self.message_box)
 
         self.setLayout(main_layout)
-    
+
     def create_layout(self):
         # create layout
         layout = QtWidgets.QHBoxLayout()
@@ -86,7 +94,6 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.gl_view.setFixedSize(1280, 720)
         self.gl_view.opts["distance"] = 320  # set camera distance
         # self.gl_view.setBackgroundColor((255, 255, 255))
-
 
         # # add grid
         # self.glo = gl.GLGridItem()
@@ -100,7 +107,8 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.case_choose_button = QtWidgets.QPushButton()
         folder_icon = self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon)
         self.case_choose_button.setIcon(folder_icon)
-        self.case_choose_button.setStyleSheet("""
+        self.case_choose_button.setStyleSheet(
+            """
             QPushButton {
                 background-color: #E0E0E0;
                 border: 1px solid #A0A0A0;
@@ -113,7 +121,8 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             QPushButton:pressed {
                 background-color: #A0A0A0;
             }
-        """)
+        """
+        )
         self.case_choose_button.clicked.connect(self.select_folder)
 
         self.smooth_size_label = QtWidgets.QLabel("Smooth_size:")
@@ -187,15 +196,18 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         layout.addLayout(controls_layout)
 
         return layout
+
     def select_folder(self):
-        self.case_path = QtWidgets.QFileDialog.getExistingDirectory(self, "select case", options=QtWidgets.QFileDialog.ShowDirsOnly)
+        self.case_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "select case", options=QtWidgets.QFileDialog.ShowDirsOnly
+        )
         self.case_path_eidt.setText(self.case_path)
-    
+
     def start_trajectory(self):
         if self.case_path:
             case_name = os.path.basename(self.case_path.rstrip("/"))
             CONFIG["temp_file_path"] = CONFIG["temp_file_path_template"].format(
-            case_name=case_name
+                case_name=case_name
             )
 
         if self.step == 0:
@@ -209,7 +221,9 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
             # Create a QThread and Worker
             self.thread = QtCore.QThread()
-            self.worker = Worker(self.smooth_size, self.offset_z_level, self.line_cutting_depth,self)
+            self.worker = Worker(
+                self.smooth_size, self.offset_z_level, self.line_cutting_depth, self
+            )
             self.worker.moveToThread(self.thread)
 
             self.worker.finished.connect(self.thread.quit)
@@ -231,39 +245,55 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
     def visualize_cutting_planning(self):
         temp_file_path = CONFIG["temp_file_path"]
-        scanned_points = np.load(os.path.join(temp_file_path, "scanned_points.npz"))["points"]
-        scanned_colors = np.load(os.path.join(temp_file_path, "scanned_points.npz"))["colors"]
-        coarse_cutting_points = np.load(os.path.join(temp_file_path, "coarse_points.npz"))["points"]
-        fine_cutting_points = np.load(os.path.join(temp_file_path, "fine_points.npz"))["points"]
-        ultra_fine_cutting_points = np.load(os.path.join(temp_file_path, "ultra_fine_points.npz"))["points"]
-        
+        scanned_points = np.load(os.path.join(temp_file_path, "scanned_points.npz"))[
+            "points"
+        ]
+        scanned_colors = np.load(os.path.join(temp_file_path, "scanned_points.npz"))[
+            "colors"
+        ]
+        coarse_cutting_points = np.load(
+            os.path.join(temp_file_path, "coarse_points.npz")
+        )["points"]
+        fine_cutting_points = np.load(os.path.join(temp_file_path, "fine_points.npz"))[
+            "points"
+        ]
+        ultra_fine_cutting_points = np.load(
+            os.path.join(temp_file_path, "ultra_fine_points.npz")
+        )["points"]
+
         self.gl_view.clear()
-        
+
         scatter = gl.GLScatterPlotItem(
             pos=scanned_points,
             size=0.5,
-            color = scanned_colors,
+            color=scanned_colors,
         )
         self.gl_view.addItem(scatter)
 
         # create coarse trajectory point cloud object using green color
-        coarse_trajectory_scatter = gl.GLScatterPlotItem(pos=coarse_cutting_points, 
-                                                         color=np.array([[0, 1, 0]] * len(coarse_cutting_points)), 
-                                                         size=0.5)
+        coarse_trajectory_scatter = gl.GLScatterPlotItem(
+            pos=coarse_cutting_points,
+            color=np.array([[0, 1, 0]] * len(coarse_cutting_points)),
+            size=0.5,
+        )
         self.gl_view.addItem(coarse_trajectory_scatter)
 
         # create fine trajectory point cloud object using red color
         if len(fine_cutting_points) > 0:
-            fine_trajectory_scatter = gl.GLScatterPlotItem(pos=fine_cutting_points, 
-                                                           color=np.array([[1, 0, 0]] * len(fine_cutting_points)), 
-                                                           size=0.5)
+            fine_trajectory_scatter = gl.GLScatterPlotItem(
+                pos=fine_cutting_points,
+                color=np.array([[1, 0, 0]] * len(fine_cutting_points)),
+                size=0.5,
+            )
             self.gl_view.addItem(fine_trajectory_scatter)
 
         # create ultra fine trajectory point cloud object using blue color
         if len(ultra_fine_cutting_points) > 0:
-            ultra_fine_trajectory_scatter = gl.GLScatterPlotItem(pos=ultra_fine_cutting_points, 
-                                                                 color=np.array([[0, 0, 1]] * len(ultra_fine_cutting_points)), 
-                                                                 size=0.5)
+            ultra_fine_trajectory_scatter = gl.GLScatterPlotItem(
+                pos=ultra_fine_cutting_points,
+                color=np.array([[0, 0, 1]] * len(ultra_fine_cutting_points)),
+                size=0.5,
+            )
             self.gl_view.addItem(ultra_fine_trajectory_scatter)
 
         center = np.mean(scanned_points, axis=0)
@@ -301,7 +331,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.gl_view.addItem(mesh_item)
 
             self.center_view_on_vertices(vertices)
-    
+
     def replay(self):
         """start replaying the frames"""
         if self.thread and self.thread.is_alive():
@@ -311,7 +341,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         thread = threading.Thread(target=self.cutting_replay)
         thread.start()
-    
+
     def cutting_replay(self):
         num_frames = 1000
         save_dir = os.path.join(CONFIG["temp_file_path"], "cutting_moive")
@@ -361,7 +391,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
                 # sleep for target fps
                 time.sleep(1.0 / target_fps)
-        
+
     def center_view_on_vertices(self, vertices):
         if vertices.size == 0:
             return
@@ -372,7 +402,6 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         # 设置视图中心
         self.gl_view.opts["center"] = center_point
         self.gl_view.update()
-    
 
     # # [ ]: need to add fine cutting trajectory?
     # np.savez(
@@ -395,6 +424,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     #     points=scanned_points,
     #     colors=scanned_colors,
     # )
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

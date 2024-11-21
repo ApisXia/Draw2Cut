@@ -188,6 +188,7 @@ def seperate_wood_surface(
     # )  # [ ]: this can control extra bundary
 
     extract_mask = extract_mask.reshape(-1)
+    extract_mask = extract_mask & mask
 
     # update x_min, x_max, y_min, y_max
     x_min = np.min(points_transformed[extract_mask, 0])
