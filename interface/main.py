@@ -9,6 +9,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from interface.pages.capture_gui import CaptureGUI
 from interface.pages.separate_gui import SeperateGUI
+from interface.pages.mask_extract_gui import MaskExtractGUI
 from interface.pages.replay_gui import ReplayGUI
 from interface.pages.trajectory_gui import TrajectoryGUI
 
@@ -18,7 +19,7 @@ class MainWindow(QtWidgets.QWidget):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Draw2Cut Interface")
-        self.setFixedSize(1650, 900)
+        self.setFixedSize(1740, 900)
 
         # define message box
         self.message_box = QtWidgets.QTextEdit()
@@ -27,22 +28,37 @@ class MainWindow(QtWidgets.QWidget):
 
         # create pages
         self.pages = QtWidgets.QTabWidget()
+        self.pages.setStyleSheet(
+            """
+            QTabWidget::pane {
+                border: none;
+                margin: 0px;
+                padding: 0px;
+            }
+        """
+        )
 
-        # page1: capture layout
+        # page1: capture
         self.capture_layout = CaptureGUI(message_box=self.message_box)
         self.pages.addTab(self.capture_layout, "Step1: Capture")
 
-        # [ ]: Add Page 2 here
+        # page2: separate surface
         self.separate_layout = SeperateGUI(message_box=self.message_box)
         self.pages.addTab(self.separate_layout, "Step2: Separate")
 
-        # [ ]: Add Page 3 here
+        # [ ]: page3: color mask extraction
+        self.mask_extract_layout = MaskExtractGUI(message_box=self.message_box)
+        self.pages.addTab(self.mask_extract_layout, "Step3: Mask Extract")
+
+        # [ ]: page4: Centerline extraction and Cutting Visualization and Gcode genearation
         self.trajectory_layout = TrajectoryGUI(message_box=self.message_box)
-        self.pages.addTab(self.trajectory_layout, "Step3: Trajectory")
+        self.pages.addTab(self.trajectory_layout, "Step4: Trajectory")
+
+        # [ ]: page5: replay
 
         # test page: replay
-        self.replay_layout = ReplayGUI(message_box=self.message_box)
-        self.pages.addTab(self.replay_layout, "Test: Replay")
+        # self.replay_layout = ReplayGUI(message_box=self.message_box)
+        # self.pages.addTab(self.replay_layout, "Test: Replay")
 
         # main layout
         main_layout = QtWidgets.QVBoxLayout()

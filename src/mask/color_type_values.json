@@ -42,14 +42,14 @@
         "action": "not defined"
     },
     {
-        "type": "brown_ignore",
+        "type": "brown",
         "HSV_value": [4, 77, 76],
         "tolerance": 20,
         "description": "mask with this color will be ignored",
         "action": "ignore"
     },
     {
-        "type": "green_temp",
+        "type": "green_2",
         "HSV_value": [21, 49, 120],
         "tolerance": 60,
         "description": "temp color",

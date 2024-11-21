@@ -1,4 +1,4 @@
-version: 0.5.1
+version: 0.6.0
 
 case_name: "default_case"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
@@ -16,6 +16,9 @@ default_y_length: 523.3  # mm, from left to right
 origin_label: "11"  # later needs to be "10"
 x_axis_label: ["9", "8"]  # the last one can be used to define the axis length
 y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis length
+
+# page 3: mask extraction settings
+color_value_setting_file: "src/mask/color_type_values.json"
 
 # mask extraction settings
 smooth_size: 0
