@@ -1,4 +1,6 @@
+import cv2
 import datetime
+
 from PyQt5 import QtCore, QtGui
 
 
@@ -29,8 +31,24 @@ class MessageBoxMixin:
             cursor.select(QtGui.QTextCursor.BlockUnderCursor)
             cursor.removeSelectedText()
             cursor.deleteChar()
-    
+
     def write(self, message):
         message = message.rstrip()
-        if message: 
+        if message:
             self.append_message(message)
+
+    def convert_cv_qt(self, cv_img):
+        """convert cv image to qt image"""
+        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        qt_image = QtGui.QImage(
+            rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888
+        )
+        qt_pixmap = QtGui.QPixmap.fromImage(qt_image)
+        qt_pixmap = qt_pixmap.scaled(
+            self.image_label.width(),
+            self.image_label.height(),
+            QtCore.Qt.KeepAspectRatio,
+        )
+        return qt_pixmap

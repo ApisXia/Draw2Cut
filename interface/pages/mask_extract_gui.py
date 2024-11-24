@@ -1,8 +1,10 @@
+import os
 import json
 import sys
 import cv2
 import numpy as np
 
+from glob import glob
 from functools import partial
 from PyQt5.QtGui import QColor
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -10,6 +12,8 @@ from PyQt5.QtWidgets import QTableWidget, QHeaderView, QPushButton, QToolButton
 
 from configs.load_config import CONFIG
 from interface.functions.gui_mixins import MessageBoxMixin
+from interface.functions.mask_extract_thread import MaskExtractThread
+
 
 """_summary_
     Two functions:
@@ -27,6 +31,9 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.color_type_values = json.load(f)
         self.color_type_saving_path = "saving_test.json"
 
+        # set saving subfolder
+        self.mask_saving_subfolder = "mask_extract"
+
         # setup layout
         page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
@@ -43,6 +50,13 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         self.setLayout(main_layout)
 
+        # result variables
+        self.colored_mask = None
+        self.semantic_mask_dict = None
+        self.separate_image_name = "wrapped_image_zoom.png"
+
+        self.mask_extract_thread = MaskExtractThread()
+
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
@@ -58,8 +72,18 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
 
         # right side control panel
+
+        # ? case select part
+        self.case_select_label = QtWidgets.QLabel("Select Case:")
+        self.case_select_combo = QtWidgets.QComboBox()
+        self.refresh_folder_list()
+
+        self.case_refresh_button = QtWidgets.QPushButton()
+        self.case_refresh_button.setText("Refresh")
+        self.case_refresh_button.clicked.connect(self.refresh_folder_list)
+
+        # ? color value control part
         self.color_value_table = QTableWidget()
-        # self.color_value_table.setRowCount(len(self.color_type_values))
         self.color_value_table.setColumnCount(4)
         self.color_value_table.setFixedWidth(320)
         self.color_value_table.setFixedHeight(180)
@@ -104,10 +128,20 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.save_color_button = QPushButton("Save color type values")
         self.save_color_button.clicked.connect(self.save_color_type_values)
 
+        # start color mask extraction
+        self.mask_extract_button = QPushButton("Start Mask Extraction")
+        self.mask_extract_button.clicked.connect(self.start_extract_mask)
+
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
+        controls_layout.addWidget(self.case_select_label)
+        case_path_layout = QtWidgets.QHBoxLayout()
+        case_path_layout.addWidget(self.case_select_combo)
+        case_path_layout.addWidget(self.case_refresh_button)
+        controls_layout.addLayout(case_path_layout)
         controls_layout.addLayout(color_layout)
         controls_layout.addWidget(self.save_color_button)
+        controls_layout.addWidget(self.mask_extract_button)
         controls_layout.addStretch()
         # controls_layout.addWidget(self.case_name_edit)
         # controls_layout.addWidget(self.exposure_label)
@@ -128,6 +162,81 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         capture_layout.addLayout(controls_layout)
 
         return capture_layout
+
+    def start_extract_mask(self):
+        if (
+            hasattr(self, "mask_extract_thread")
+            and self.mask_extract_thread.isRunning()
+        ):
+            self.mask_extract_thread.terminate()
+            self.mask_extract_thread.wait()
+
+        # get case name and data path
+        self.get_case_info()
+
+        self.mask_extract_thread = MaskExtractThread()
+        self.mask_extract_thread.color_type_values = self.color_type_values
+        self.mask_extract_thread.temp_file_path = os.path.join(
+            self.temp_file_path, self.mask_saving_subfolder
+        )
+
+        self.mask_extract_thread.separated_image = cv2.imread(
+            os.path.join(self.temp_file_path, self.separate_image_name)
+        )
+
+        # connect signals
+        self.mask_extract_thread.colored_mask_signal.connect(self.update_colored_mask)
+        self.mask_extract_thread.semantic_mask_dict_signal.connect(
+            self.update_semantic_mask_dict
+        )
+
+        # start the thread
+        self.mask_extract_thread.start()
+
+    @QtCore.pyqtSlot(np.ndarray)
+    def update_colored_mask(self, colored_mask):
+        del self.colored_mask
+        self.colored_mask = colored_mask
+        # also update the image label
+        qt_img = self.convert_cv_qt(colored_mask)
+        self.image_label.setPixmap(qt_img)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+
+    @QtCore.pyqtSlot(dict)
+    def update_semantic_mask_dict(self, semantic_mask_dict):
+        del self.semantic_mask_dict
+        self.semantic_mask_dict = semantic_mask_dict
+
+    def get_case_info(self):
+        # get case name and data path
+        self.case_name = self.case_select_combo.currentText()
+        if not self.case_name:
+            self.message_box.append("Can not get viable case name", "error")
+            return
+
+        self.data_path = CONFIG["data_path_template"].format(case_name=self.case_name)
+        self.temp_file_path = CONFIG["temp_file_path_template"].format(
+            case_name=self.case_name
+        )
+        if not os.path.exists(self.temp_file_path):
+            os.makedirs(self.temp_file_path)
+
+    # add function to refresh folder list
+    def refresh_folder_list(self):
+        case_list = [
+            os.path.basename(os.path.normpath(path))
+            for path in sorted(
+                glob(CONFIG["case_folder_template"].format(case_name="*")),
+                key=os.path.getmtime,
+                reverse=True,
+            )
+        ]
+
+        if len(case_list) > 0:
+            self.case_select_combo.clear()
+            self.case_select_combo.addItems(case_list)
+        else:
+            self.append_message("No case folder found", "error")
 
     def update_color_table(self):
         # avoid signal emitting
