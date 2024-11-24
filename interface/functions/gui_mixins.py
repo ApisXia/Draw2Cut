@@ -1,7 +1,7 @@
 import cv2
 import datetime
 
-from PyQt5 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 class MessageBoxMixin:
@@ -52,3 +52,10 @@ class MessageBoxMixin:
             QtCore.Qt.KeepAspectRatio,
         )
         return qt_pixmap
+
+    def define_separator(self):
+        """define the separator"""
+        separator = QtWidgets.QFrame()
+        separator.setFrameShape(QtWidgets.QFrame.HLine)
+        separator.setFrameShadow(QtWidgets.QFrame.Sunken)
+        return separator

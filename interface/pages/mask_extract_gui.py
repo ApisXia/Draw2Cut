@@ -6,7 +6,7 @@ import numpy as np
 
 from glob import glob
 from functools import partial
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QTableWidget, QHeaderView, QPushButton, QToolButton
 
@@ -31,8 +31,15 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.color_type_values = json.load(f)
         self.color_type_saving_path = "saving_test.json"
 
+        # predefined separated image name
+        self.separate_image_name = "wrapped_image_zoom.png"
+
         # set saving subfolder
         self.mask_saving_subfolder = "mask_extract"
+
+        # result variables
+        self.colored_mask = None
+        self.semantic_mask_dict = None
 
         # setup layout
         page_layout = self.create_layout()
@@ -50,17 +57,12 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         self.setLayout(main_layout)
 
-        # result variables
-        self.colored_mask = None
-        self.semantic_mask_dict = None
-        self.separate_image_name = "wrapped_image_zoom.png"
-
         self.mask_extract_thread = MaskExtractThread()
 
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
-        self.image_label.setFixedSize(1280, 800)
+        self.image_label.setFixedSize(1080, 800)
         self.image_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
@@ -73,22 +75,31 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # right side control panel
 
+        font = QtGui.QFont()
+        font.setBold(True)
+
         # ? case select part
-        self.case_select_label = QtWidgets.QLabel("Select Case:")
+        self.case_select_label = QtWidgets.QLabel("Select Case")
+        self.case_select_label.setFont(font)
+
         self.case_select_combo = QtWidgets.QComboBox()
         self.refresh_folder_list()
+        self.case_select_combo.currentIndexChanged.connect(self.clean_result_variables)
 
         self.case_refresh_button = QtWidgets.QPushButton()
         self.case_refresh_button.setText("Refresh")
         self.case_refresh_button.clicked.connect(self.refresh_folder_list)
 
         # ? color value control part
+        self.color_label = QtWidgets.QLabel("Color Mask Define")
+        self.color_label.setFont(font)
+
         self.color_value_table = QTableWidget()
-        self.color_value_table.setColumnCount(4)
-        self.color_value_table.setFixedWidth(320)
+        self.color_value_table.setColumnCount(5)
+        self.color_value_table.setFixedWidth(350)
         self.color_value_table.setFixedHeight(180)
         self.color_value_table.setHorizontalHeaderLabels(
-            ["Type", "HSV Value", "Action", ""]
+            ["Type", "HSV Value", "Action", "", ""]
         )
 
         self.color_value_table.horizontalHeader().setSectionResizeMode(
@@ -107,30 +118,33 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.color_value_table.setColumnWidth(1, 100)  # HSV Value
         self.color_value_table.setColumnWidth(2, 80)  # Action
         self.color_value_table.setColumnWidth(3, 20)  # Remove
+        self.color_value_table.setColumnWidth(4, 20)  # Remove
 
         self.color_value_table.cellChanged.connect(self.handle_cell_changed)
 
         self.update_color_table()
 
         # add new color button
-        self.add_color_button = QPushButton("+")
-        self.add_color_button.setFixedHeight(180)
-        self.add_color_button.setFixedWidth(40)
+        self.add_color_button = QPushButton("Add New Color")
         self.add_color_button.clicked.connect(self.add_color)
 
-        # add buttom to the left of the table
-        color_layout = QtWidgets.QHBoxLayout()
-        color_layout.setSpacing(5)
-        color_layout.addWidget(self.color_value_table)
-        color_layout.addWidget(self.add_color_button)
-
         # add saving color type values button
-        self.save_color_button = QPushButton("Save color type values")
+        self.save_color_button = QPushButton("Save Current")
         self.save_color_button.clicked.connect(self.save_color_type_values)
+
+        # botton layout
+        color_botton_layout = QtWidgets.QHBoxLayout()
+        color_botton_layout.setSpacing(5)
+        color_botton_layout.addWidget(self.add_color_button)
+        color_botton_layout.addWidget(self.save_color_button)
 
         # start color mask extraction
         self.mask_extract_button = QPushButton("Start Mask Extraction")
         self.mask_extract_button.clicked.connect(self.start_extract_mask)
+
+        # create horizontal separator
+        separator1 = self.define_separator()
+        separator2 = self.define_separator()
 
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
@@ -139,22 +153,19 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         case_path_layout.addWidget(self.case_select_combo)
         case_path_layout.addWidget(self.case_refresh_button)
         controls_layout.addLayout(case_path_layout)
-        controls_layout.addLayout(color_layout)
-        controls_layout.addWidget(self.save_color_button)
+
+        controls_layout.addWidget(separator1)
+
+        controls_layout.addWidget(self.color_label)
+        controls_layout.addWidget(self.color_value_table)
+        controls_layout.addSpacing(-10)
+        controls_layout.addLayout(color_botton_layout)
+
         controls_layout.addWidget(self.mask_extract_button)
+
+        controls_layout.addWidget(separator2)
+
         controls_layout.addStretch()
-        # controls_layout.addWidget(self.case_name_edit)
-        # controls_layout.addWidget(self.exposure_label)
-        # controls_layout.addWidget(self.exposure_spin)
-        # controls_layout.addWidget(self.sampling_number_label)
-        # controls_layout.addWidget(self.sampling_number_spin)
-        # controls_layout.addWidget(self.depth_queue_label)
-        # controls_layout.addWidget(self.depth_queue_spin)
-        # controls_layout.addWidget(self.switch_button)
-        # controls_layout.addStretch()
-        # controls_layout.addWidget(self.save_checkbox)
-        # controls_layout.addWidget(self.start_button)
-        # controls_layout.addWidget(self.stop_button)
 
         # horizontal layout for capture
         capture_layout = QtWidgets.QHBoxLayout()
@@ -183,6 +194,9 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.mask_extract_thread.separated_image = cv2.imread(
             os.path.join(self.temp_file_path, self.separate_image_name)
         )
+        if self.mask_extract_thread.separated_image is None:
+            self.append_message("Can not read separated image", "error")
+            return
 
         # connect signals
         self.mask_extract_thread.colored_mask_signal.connect(self.update_colored_mask)
@@ -191,6 +205,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
 
         # start the thread
+        self.mask_extract_thread.finished.connect(self.update_color_table)
         self.mask_extract_thread.start()
 
     @QtCore.pyqtSlot(np.ndarray)
@@ -269,14 +284,47 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
                 if item:
                     item.setBackground(color)
 
+            # Add visualize binary mask button
+            font = QFont()
+            font.setPointSize(7)
+            visualize_button = QToolButton()
+            if (
+                self.semantic_mask_dict is not None
+                and color_info["type"] in self.semantic_mask_dict.keys()
+            ):
+                visualize_button.setText("💡")
+                visualize_button.setFont(font)
+                visualize_button.clicked.connect(
+                    partial(self.visualize_each_mask, color_info["type"])
+                )
+            else:
+                visualize_button.setText("❌")
+                visualize_button.setFont(font)
+                visualize_button.setDisabled(True)
+            self.color_value_table.setCellWidget(i, 3, visualize_button)
+
             # Add action button
             action_button = QToolButton()
             action_button.setText("Del")
             action_button.clicked.connect(partial(self.delete_color, i))
-            self.color_value_table.setCellWidget(i, 3, action_button)
+            self.color_value_table.setCellWidget(i, 4, action_button)
 
         # re-enable signal emitting
         self.color_value_table.blockSignals(False)
+
+    def visualize_each_mask(self, color_type):
+        if self.semantic_mask_dict is None:
+            self.append_message("No semantic mask found", "error")
+            return
+
+        if color_type not in self.semantic_mask_dict.keys():
+            self.append_message(f"No {color_type} mask found", "error")
+            return
+
+        mask = self.semantic_mask_dict[color_type]
+        qt_img = self.convert_cv_qt(mask)
+        self.image_label.setPixmap(qt_img)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
 
     def delete_color(self, row):
         # remove the color from the list
@@ -331,6 +379,14 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         with open(self.color_type_saving_path, "w") as file:
             json.dump(self.color_type_values, file, indent=4)
         self.append_message("Color type values saved.", "info")
+
+    def clean_result_variables(self):
+        del self.colored_mask
+        del self.semantic_mask_dict
+        self.colored_mask = None
+        self.semantic_mask_dict = None
+
+        self.update_color_table()
 
 
 if __name__ == "__main__":
