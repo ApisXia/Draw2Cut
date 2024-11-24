@@ -23,6 +23,11 @@ from centerline.find_centerline import (
     filter_centerlines,
     centerline_downsample,
 )
+from centerline.set_attributes import (
+    set_centerline_actions,
+    get_centerline_related_behavior,
+)
+
 from utils.trajectory_transform import (
     down_sampling_to_real_scale,
     add_x_y_offset,
@@ -82,121 +87,15 @@ def get_trajectory_Gcode(
     print("******** Step 1: Extracting color masks Done ********")
 
     print("******** Step 2: Extracting centerlines ********")
-    # assign name to semantic mask dict
-    img_binaries = {}
-    for original_name, new_name in ACTION_MAPPING_DICT.items():
-        if original_name in semantic_color_mask_dict.keys():
-            if new_name in img_binaries:
-                img_binaries[new_name] = cv2.bitwise_or(
-                    img_binaries[new_name],
-                    semantic_color_mask_dict[original_name][::-1, :],
-                )
-            else:
-                img_binaries[new_name] = semantic_color_mask_dict[original_name][
-                    ::-1, :
-                ]
-    if len(img_binaries) == 0:
-        raise ValueError("No action type found in the image")
-
-    # assign types to the centerlines
-    line_dict = {}
-    for mark_type_name in CONFIG["contour_mark"] + CONFIG["behavior_mark"]:
-        if mark_type_name not in img_binaries:
-            line_dict[mark_type_name] = {}
-            continue
-        all_centerlines, all_masks = find_centerline_groups(
-            img_binaries[mark_type_name]
-        )
-        if smooth_size > 0:
-            all_centerlines = filter_centerlines(
-                all_centerlines, filter_size=smooth_size
-            )
-
-        # Draw the centerlines for visualization
-        centerline_image = np.zeros_like(img_binaries[mark_type_name])
-        cv2.drawContours(centerline_image, all_centerlines, -1, (255, 255, 255), 1)
-        cv2.imwrite(
-            os.path.join(action_folder, f"centerline_{mark_type_name}.png"),
-            centerline_image,
-        )
-
-        line_dict[mark_type_name] = {}
-        for i, centerline in enumerate(all_centerlines):
-            area = cv2.contourArea(centerline)
-            downsampled_centerline = np.asarray(centerline_downsample(centerline))
-            line_dict[mark_type_name][i] = {
-                "type": "loop" if area > 100 else "line",
-                "centerline": downsampled_centerline,
-                "mask": all_masks[i],
-                "related_behavior": None,
-            }
-
-    # sort behavior in CONFIG["behavior_mark"] putting line first
-    for mark_type in CONFIG["behavior_mark"]:
-        line_dict[mark_type] = dict(
-            sorted(
-                line_dict[mark_type].items(),
-                key=lambda item: 0 if item[1]["type"] == "line" else 1,
-            )
-        )
-
-    # for each "contour" type, check relationship with "behavior_plane"
-    reverse_mask_dict = {}
-    for behavior_mark_type in CONFIG["behavior_mark"]:
-        reverse_mask_dict[behavior_mark_type] = {}
-
-    for key_contour in line_dict["contour"].keys():
-        contour_type = line_dict["contour"][key_contour]["type"]
-        contour_line = line_dict["contour"][key_contour]["centerline"]
-        related_behavior = line_dict["contour"][key_contour]["related_behavior"]
-        contour_polygon = Polygon(contour_line)
-
-        # for behavior_mark_type in
-        for behavior_mark_type in CONFIG["behavior_mark"]:
-
-            for key_behaviour in line_dict[behavior_mark_type].keys():
-                behaviour_type = line_dict[behavior_mark_type][key_behaviour]["type"]
-                behaviour_line = line_dict[behavior_mark_type][key_behaviour][
-                    "centerline"
-                ]
-                behaviour_polygon = Polygon(behaviour_line)
-
-                # if behaviour line is inside the contour line, update the mask with filled contour region
-                if contour_type == "loop" and behaviour_type == "line":
-                    if contour_polygon.contains(behaviour_polygon):
-                        contour_mask_binary = np.zeros_like(
-                            img_binaries["contour"], dtype=np.uint8
-                        )
-                        cv2.fillPoly(contour_mask_binary, [contour_line], 255)
-                        line_dict["contour"][key_contour]["mask"] = contour_mask_binary
-                        related_behavior = behavior_mark_type
-
-                # if contour line is inside the behaviour line, draw the behaviour line region, and subtract the contour region
-                if contour_type in ["line", "loop"] and behaviour_type == "loop":
-                    if behaviour_polygon.contains(contour_polygon):
-                        # get the behavior mask, if not exist, create one
-                        if key_behaviour in reverse_mask_dict.keys():
-                            behavior_mask_binary = reverse_mask_dict[
-                                behavior_mark_type
-                            ][key_behaviour]
-                        else:
-                            behavior_mask_binary = np.zeros_like(
-                                img_binaries[behavior_mark_type], dtype=np.uint8
-                            )
-                            cv2.fillPoly(behavior_mask_binary, [behaviour_line], 255)
-                            reverse_mask_dict[behavior_mark_type][
-                                key_behaviour
-                            ] = behavior_mask_binary
-                        related_behavior = behavior_mark_type
-
-        # save each contour mask (comment out)
-        # cv2.imwrite(
-        #     os.path.join(
-        #         action_folder, f"altered_{related_behavior}_mask_{key_contour}.png"
-        #     ),
-        #     line_dict["contour"][key_contour]["mask"],
-        # )
-        line_dict["contour"][key_contour]["related_behavior"] = related_behavior
+    mask_action_binaries, line_dict = set_centerline_actions(
+        semantic_color_mask_dict,
+        ACTION_MAPPING_DICT,
+        smooth_size,
+        action_folder,
+    )
+    reverse_mask_dict, line_dict = get_centerline_related_behavior(
+        mask_action_binaries, line_dict
+    )
 
     print("******** Step 2: Extracting centerlines Done ********")
 
@@ -233,7 +132,7 @@ def get_trajectory_Gcode(
     combine_bulk_mask_dict = {}
     for behavior_mark_type in CONFIG["behavior_mark"]:
         combine_bulk_mask_dict[behavior_mark_type] = np.zeros_like(
-            img_binaries["contour"], dtype=np.uint8
+            mask_action_binaries["contour"], dtype=np.uint8
         )
         for key_contour in line_dict["contour"].keys():
             if (
@@ -268,7 +167,7 @@ def get_trajectory_Gcode(
         )
         for label in range(1, num_labels):
             print(f"** [info] ** Processing bulk cutting No. {bulk_counter}")
-            img_binary = np.zeros_like(img_binaries["contour"])
+            img_binary = np.zeros_like(mask_action_binaries["contour"])
             img_binary[labels == label] = 255
 
             # all img_binary should be uint8
@@ -357,7 +256,7 @@ def get_trajectory_Gcode(
 
     print("******** Step 5: Drawing and saving Gcode ********")
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
-    canvas = np.zeros_like(img_binaries["contour"])
+    canvas = np.zeros_like(mask_action_binaries["contour"])
     map_image = draw_trajectory(canvas, coarse_trajectory_holders)
     cv2.imwrite(os.path.join(action_folder, "coarse_trajectory.png"), map_image)
 

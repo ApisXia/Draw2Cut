@@ -40,6 +40,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         # result variables
         self.colored_mask = None
         self.semantic_mask_dict = None
+        self.action_mapping_dict = None
 
         # setup layout
         page_layout = self.create_layout()
@@ -253,6 +254,15 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         else:
             self.append_message("No case folder found", "error")
 
+    def update_action_mapping_dict(self):
+        action_mapping_dict = {}
+        for item in self.color_type_values:
+            if (
+                item["action"] in CONFIG["contour_mark"] + CONFIG["behavior_mark"]
+            ):  # currently only support these two functions
+                action_mapping_dict[item["type"]] = item["action"]
+        self.action_mapping_dict = action_mapping_dict
+
     def update_color_table(self):
         # avoid signal emitting
         self.color_value_table.blockSignals(True)
@@ -311,6 +321,9 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # re-enable signal emitting
         self.color_value_table.blockSignals(False)
+
+        # also update the action mapping dict
+        self.update_action_mapping_dict()
 
     def visualize_each_mask(self, color_type):
         if self.semantic_mask_dict is None:
