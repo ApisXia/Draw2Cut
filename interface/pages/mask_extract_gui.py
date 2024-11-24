@@ -17,7 +17,7 @@ from interface.functions.mask_extract_thread import MaskExtractThread
 
 """_summary_
     Two functions:
-    1. Extract color mask and visualize, also visualize different semantic masks by clicking list.
+    1. (Done) Extract color mask and visualize, also visualize different semantic masks by clicking list.
     2. Can check the centerline of each type.
 """
 

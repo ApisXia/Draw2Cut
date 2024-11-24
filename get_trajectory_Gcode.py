@@ -18,7 +18,7 @@ from src.mask.extract_mask import (
     find_in_predefined_colors,
     draw_extracted_marks,
 )
-from src.trajectory.find_centerline_groups import (
+from centerline.find_centerline import (
     find_centerline_groups,
     filter_centerlines,
     centerline_downsample,
