@@ -4,6 +4,8 @@ import sys
 import cv2
 import pickle
 import numpy as np
+import open3d as o3d
+import pyqtgraph.opengl as gl
 
 from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -20,6 +22,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # previous step result name
         self.centerline_result_name = "centerline_data.pkl"
+        self.original_points_name = "points_transformed.npz"
 
         # set saving subfolder
         self.trajectory_saving_subfolder = "trajectory_planning"
@@ -29,7 +32,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.line_dict = None
         self.reverse_mask_dict = None
 
-        # output trajecotry holders
+        # step1: trajecotry holders
         # store the trajectory of line cutting and coarse bulk cutting
         self.coarse_trajectory_holders = []
         # store the trajectory of fine bulk cutting
@@ -38,6 +41,12 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.ultra_fine_trajectory_holders = []
         # [ ] store the depth map of all cutting (current just for bulk cutting)
         self.depth_map_holders = []
+
+        # step2: mesh holders
+        self.vertices_offset = np.asarray([[150, 260, 0]])
+        self.original_mesh_vertices = None
+        self.original_mesh_triangles = None
+        self.original_mesh_colors = None
 
         # setup layout
         page_layout = self.create_layout()
@@ -72,6 +81,22 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         """
         )
 
+        # create GLViewWidget
+        self.gl_view = gl.GLViewWidget()
+        self.gl_view.setFixedSize(1280, 720)
+        self.gl_view.opts["distance"] = 320  # set camera distance
+
+        # add grid
+        self.glo = gl.GLGridItem()
+        self.glo.scale(2, 2, 1)
+        self.glo.setDepthValue(10)  # set grid depth
+        self.gl_view.addItem(self.glo)
+
+        # use stacked layout to switch between image and depth
+        self.stacked_layout = QtWidgets.QStackedLayout()
+        self.stacked_layout.addWidget(self.image_label)
+        self.stacked_layout.addWidget(self.gl_view)
+
         # right side control panel
 
         font = QtGui.QFont()
@@ -101,6 +126,16 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
         self.start_trajectory_button.clicked.connect(self.start_trajectory_planning)
 
+        # visualization part
+        self.visualization_label = QtWidgets.QLabel("Visualization")
+        self.visualization_label.setFont(font)
+
+        self.vis_original_button = QtWidgets.QPushButton("Original Image")
+        self.vis_original_button.clicked.connect(self.visualize_original_mesh)
+
+        # separator
+        separator1 = self.define_separator()
+
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
         controls_layout.addWidget(self.case_select_label)
@@ -112,14 +147,21 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         controls_layout.addWidget(self.start_trajectory_button)
 
+        controls_layout.addWidget(separator1)
+
+        controls_layout.addWidget(self.visualization_label)
+        controls_layout.addWidget(self.vis_original_button)
+
         controls_layout.addStretch()
 
         # horizontal layout for all
         all_layout = QtWidgets.QHBoxLayout()
-        all_layout.addWidget(self.image_label)
+        all_layout.addLayout(self.stacked_layout)
         all_layout.addLayout(controls_layout)
 
         return all_layout
+
+    """ Trajectory Planning Functions """
 
     def start_trajectory_planning(self):
         if hasattr(self, "traj_thread") and self.traj_thread.isRunning():
@@ -128,6 +170,9 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # get case name and data path
         self.get_case_info()
+
+        # switch to image display
+        self.switch_display(0)
 
         # try to load centerline results and assign to variable
         try:
@@ -194,6 +239,92 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.image_label.setPixmap(qt_pixmap)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
         self.append_message("Coarse trajectory image visualized", "info")
+
+    """ Visualization Functions """
+
+    def read_original_mesh(self, check_already_loaded=True):
+        if (
+            check_already_loaded
+            and self.original_mesh_vertices
+            and self.original_mesh_triangles
+            and self.original_mesh_colors
+        ):
+            self.append_message("Original mesh already loaded", "info")
+            return
+
+        # try to load original pointclouds and assign to variable
+        pointcloud_path = os.path.join(self.temp_file_path, self.original_points_name)
+        try:
+            data = np.load(pointcloud_path)
+            points = data["points_smoothed"]
+            colors = data["colors"]
+        except Exception as e:
+            self.append_message(f"Failed to load original pointclouds: {e}", "error")
+            return
+
+        (
+            self.original_mesh_vertices,
+            self.original_mesh_triangles,
+            self.original_mesh_colors,
+        ) = self.build_mesh_from_pointcloud(points, colors)
+
+        self.append_message("Original mesh loaded successfully", "step")
+
+    def visualize_original_mesh(self):
+        # switch to mesh display
+        self.switch_display(1)
+        self.get_case_info()
+
+        self.read_original_mesh(check_already_loaded=True)
+
+        # create GLMeshItem
+        mesh_item = gl.GLMeshItem(
+            vertexes=self.original_mesh_vertices - self.vertices_offset,
+            faces=self.original_mesh_triangles,
+            vertexColors=self.original_mesh_colors,
+            smooth=False,
+            drawFaces=True,
+            drawEdges=False,
+        )
+        mesh_item.setGLOptions("opaque")  # set opaque
+        self.gl_view.clear()
+        self.gl_view.addItem(mesh_item)
+
+    """ Common functions """
+
+    def switch_display(self, display_index: int):
+        self.stacked_layout.setCurrentIndex(display_index)
+
+    def build_mesh_from_pointcloud(self, points, colors):
+        self.append_message("performing surface reconstruction...", "info")
+
+        # Create a point cloud object
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+
+        # Estimate normals
+        pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+        )
+
+        # Create a mesh from the point cloud using Ball Pivoting Algorithm
+        # distances = pcd.compute_nearest_neighbor_distance()
+        # avg_dist = np.mean(distances)
+        # radius = avg_dist
+        # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+        #     pcd, o3d.utility.DoubleVector([radius, radius * 2])
+        # )
+
+        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            pcd, depth=10, width=0, scale=1.1, linear_fit=False
+        )
+
+        return (
+            np.asarray(mesh.vertices),
+            np.asarray(mesh.triangles),
+            np.asarray(mesh.vertex_colors),
+        )
 
 
 if __name__ == "__main__":

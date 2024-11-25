@@ -242,6 +242,20 @@ def seperate_wood_surface(
     colors = colors.astype(np.float32)
     colors /= 255.0
 
+    points_smoothed = deepcopy(points_transformed)
+    points_smoothed[extract_mask, 2] = z_surface
+
+    mask_smoothed = (
+        (points_smoothed[:, 0] > 0)
+        & (points_smoothed[:, 0] < x_length)
+        & (points_smoothed[:, 1] > 0)
+        & (points_smoothed[:, 1] < y_length)
+        & (points_smoothed[:, 2] < z_max + 5)
+        & (points_smoothed[:, 2] > -5)
+    )
+
+    points_smoothed = points_smoothed[mask_smoothed, :]
+
     mask_visual = (
         (points_transformed[:, 0] > 0)
         & (points_transformed[:, 0] < x_length)
@@ -257,6 +271,7 @@ def seperate_wood_surface(
     np.savez(
         os.path.join(temp_file_path, "points_transformed.npz"),
         points=points_transformed,
+        points_smoothed=points_smoothed,
         colors=colors,
     )
 
