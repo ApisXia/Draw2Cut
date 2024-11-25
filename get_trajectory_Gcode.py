@@ -18,11 +18,7 @@ from src.mask.extract_mask import (
     find_in_predefined_colors,
     draw_extracted_marks,
 )
-from centerline.find_centerline import (
-    find_centerline_groups,
-    filter_centerlines,
-    centerline_downsample,
-)
+
 from centerline.set_attributes import (
     set_centerline_actions,
     get_centerline_related_behavior,
@@ -87,12 +83,17 @@ def get_trajectory_Gcode(
     print("******** Step 1: Extracting color masks Done ********")
 
     print("******** Step 2: Extracting centerlines ********")
-    mask_action_binaries, line_dict = set_centerline_actions(
+    mask_action_binaries, line_dict, centerline_images_dict = set_centerline_actions(
         semantic_color_mask_dict,
         ACTION_MAPPING_DICT,
         smooth_size,
-        action_folder,
     )
+    for mark_type_name in centerline_images_dict.keys():
+        cv2.imwrite(
+            os.path.join(action_folder, f"centerline_{mark_type_name}.png"),
+            centerline_images_dict[mark_type_name],
+        )
+
     reverse_mask_dict, line_dict = get_centerline_related_behavior(
         mask_action_binaries, line_dict
     )

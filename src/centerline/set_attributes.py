@@ -16,11 +16,11 @@ def set_centerline_actions(
     semantic_color_mask_dict: dict,
     action_mapping_dict: dict,
     smooth_size: int,
-    temp_saving_folder: str = None,
     sort_behavior: bool = True,
 ):
     # assign name to semantic mask dict
     mask_action_binaries = {}
+    centerline_images_dict = {}
     for original_name, new_name in action_mapping_dict.items():
         if original_name in semantic_color_mask_dict.keys():
             if new_name in mask_action_binaries:
@@ -50,13 +50,9 @@ def set_centerline_actions(
             )
 
         # Draw the centerlines for visualization
-        if temp_saving_folder is not None:
-            centerline_image = np.zeros_like(mask_action_binaries[mark_type_name])
-            cv2.drawContours(centerline_image, all_centerlines, -1, (255, 255, 255), 1)
-            cv2.imwrite(
-                os.path.join(temp_saving_folder, f"centerline_{mark_type_name}.png"),
-                centerline_image,
-            )
+        centerline_image = np.zeros_like(mask_action_binaries[mark_type_name])
+        cv2.drawContours(centerline_image, all_centerlines, -1, (255, 255, 255), 1)
+        centerline_images_dict[mark_type_name] = centerline_image
 
         line_dict[mark_type_name] = {}
         for i, centerline in enumerate(all_centerlines):
@@ -79,7 +75,7 @@ def set_centerline_actions(
                 )
             )
 
-    return mask_action_binaries, line_dict
+    return mask_action_binaries, line_dict, centerline_images_dict
 
 
 def get_centerline_related_behavior(
