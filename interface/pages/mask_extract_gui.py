@@ -137,6 +137,16 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         self.update_color_table()
 
+        # show all color mask button
+        self.show_all_color_button = QPushButton("Show All")
+        self.show_all_color_button.setStyleSheet("font-weight: bold; color: purple;")
+        self.show_all_color_button.clicked.connect(self.show_all_color_mask)
+
+        # small vertical separator
+        separator_v = QtWidgets.QFrame()
+        separator_v.setFrameShape(QtWidgets.QFrame.VLine)
+        separator_v.setFrameShadow(QtWidgets.QFrame.Sunken)
+
         # add new color button
         self.add_color_button = QPushButton("Add New Color")
         self.add_color_button.clicked.connect(self.add_color)
@@ -147,7 +157,9 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # botton layout
         color_botton_layout = QtWidgets.QHBoxLayout()
-        color_botton_layout.setSpacing(5)
+        color_botton_layout.setSpacing(7)
+        color_botton_layout.addWidget(self.show_all_color_button)
+        color_botton_layout.addWidget(separator_v)
         color_botton_layout.addWidget(self.add_color_button)
         color_botton_layout.addWidget(self.save_color_button)
 
@@ -168,15 +180,13 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         centerline_smooth_Hlayout.addWidget(self.centerline_smooth_label)
         centerline_smooth_Hlayout.addWidget(self.centerline_smooth_spin)
 
-        self.centerline_extract_button = QPushButton("Start\nCenterline\nExtraction")
-        self.centerline_extract_button.setFixedHeight(95)
-        self.centerline_extract_button.setFixedWidth(100)
+        self.centerline_extract_button = QPushButton("Start Centerline Extraction")
         self.centerline_extract_button.clicked.connect(self.start_extract_centerline)
 
         self.centerline_vis_table = QTableWidget()
         self.centerline_vis_table.setColumnCount(2)
-        self.centerline_vis_table.setFixedWidth(250)
-        self.centerline_vis_table.setFixedHeight(90)
+        self.centerline_vis_table.setFixedWidth(350)
+        self.centerline_vis_table.setFixedHeight(86)
         self.centerline_vis_table.setHorizontalHeaderLabels(["Action", "Visualize"])
 
         self.centerline_vis_table.horizontalHeader().setSectionResizeMode(
@@ -195,11 +205,6 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.centerline_vis_table.setColumnWidth(1, 50)  # Visualize
 
         self.update_centerline_table()
-
-        centerline_Hlayout = QtWidgets.QHBoxLayout()
-        centerline_Hlayout.addWidget(self.centerline_extract_button)
-        centerline_Hlayout.setSpacing(7)
-        centerline_Hlayout.addWidget(self.centerline_vis_table)
 
         # saving button
         self.save_section_label = QtWidgets.QLabel("Save Results")
@@ -232,7 +237,8 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         controls_layout.addWidget(self.centerline_section_label)
         controls_layout.addLayout(centerline_smooth_Hlayout)
-        controls_layout.addLayout(centerline_Hlayout)
+        controls_layout.addWidget(self.centerline_extract_button)
+        controls_layout.addWidget(self.centerline_vis_table)
 
         controls_layout.addWidget(separator3)
 
@@ -398,6 +404,15 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
             ):  # currently only support these two functions
                 action_mapping_dict[item["type"]] = item["action"]
         self.action_mapping_dict = action_mapping_dict
+
+    def show_all_color_mask(self):
+        if self.colored_mask is None:
+            self.append_message("No colored mask found", "error")
+            return
+
+        qt_img = self.convert_cv_qt(self.colored_mask)
+        self.image_label.setPixmap(qt_img)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
 
     def update_color_table(self):
         # avoid signal emitting
@@ -600,14 +615,16 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         # used to save all variables of centerline extraction
         self.append_message("Start saving centerline results", "info")
 
+        file_saving_path = os.path.join(self.temp_file_path, "centerline_results.npz")
+
         np.savez(
-            os.path.join(self.temp_file_path, "centerline_results.npz"),
+            file_saving_path,
             mask_action_binaries=self.mask_action_binaries,
             line_dict=self.line_dict,
             reverse_mask_dict=self.reverse_mask_dict,
         )
 
-        self.append_message("Centerline results saved", "info")
+        self.append_message(f"Centerline results saved to {file_saving_path}", "info")
 
 
 if __name__ == "__main__":
