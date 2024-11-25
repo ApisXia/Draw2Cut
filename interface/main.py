@@ -19,7 +19,8 @@ class MainWindow(QtWidgets.QWidget):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Draw2Cut Interface")
-        self.setFixedSize(1600, 900)
+        self.setFixedWidth(1600)
+        # self.setFixedSize(1600, 1100)
 
         # define message box
         self.message_box = QtWidgets.QTextEdit()
@@ -46,13 +47,17 @@ class MainWindow(QtWidgets.QWidget):
         self.separate_layout = SeperateGUI(message_box=self.message_box)
         self.pages.addTab(self.separate_layout, "Step2: Separate")
 
-        # [ ]: page3: color mask extraction
+        # page3: color mask extraction & Centerline extraction
         self.mask_extract_layout = MaskExtractGUI(message_box=self.message_box)
-        self.pages.addTab(self.mask_extract_layout, "Step3: Mask Extract")
+        self.pages.addTab(
+            self.mask_extract_layout, "Step3: Mask & Centerline Extraction"
+        )
 
-        # [ ]: page4: Centerline extraction and Cutting Visualization and Gcode genearation
+        # [ ]: page4: cutting visualization & replay + gcode generation + save
+
+        # [ ]: page_old: Centerline extraction and Cutting Visualization and Gcode genearation
         self.trajectory_layout = TrajectoryGUI(message_box=self.message_box)
-        self.pages.addTab(self.trajectory_layout, "Step4: Trajectory")
+        self.pages.addTab(self.trajectory_layout, "Step 4: Trajectory (OLD)")
 
         # [ ]: page5: replay
 
