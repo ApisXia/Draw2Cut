@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import cv2
+import pickle
 import numpy as np
 
 from glob import glob
@@ -609,14 +610,16 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         # used to save all variables of centerline extraction
         self.append_message("Start saving centerline results", "info")
 
-        file_saving_path = os.path.join(self.temp_file_path, "centerline_results.npz")
+        file_saving_path = os.path.join(self.temp_file_path, "centerline_data.pkl")
 
-        np.savez(
-            file_saving_path,
-            mask_action_binaries=self.mask_action_binaries,
-            line_dict=self.line_dict,
-            reverse_mask_dict=self.reverse_mask_dict,
-        )
+        centerline_data = {
+            "mask_action_binaries": self.mask_action_binaries,
+            "line_dict": self.line_dict,
+            "reverse_mask_dict": self.reverse_mask_dict,
+        }
+
+        with open(file_saving_path, "wb") as f:
+            pickle.dump(centerline_data, f)
 
         self.append_message(f"Centerline results saved to {file_saving_path}", "info")
 
