@@ -95,13 +95,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.case_select_label = QtWidgets.QLabel("Select Case")
         self.case_select_label.setFont(font)
 
-        self.case_select_combo = QtWidgets.QComboBox()
-        self.refresh_folder_list()
-        self.case_select_combo.currentIndexChanged.connect(self.clean_result_variables)
-
-        self.case_refresh_button = QtWidgets.QPushButton()
-        self.case_refresh_button.setText("Refresh")
-        self.case_refresh_button.clicked.connect(self.refresh_folder_list)
+        self.init_case_select_widgets()
 
         # ? color value control part
         self.color_label = QtWidgets.QLabel("Color Mask Extraction")
@@ -247,12 +241,12 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         controls_layout.addStretch()
 
-        # horizontal layout for capture
-        capture_layout = QtWidgets.QHBoxLayout()
-        capture_layout.addWidget(self.image_label)
-        capture_layout.addLayout(controls_layout)
+        # horizontal layout for all
+        all_layout = QtWidgets.QHBoxLayout()
+        all_layout.addWidget(self.image_label)
+        all_layout.addLayout(controls_layout)
 
-        return capture_layout
+        return all_layout
 
     """ Extract Mask Part """
 

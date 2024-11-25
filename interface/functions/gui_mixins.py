@@ -1,7 +1,11 @@
+import os
 import cv2
 import datetime
 
+from glob import glob
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+from configs.load_config import CONFIG
 
 
 class MessageBoxMixin:
@@ -11,7 +15,10 @@ class MessageBoxMixin:
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         # based on message type, set color
         color = "black"
-        if msg_type == "info":
+
+        if msg_type == "step":
+            color = "lime"  # more visible green
+        elif msg_type == "info":
             color = "green"
         elif msg_type == "warning":
             color = "orange"
@@ -59,3 +66,51 @@ class MessageBoxMixin:
         separator.setFrameShape(QtWidgets.QFrame.HLine)
         separator.setFrameShadow(QtWidgets.QFrame.Sunken)
         return separator
+
+    """ Universal case selection function """
+
+    def init_case_select_widgets(self):
+        self.case_select_combo = QtWidgets.QComboBox()
+        self.refresh_folder_list()
+        self.case_select_combo.currentIndexChanged.connect(
+            self.clean_result_variables
+        )  # need to define for each class
+
+        self.case_refresh_button = QtWidgets.QPushButton()
+        self.case_refresh_button.setText("Refresh")
+        self.case_refresh_button.clicked.connect(self.refresh_folder_list)
+
+    def clean_result_variables(self):
+        self.append_message("Cleaning result variables function not defined", "warning")
+        pass
+
+    def get_case_info(self):
+        # get case name and data path
+        self.case_name = self.case_select_combo.currentText()
+        if not self.case_name:
+            self.message_box.append("Can not get viable case name", "error")
+            return
+
+        self.data_path = CONFIG["data_path_template"].format(case_name=self.case_name)
+        self.temp_file_path = CONFIG["temp_file_path_template"].format(
+            case_name=self.case_name
+        )
+        if not os.path.exists(self.temp_file_path):
+            os.makedirs(self.temp_file_path)
+
+    # add function to refresh folder list
+    def refresh_folder_list(self):
+        case_list = [
+            os.path.basename(os.path.normpath(path))
+            for path in sorted(
+                glob(CONFIG["case_folder_template"].format(case_name="*")),
+                key=os.path.getmtime,
+                reverse=True,
+            )
+        ]
+
+        if len(case_list) > 0:
+            self.case_select_combo.clear()
+            self.case_select_combo.addItems(case_list)
+        else:
+            self.append_message("No case folder found", "error")
