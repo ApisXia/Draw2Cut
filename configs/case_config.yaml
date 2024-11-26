@@ -1,5 +1,6 @@
-version: 0.6.0
+version: 0.7.0
 
+# Case settings
 case_name: "default_case"  # which is also the folder name
 data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
@@ -13,43 +14,47 @@ depth_queue_size: 50
 # page 2: working space settings
 default_x_length: 296  # mm, from back to front
 default_y_length: 523.3  # mm, from left to right
-origin_label: "11"  # later needs to be "10"
+origin_label: "0"  # later needs to be "11"
 x_axis_label: ["9", "8"]  # the last one can be used to define the axis length
 y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis length
+surface_upscale: 10  # times
 
-# page 3: mask extraction settings
-color_value_setting_file: "src/mask/color_type_values.json"
-
-# mask extraction settings
+# Page3: color mask extraction & Centerline extraction
+# In panel
 smooth_size: 0
-surface_upscale: 10
+# Not in panel
+color_value_setting_file: "src/mask/color_type_values.json"
 contour_mark: ["contour"]
 behavior_mark: ["behavior_plane", "behavior_relief"]  # when detected as first, other will be ignored
-device_precision: 1  # mm
 
-# planning settings
-bulk_cutting_style: "cut_inward"  # "cut_inward"
-distance_metric: "euclidean" # "euclidean" or "chessboard"
+# Step4: Trajectory & Visualization & Gcode Generation
+# In panel
 spindle_radius: 5
-step_size: 
-  coarse: 10  # mm, all cutting steps, except the last one
-  fine: 7  # mm, the last cutting step
-relief_slop:
-  caving: 0.19  # z / x or y
-  mount: 0.3  # z / x or y
-min_points_per_traj: 3
-
-# cutting settings
-offset_z_level: 0  # mm (decide this by comparing machine measured z level and the actual z level)
 line_cutting_depth: 2  # mm (minus means nothing will happen)
+offset_z_level: 0  # mm (decide this by comparing machine measured z level and the actual z level)
 bulk_carving_depth: 
   behavior_relief: 10.5  # mm (minus means nothing will happen)
   behavior_plane: 10.5  # mm (minus means nothing will happen)
+relief_slop:
+  carving: 0.19  # z / x or y
+  mount: 0.3  # z / x or y
+# Not in panel
+bulk_cutting_style: "cut_inward"  # "cut_inward"
 depth_forward_steps: [2, 1, 0.6, 0.4, 0.3, 0.2]  # mm
+distance_metric: "euclidean" # "euclidean" or "chessboard"
 start_cutting_step: 0  # 0, 1, 2, 3, 4
+min_points_per_traj: 3
+step_size: 
+  coarse: 10  # mm, all cutting steps, except the last one
+  fine: 7  # mm, the last cutting step
 feed_rate: 
   coarse: 15  # mm/min, all cutting rate, except the last one
   fine: 15  # mm/min, the last cutting rate
+device_precision: 1  # mm
+z_expension: 3  # ratio for visualizing the z level
 
-# visualization settings
-z_expension: 1  # ratio
+
+
+
+
+
