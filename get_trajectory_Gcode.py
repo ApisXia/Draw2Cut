@@ -25,9 +25,9 @@ from centerline.set_attributes import (
 )
 
 from utils.trajectory_transform import (
-    down_sampling_to_real_scale,
+    down_scaling_to_real,
     add_x_y_offset,
-    vis_points_ransformation,
+    vis_points_transformation,
 )
 from utils.visualization import (
     visualize_cutting_planning,
@@ -262,11 +262,9 @@ def get_trajectory_Gcode(
     cv2.imwrite(os.path.join(action_folder, "coarse_trajectory.png"), map_image)
 
     # downsample the trajectory based on SURFACE_UPSCALE
-    coarse_trajectory_holders = down_sampling_to_real_scale(coarse_trajectory_holders)
-    fine_trajectory_holders = down_sampling_to_real_scale(fine_trajectory_holders)
-    ultra_fine_trajectory_holders = down_sampling_to_real_scale(
-        ultra_fine_trajectory_holders
-    )
+    coarse_trajectory_holders = down_scaling_to_real(coarse_trajectory_holders)
+    fine_trajectory_holders = down_scaling_to_real(fine_trajectory_holders)
+    ultra_fine_trajectory_holders = down_scaling_to_real(ultra_fine_trajectory_holders)
 
     # load left_bottom of the image
     preprocess_data = np.load(os.path.join(temp_file_path, "left_bottom_point.npz"))
@@ -323,13 +321,13 @@ def get_trajectory_Gcode(
     )
 
     # get the cutting trajectory points
-    coarse_cutting_points, corse_vis_trajectory = vis_points_ransformation(
+    coarse_cutting_points, corse_vis_trajectory = vis_points_transformation(
         coarse_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    fine_cutting_points, fine_vis_trajectory = vis_points_ransformation(
+    fine_cutting_points, fine_vis_trajectory = vis_points_transformation(
         fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    ultra_fine_cutting_points, ultra_vis_trajectory = vis_points_ransformation(
+    ultra_fine_cutting_points, ultra_vis_trajectory = vis_points_transformation(
         ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
@@ -371,8 +369,8 @@ def get_trajectory_Gcode(
         [depth_map_points, depth_map_total[depth_map_total < 0].reshape(-1, 1)], axis=1
     )
 
-    depth_map_points = down_sampling_to_real_scale([depth_map_points.tolist()])
-    depth_map_points, _ = vis_points_ransformation(
+    depth_map_points = down_scaling_to_real([depth_map_points.tolist()])
+    depth_map_points, _ = vis_points_transformation(
         depth_map_points, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 

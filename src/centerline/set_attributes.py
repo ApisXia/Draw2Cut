@@ -105,7 +105,13 @@ def get_centerline_related_behavior(
 
                 # if behaviour line is inside the contour line, update the mask with filled contour region
                 if contour_type == "loop" and behaviour_type == "line":
+                    # print center of each pair of lines
+                    # print(
+                    #     f"contour center: {contour_polygon.centroid.xy}, behaviour center: {behaviour_polygon.centroid.xy}"
+                    # )
+
                     if contour_polygon.contains(behaviour_polygon):
+                        # print("find a line inside a loop")
                         contour_mask_binary = np.zeros_like(
                             mask_action_binaries["contour"], dtype=np.uint8
                         )
@@ -140,4 +146,4 @@ def get_centerline_related_behavior(
         # )
         line_dict["contour"][key_contour]["related_behavior"] = related_behavior
 
-        return reverse_mask_dict, line_dict
+    return reverse_mask_dict, line_dict

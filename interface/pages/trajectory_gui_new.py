@@ -2,16 +2,21 @@ import os
 import json
 import sys
 import cv2
+import time
 import pickle
 import numpy as np
 import open3d as o3d
 import pyqtgraph.opengl as gl
 
+from copy import deepcopy
+from scipy.spatial import KDTree
+from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QTableWidget, QHeaderView, QPushButton, QToolButton
 
 from configs.load_config import CONFIG
+from utils.trajectory_transform import down_scaling_to_real, vis_points_transformation
 from interface.functions.gui_mixins import MessageBoxMixin
 from interface.functions.trajectory_thread import TrajectoryThread
 
@@ -33,6 +38,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.reverse_mask_dict = None
 
         # step1: trajecotry holders
+        self.spindle_radius = CONFIG["spindle_radius"]
         # store the trajectory of line cutting and coarse bulk cutting
         self.coarse_trajectory_holders = []
         # store the trajectory of fine bulk cutting
@@ -44,6 +50,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # step2: mesh holders
         self.vertices_offset = np.asarray([[150, 260, 0]])
+        self.left_bottom_point = None
         self.original_mesh_vertices = None
         self.original_mesh_triangles = None
         self.original_mesh_colors = None
@@ -130,8 +137,13 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.visualization_label = QtWidgets.QLabel("Visualization")
         self.visualization_label.setFont(font)
 
-        self.vis_original_button = QtWidgets.QPushButton("Original Image")
+        self.vis_original_button = QtWidgets.QPushButton("Original Pointcloud")
         self.vis_original_button.clicked.connect(self.visualize_original_mesh)
+
+        self.visualize_animation_button = QtWidgets.QPushButton("Animated Trajectory")
+        self.visualize_animation_button.clicked.connect(
+            self.visualize_animated_trajectory
+        )
 
         # separator
         separator1 = self.define_separator()
@@ -151,6 +163,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         controls_layout.addWidget(self.visualization_label)
         controls_layout.addWidget(self.vis_original_button)
+        controls_layout.addWidget(self.visualize_animation_button)
 
         controls_layout.addStretch()
 
@@ -211,6 +224,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.traj_thread.message_signal.connect(self.append_message)
 
         # start trajectory planning thread
+        self.traj_thread.finished.connect(self.trajectory_down_scaling_to_real)
         self.traj_thread.start()
 
     @QtCore.pyqtSlot(list)
@@ -240,14 +254,107 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
         self.append_message("Coarse trajectory image visualized", "info")
 
+    def trajectory_down_scaling_to_real(self):
+        # downsample the trajectory based on SURFACE_UPSCALE
+        self.append_message("Downscaling trajectories to real size...", "info")
+        self.coarse_trajectory_holders = down_scaling_to_real(
+            self.coarse_trajectory_holders
+        )
+        self.fine_trajectory_holders = down_scaling_to_real(
+            self.fine_trajectory_holders
+        )
+        self.ultra_fine_trajectory_holders = down_scaling_to_real(
+            self.ultra_fine_trajectory_holders
+        )
+
     """ Visualization Functions """
+
+    def visualize_animated_trajectory(self):
+        self.switch_display(1)
+        self.get_case_info()
+
+        self.read_original_mesh(check_already_loaded=True)
+
+        # get the cutting trajectory points
+        combined_vis_points, combined_vis_trajectory = vis_points_transformation(
+            self.coarse_trajectory_holders
+            + self.fine_trajectory_holders
+            + self.ultra_fine_trajectory_holders,
+            self.left_bottom_point[0],
+            self.left_bottom_point[1],
+            self.left_bottom_point[2],
+        )
+
+        print(self.left_bottom_point)
+
+        # print x range and y range of combined_vis_points and self.original_mesh_vertices
+        print(
+            f"combined_vis_points x range: {np.min(combined_vis_points[:, 0])} to {np.max(combined_vis_points[:, 0])}"
+        )
+        print(
+            f"combined_vis_points y range: {np.min(combined_vis_points[:, 1])} to {np.max(combined_vis_points[:, 1])}"
+        )
+        print(
+            f"original_mesh_vertices x range: {np.min(self.original_mesh_vertices[:, 0])} to {np.max(self.original_mesh_vertices[:, 0])}"
+        )
+        print(
+            f"original_mesh_vertices y range: {np.min(self.original_mesh_vertices[:, 1])} to {np.max(self.original_mesh_vertices[:, 1])}"
+        )
+
+        # build original vertices kd-tree
+        original_vertices_kd_tree = KDTree(self.original_mesh_vertices[:, :2])
+        animated_vertices = deepcopy(self.original_mesh_vertices)
+        # every 100 points, find all the points with the self.spindle_radius, reset vertices
+        for traj in combined_vis_trajectory:
+            for i, point in enumerate(traj):
+                # get all the points within the spindle radius
+                indices = original_vertices_kd_tree.query_ball_point(
+                    point[:2], self.spindle_radius
+                )
+                animated_vertices[indices, 2] = point[2]
+                if i % 100 == 0:
+                    # play
+                    self.put_mesh_on_view(
+                        animated_vertices,
+                        self.original_mesh_triangles,
+                        self.original_mesh_colors,
+                    )
+
+                    QTimer.singleShot(100, self.gl_view.update)
+
+    def visualize_original_mesh(self):
+        # switch to mesh display
+        self.switch_display(1)
+        self.get_case_info()
+
+        self.read_original_mesh(check_already_loaded=True)
+
+        self.put_mesh_on_view(
+            self.original_mesh_vertices,
+            self.original_mesh_triangles,
+            self.original_mesh_colors,
+        )
+
+    def put_mesh_on_view(self, vertices, triangles, colors):
+        # create GLMeshItem
+        mesh_item = gl.GLMeshItem(
+            vertexes=vertices - self.vertices_offset,
+            faces=triangles,
+            vertexColors=colors,
+            smooth=False,
+            drawFaces=True,
+            drawEdges=False,
+        )
+        mesh_item.setGLOptions("opaque")  # set opaque
+        self.gl_view.clear()
+        self.gl_view.addItem(mesh_item)
 
     def read_original_mesh(self, check_already_loaded=True):
         if (
             check_already_loaded
-            and self.original_mesh_vertices
-            and self.original_mesh_triangles
-            and self.original_mesh_colors
+            and self.original_mesh_vertices is not None
+            and self.original_mesh_triangles is not None
+            and self.original_mesh_colors is not None
         ):
             self.append_message("Original mesh already loaded", "info")
             return
@@ -258,6 +365,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
             data = np.load(pointcloud_path)
             points = data["points_smoothed"]
             colors = data["colors"]
+            self.left_bottom_point = data["left_bottom_point"]
         except Exception as e:
             self.append_message(f"Failed to load original pointclouds: {e}", "error")
             return
@@ -269,31 +377,6 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         ) = self.build_mesh_from_pointcloud(points, colors)
 
         self.append_message("Original mesh loaded successfully", "step")
-
-    def visualize_original_mesh(self):
-        # switch to mesh display
-        self.switch_display(1)
-        self.get_case_info()
-
-        self.read_original_mesh(check_already_loaded=True)
-
-        # create GLMeshItem
-        mesh_item = gl.GLMeshItem(
-            vertexes=self.original_mesh_vertices - self.vertices_offset,
-            faces=self.original_mesh_triangles,
-            vertexColors=self.original_mesh_colors,
-            smooth=False,
-            drawFaces=True,
-            drawEdges=False,
-        )
-        mesh_item.setGLOptions("opaque")  # set opaque
-        self.gl_view.clear()
-        self.gl_view.addItem(mesh_item)
-
-    """ Common functions """
-
-    def switch_display(self, display_index: int):
-        self.stacked_layout.setCurrentIndex(display_index)
 
     def build_mesh_from_pointcloud(self, points, colors):
         self.append_message("performing surface reconstruction...", "info")
@@ -308,23 +391,32 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
             search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
         )
 
-        # Create a mesh from the point cloud using Ball Pivoting Algorithm
-        # distances = pcd.compute_nearest_neighbor_distance()
-        # avg_dist = np.mean(distances)
-        # radius = avg_dist
-        # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
-        #     pcd, o3d.utility.DoubleVector([radius, radius * 2])
-        # )
+        # Compute nearest neighbor distances to estimate radius
+        distances = pcd.compute_nearest_neighbor_distance()
+        avg_dist = np.mean(distances)
+        radius = avg_dist * 1.5  # Adjust the factor as needed
 
-        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            pcd, depth=10, width=0, scale=1.1, linear_fit=False
+        # Create mesh using the Ball Pivoting Algorithm
+        radii = o3d.utility.DoubleVector([radius, radius * 2])
+        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+            pcd, radii
         )
+
+        # Optionally, remove unwanted artifacts
+        mesh.remove_duplicated_vertices()
+        mesh.remove_duplicated_triangles()
+        mesh.remove_degenerate_triangles()
 
         return (
             np.asarray(mesh.vertices),
             np.asarray(mesh.triangles),
             np.asarray(mesh.vertex_colors),
         )
+
+    """ Common functions """
+
+    def switch_display(self, display_index: int):
+        self.stacked_layout.setCurrentIndex(display_index)
 
 
 if __name__ == "__main__":

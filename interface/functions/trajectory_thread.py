@@ -140,14 +140,51 @@ class TrajectoryThread(QtCore.QThread):
                 self.mask_action_binaries["contour"], dtype=np.uint8
             )
             for key_contour in self.line_dict["contour"].keys():
+                print(
+                    f"type pairs: {self.line_dict['contour'][key_contour]['related_behavior']} ++++ {behavior_mark_type}"
+                )
+
                 if (
                     self.line_dict["contour"][key_contour]["related_behavior"]
-                    is behavior_mark_type
+                    == behavior_mark_type
                 ):
                     combine_bulk_mask_dict[behavior_mark_type] = cv2.bitwise_or(
                         combine_bulk_mask_dict[behavior_mark_type],
                         self.line_dict["contour"][key_contour]["mask"],
                     )
+
+        # # save temp bulk mask
+        # for behavior_mark_type in CONFIG["behavior_mark"]:
+        #     cv2.imwrite(
+        #         os.path.join(
+        #             self.temp_file_path,
+        #             f"temp_bulk_mask_({behavior_mark_type}).png",
+        #         ),
+        #         combine_bulk_mask_dict[behavior_mark_type],
+        #     )
+
+        # # save all mask in line_dict
+        # for mark_type in CONFIG["behavior_mark"] + ["contour"]:
+        #     for key in self.line_dict[mark_type].keys():
+        #         related_behavior = self.line_dict[mark_type][key]["related_behavior"]
+        #         cv2.imwrite(
+        #             os.path.join(
+        #                 self.temp_file_path,
+        #                 f"temp_mask_({mark_type})_no.{key}_related_{related_behavior}.png",
+        #             ),
+        #             self.line_dict[mark_type][key]["mask"],
+        #         )
+
+        # # save all reverse mask in reverse_mask_dict
+        # for mark_type in CONFIG["behavior_mark"]:
+        #     for key in self.reverse_mask_dict[mark_type].keys():
+        #         cv2.imwrite(
+        #             os.path.join(
+        #                 self.temp_file_path,
+        #                 f"temp_reverse_mask_({mark_type})_no.{key}.png",
+        #             ),
+        #             self.reverse_mask_dict[mark_type][key],
+        #         )
 
         # reverse the bulk mask
         for behavior_mark_type in CONFIG["behavior_mark"]:

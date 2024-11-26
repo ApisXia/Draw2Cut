@@ -273,6 +273,9 @@ def seperate_wood_surface(
         points=points_transformed,
         points_smoothed=points_smoothed,
         colors=colors,
+        left_bottom_point=left_bottom_point,
+        x_length=x_length,
+        y_length=y_length,
     )
 
     # add spheres to the point cloud
