@@ -41,24 +41,24 @@ class VisualizeAnimationThread(QThread):
 
         total_length = len(total_cutting_points)
 
-        # 构建原始顶点的 KD 树
+        # create KDTree for original vertices
         original_vertices_kd_tree = KDTree(self.parent.original_mesh_vertices[:, :2])
         animated_vertices = deepcopy(self.parent.original_mesh_vertices)
         delay = 1.0 / self.fps  # 计算延迟，单位为秒
 
-        # 每 100 个点，找到在主轴半径内的所有点，重置顶点
+        # every 100 points update the mesh
         for i, point in enumerate(total_cutting_points):
             if not self.is_running:
                 return
-            # 获取在主轴半径内的所有点
+            # get all vertices within spindle radius
             indices = original_vertices_kd_tree.query_ball_point(
                 point[:2], self.parent.spindle_radius
             )
-            indices = np.array(indices)  # 将 indices 转换为 NumPy 数组
+            indices = np.array(indices)
             mask = animated_vertices[indices, 2] > point[2]
             animated_vertices[indices[mask], 2] = point[2]
             if i % 100 == 0:
-                # 更新网格
+                # update mesh every 100 points
                 self.message_signal.emit(
                     f"Update trajectory at {i+1}/{total_length}", "info"
                 )
@@ -67,7 +67,7 @@ class VisualizeAnimationThread(QThread):
                     self.parent.original_mesh_triangles,
                     self.parent.original_mesh_colors,
                 )
-                # 发射信号，通知主线程更新视图
+                # emit signal to update mesh
                 self.update_mesh.emit()
                 self.msleep(int(delay * 1000))
 

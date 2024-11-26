@@ -5,10 +5,17 @@ import numpy as np
 import open3d as o3d
 import pyqtgraph.opengl as gl
 
+from copy import deepcopy
+from scipy.spatial import KDTree
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from configs.load_config import CONFIG
-from utils.trajectory_transform import down_scaling_to_real
+from utils.trajectory_transform import (
+    down_scaling_to_real,
+    vis_points_transformation,
+    add_x_y_offset,
+)
+from Gcode.traj_to_Gcode import generate_gcode
 from interface.functions.gui_mixins import MessageBoxMixin
 from interface.functions.trajectory_thread import TrajectoryThread
 from interface.functions.vis_animation_thread import VisualizeAnimationThread
@@ -132,16 +139,37 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.visualization_label = QtWidgets.QLabel("Visualization")
         self.visualization_label.setFont(font)
 
-        self.vis_original_button = QtWidgets.QPushButton("Original Pointcloud")
+        self.vis_original_button = QtWidgets.QPushButton("Original Mesh")
         self.vis_original_button.clicked.connect(self.visualize_original_mesh)
+        self.vis_target_button = QtWidgets.QPushButton("Target Mesh")
+        self.vis_target_button.clicked.connect(self.visualize_target_mesh)
 
-        self.visualize_animation_button = QtWidgets.QPushButton("Animated Trajectory")
+        self.visualize_animation_button = QtWidgets.QPushButton(
+            "Animated Cutting Trajectory"
+        )
         self.visualize_animation_button.clicked.connect(self.start_vis_animation)
         self.visualize_animation_button_stop = QtWidgets.QPushButton("Stop Animation")
         self.visualize_animation_button_stop.clicked.connect(self.stop_visualization)
 
+        # generate Gcode part
+        self.generate_gcode_label = QtWidgets.QLabel("Generate Gcode")
+        self.generate_gcode_label.setFont(font)
+
+        self.z_offset_label = QtWidgets.QLabel(
+            "Z Offset (mm): Large value will cut shallower"
+        )
+        self.z_offset_spin = QtWidgets.QDoubleSpinBox()
+        self.z_offset_spin.setRange(-20, 20)
+        self.z_offset_spin.setDecimals(1)
+        self.z_offset_spin.setSingleStep(0.1)
+        self.z_offset_spin.setValue(CONFIG["offset_z_level"])
+
+        self.generate_gcode_button = QtWidgets.QPushButton("Generate Gcode")
+        self.generate_gcode_button.clicked.connect(self.generate_gcode)
+
         # separator
         separator1 = self.define_separator()
+        separator2 = self.define_separator()
 
         # vertical layout for controls
         controls_layout = QtWidgets.QVBoxLayout()
@@ -158,8 +186,16 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         controls_layout.addWidget(self.visualization_label)
         controls_layout.addWidget(self.vis_original_button)
+        controls_layout.addWidget(self.vis_target_button)
         controls_layout.addWidget(self.visualize_animation_button)
         controls_layout.addWidget(self.visualize_animation_button_stop)
+
+        controls_layout.addWidget(separator2)
+
+        controls_layout.addWidget(self.generate_gcode_label)
+        controls_layout.addWidget(self.z_offset_label)
+        controls_layout.addWidget(self.z_offset_spin)
+        controls_layout.addWidget(self.generate_gcode_button)
 
         controls_layout.addStretch()
 
@@ -289,6 +325,57 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.vis_animation_thread.wait()
             self.append_message("Trajectory animation stopped", "step")
 
+    def visualize_target_mesh(self):
+        # switch to mesh display
+        self.switch_display(1)
+        self.get_case_info()
+
+        self.read_original_mesh(check_already_loaded=True)
+
+        # print the maximum depth map value
+        depth_map_total = np.sum(self.depth_map_holders, axis=0)
+        self.append_message(
+            "Maximum depth map value: " + str(-np.min(depth_map_total)), "info"
+        )
+
+        # transform depth map to point cloud
+        depth_map_points = np.argwhere(depth_map_total < 0)
+        depth_map_points = np.concatenate(
+            [depth_map_points, depth_map_total[depth_map_total < 0].reshape(-1, 1)],
+            axis=1,
+        )
+        depth_map_points = down_scaling_to_real([depth_map_points.tolist()])
+        depth_map_points, _ = vis_points_transformation(
+            depth_map_points,
+            self.left_bottom_point[0],
+            self.left_bottom_point[1],
+            self.left_bottom_point[2],
+        )
+
+        # create GLScatterPlotItem
+        depth_map_kd_tree = KDTree(depth_map_points[:, :2])
+        target_vertices = deepcopy(self.original_mesh_vertices)
+
+        # Calculate new z coordinates
+        offsetted_z_list = []
+        for point in self.original_mesh_vertices:
+            dist, idx = depth_map_kd_tree.query(point[:2])
+            if dist < 2:
+                offsetted_z_list.append(depth_map_points[idx, 2])
+            else:
+                offsetted_z_list.append(point[2])
+
+        # Update the z coordinates of the surface points
+        target_vertices[:, 2] = np.array(offsetted_z_list)
+
+        self.put_mesh_on_view(
+            target_vertices,
+            self.original_mesh_triangles,
+            self.original_mesh_colors,
+        )
+
+        self.append_message("Target mesh visualized", "step")
+
     def visualize_original_mesh(self):
         # switch to mesh display
         self.switch_display(1)
@@ -301,6 +388,8 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.original_mesh_triangles,
             self.original_mesh_colors,
         )
+
+        self.append_message("Original mesh visualized", "step")
 
     def put_mesh_on_view(self, vertices, triangles, colors):
         # create GLMeshItem
@@ -378,6 +467,42 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
             np.asarray(mesh.vertices),
             np.asarray(mesh.triangles),
             np.asarray(mesh.vertex_colors),
+        )
+
+    """ Gcode Generation Functions """
+
+    def generate_gcode(self):
+        # offset the trajectories with the left_bottom
+        coarse_trajectories = add_x_y_offset(
+            self.coarse_trajectory_holders,
+            self.left_bottom_point[0],
+            self.left_bottom_point[1],
+        )
+        fine_trajectories = add_x_y_offset(
+            self.fine_trajectory_holders,
+            self.left_bottom_point[0],
+            self.left_bottom_point[1],
+        )
+        ultra_fine_trajectories = add_x_y_offset(
+            self.ultra_fine_trajectory_holders,
+            self.left_bottom_point[0],
+            self.left_bottom_point[1],
+        )
+
+        # Define milimeters here is OK, in the function it will be converted to inches
+        z_surface_level = self.left_bottom_point[2] + self.z_offset_spin.value()
+        gcode = generate_gcode(
+            coarse_trajectories,
+            fine_trajectories,
+            ultra_fine_trajectories,
+            z_surface_level,
+        )
+        saving_path = os.path.join(self.temp_file_path, "output.gcode.tap")
+        with open(saving_path, "w") as f:
+            f.write(gcode)
+
+        self.append_message(
+            f"Gcode generated successfully. Saved to {saving_path}", "step"
         )
 
     """ Common functions """
