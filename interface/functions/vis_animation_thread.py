@@ -52,7 +52,7 @@ class VisualizeAnimationThread(QThread):
                 return
             # get all vertices within spindle radius
             indices = original_vertices_kd_tree.query_ball_point(
-                point[:2], self.parent.spindle_radius
+                point[:2], int(self.parent.spindle_radius_spin.value())
             )
             indices = np.array(indices)
             mask = animated_vertices[indices, 2] > point[2]

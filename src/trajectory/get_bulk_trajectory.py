@@ -79,13 +79,24 @@ def get_trajectory_incremental_cut_inward(
 def get_trajectory_layer_cut(
     cutting_bulk_map: np.ndarray,
     reverse_mask_map: np.ndarray,
+    depth_forward_steps: list = CONFIG["depth_forward_steps"],
+    spindle_radius: int = CONFIG["spindle_radius"],
+    relief_slop: dict = CONFIG["relief_slop"],
+    bulk_carving_depth: dict = CONFIG["bulk_carving_depth"],
     behavior_type: str = "behavior_plane",
 ):
+    # [ ] (remvoe in future) print current settings
+    print(f"** [Settings] **")
+    print(f"** [Settings] ** Depth forward steps: {depth_forward_steps}")
+    print(f"** [Settings] ** Spindle radius: {spindle_radius}")
+    print(f"** [Settings] ** Relief slop: {relief_slop}")
+    print(f"** [Settings] ** Bulk carving depth: {bulk_carving_depth}")
+
     # get settings from config
     assert behavior_type in CONFIG["behavior_mark"], ValueError(
         "!!! Behavior type is not valid."
     )
-    assert len(CONFIG["depth_forward_steps"]) > 0, ValueError(
+    assert len(depth_forward_steps) > 0, ValueError(
         "!!! Depth forward steps is not valid."
     )
 
@@ -93,8 +104,8 @@ def get_trajectory_layer_cut(
         slop_caving = 10000000
         slop_mount = 10000000
     elif behavior_type == "behavior_relief":
-        slop_caving = max(CONFIG["relief_slop"]["caving"], 0)
-        slop_mount = max(CONFIG["relief_slop"]["mount"], 0)
+        slop_caving = max(relief_slop["carving"], 0)
+        slop_mount = max(relief_slop["mount"], 0)
 
     # step1: depth map for reverse_mask_maps
     depth_reverse = -DIST_METRIC(reverse_mask_map).astype(np.float32)
@@ -104,8 +115,7 @@ def get_trajectory_layer_cut(
     depth_reverse = kernel_linear(
         depth_map=depth_reverse,
         slope=slop_caving,
-        clip_lower=-CONFIG["bulk_carving_depth"][behavior_type]
-        * CONFIG["surface_upscale"],
+        clip_lower=-bulk_carving_depth[behavior_type] * CONFIG["surface_upscale"],
         clip_upper=0,
     )
     depth_reverse /= CONFIG["surface_upscale"]
@@ -140,7 +150,7 @@ def get_trajectory_layer_cut(
         "not_cutting_maps": [],
         "not_cutting_ranges": [],
     }
-    for idx in range(1, len(CONFIG["depth_forward_steps"])):
+    for idx in range(1, len(depth_forward_steps)):
         cutting_planning[idx] = {
             "cutting_stage": "fine",
             "trajectories": [],
@@ -149,7 +159,7 @@ def get_trajectory_layer_cut(
             "not_cutting_maps": [],
             "not_cutting_ranges": [],
         }
-    if len(CONFIG["depth_forward_steps"]) == 1:
+    if len(depth_forward_steps) == 1:
         cutting_planning[0]["cutting_stage"] = "fine"
 
     # step1: start from the first cutting stage, to get not cutting map
@@ -163,7 +173,7 @@ def get_trajectory_layer_cut(
         not_cutting_z_ranges,
     ) = arrange_cutting_bin_map(
         depth_map=combined_depth_map,
-        depth_forward=CONFIG["depth_forward_steps"][start_from],
+        depth_forward=depth_forward_steps[start_from],
         cutting_type=cutting_planning[start_from]["cutting_stage"],
         cutting_range="within",
     )
@@ -176,11 +186,11 @@ def get_trajectory_layer_cut(
 
     if len(cutting_planning[0]["not_cutting_maps"]) == 0:
         return cutting_planning
-    if len(CONFIG["depth_forward_steps"]) - start_from == 1:
+    if len(depth_forward_steps) - start_from == 1:
         return cutting_planning
 
     # step2: get bin map with a depth range to do fine cutting
-    for idx in range(start_from + 1, len(CONFIG["depth_forward_steps"])):
+    for idx in range(start_from + 1, len(depth_forward_steps)):
         print(f"** [Start] ** Planning on cutting No.{idx} ...")
         nc_counter = 0
         for nc_map, nc_range in zip(
@@ -201,11 +211,12 @@ def get_trajectory_layer_cut(
                 not_cutting_z_ranges,
             ) = arrange_cutting_bin_map(
                 depth_map=nc_depth,
-                depth_forward=CONFIG["depth_forward_steps"][idx],
+                depth_forward=depth_forward_steps[idx],
                 cutting_type=cutting_planning[idx]["cutting_stage"],
                 cutting_range="within",
                 max_z=nc_range[0],
                 min_z=nc_range[1],
+                spindle_radius=spindle_radius,
             )
             cutting_planning[idx]["trajectories"].extend(fine_traj)
             cutting_planning[idx]["visited_maps"].extend(fine_visited)
@@ -229,6 +240,7 @@ def arrange_cutting_bin_map(
     cutting_range: str = "within",  # or "overflow"
     max_z: float = None,  # closer to 0 level, define max cutting start depth
     min_z: float = None,  # farther to 0 level, define min cutting end depth
+    spindle_radius: int = CONFIG["spindle_radius"],
 ):
     # check cutting type
     assert cutting_type in ["coarse", "fine"], ValueError(
@@ -294,7 +306,7 @@ def arrange_cutting_bin_map(
 
         trajectories_layer, visited_map = get_trajectory_incremental_cut_inward(
             bin_map=bin_map,
-            radius=CONFIG["spindle_radius"],
+            radius=spindle_radius,
             step_size=CONFIG["step_size"][cutting_type],
         )
 

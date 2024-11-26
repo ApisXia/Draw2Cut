@@ -39,7 +39,6 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.reverse_mask_dict = None
 
         # step1: trajecotry holders
-        self.spindle_radius = CONFIG["spindle_radius"]
         # store the trajectory of line cutting and coarse bulk cutting
         self.coarse_trajectory_holders = []
         # store the trajectory of fine bulk cutting
@@ -132,6 +131,66 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         line_cutting_depth_Hlayout.addWidget(self.line_cutting_depth_label)
         line_cutting_depth_Hlayout.addWidget(self.line_cutting_depth_spin)
 
+        spindle_radius_Hlayout = QtWidgets.QHBoxLayout()
+        self.spindle_radius_label = QtWidgets.QLabel("Spindle Radius (mm): ")
+        self.spindle_radius_spin = QtWidgets.QDoubleSpinBox()
+        self.spindle_radius_spin.setRange(1, 20)
+        self.spindle_radius_spin.setDecimals(0)
+        self.spindle_radius_spin.setSingleStep(1)
+        self.spindle_radius_spin.setValue(CONFIG["spindle_radius"])
+        spindle_radius_Hlayout.addWidget(self.spindle_radius_label)
+        spindle_radius_Hlayout.addWidget(self.spindle_radius_spin)
+
+        # set bulk carving depth
+        bulk_carving_depth_label = QtWidgets.QLabel("Bulk Carving Depth (mm)")
+
+        bulk_carving_plane_Hlayout = QtWidgets.QHBoxLayout()
+        self.bulk_carving_plane_label = QtWidgets.QLabel("    - behavior_plane:  ")
+        self.bulk_carving_plane_spin = QtWidgets.QDoubleSpinBox()
+        self.bulk_carving_plane_spin.setRange(0.1, 100)
+        self.bulk_carving_plane_spin.setDecimals(1)
+        self.bulk_carving_plane_spin.setSingleStep(0.1)
+        self.bulk_carving_plane_spin.setValue(
+            CONFIG["bulk_carving_depth"]["behavior_plane"]
+        )
+        bulk_carving_plane_Hlayout.addWidget(self.bulk_carving_plane_label)
+        bulk_carving_plane_Hlayout.addWidget(self.bulk_carving_plane_spin)
+
+        bulk_carving_relief_Hlayout = QtWidgets.QHBoxLayout()
+        self.bulk_carving_relief_label = QtWidgets.QLabel("    - relief_plane:  ")
+        self.bulk_carving_relief_spin = QtWidgets.QDoubleSpinBox()
+        self.bulk_carving_relief_spin.setRange(0.1, 100)
+        self.bulk_carving_relief_spin.setDecimals(1)
+        self.bulk_carving_relief_spin.setSingleStep(0.1)
+        self.bulk_carving_relief_spin.setValue(
+            CONFIG["bulk_carving_depth"]["behavior_relief"]
+        )
+        bulk_carving_relief_Hlayout.addWidget(self.bulk_carving_relief_label)
+        bulk_carving_relief_Hlayout.addWidget(self.bulk_carving_relief_spin)
+
+        # set relief slope
+        relief_slope_label = QtWidgets.QLabel("Relief Slope (depth/width): ")
+
+        self.relief_slope_caving_Hlayout = QtWidgets.QHBoxLayout()
+        self.relief_slope_caving_label = QtWidgets.QLabel("    - carving (down):  ")
+        self.relief_slope_caving_spin = QtWidgets.QDoubleSpinBox()
+        self.relief_slope_caving_spin.setRange(0.1, 1000)
+        self.relief_slope_caving_spin.setDecimals(1)
+        self.relief_slope_caving_spin.setSingleStep(0.1)
+        self.relief_slope_caving_spin.setValue(CONFIG["relief_slop"]["carving"])
+        self.relief_slope_caving_Hlayout.addWidget(self.relief_slope_caving_label)
+        self.relief_slope_caving_Hlayout.addWidget(self.relief_slope_caving_spin)
+
+        self.relief_slope_mount_Hlayout = QtWidgets.QHBoxLayout()
+        self.relief_slope_mount_label = QtWidgets.QLabel("    - mount (up):  ")
+        self.relief_slope_mount_spin = QtWidgets.QDoubleSpinBox()
+        self.relief_slope_mount_spin.setRange(0.1, 1000)
+        self.relief_slope_mount_spin.setDecimals(1)
+        self.relief_slope_mount_spin.setSingleStep(0.1)
+        self.relief_slope_mount_spin.setValue(CONFIG["relief_slop"]["mount"])
+        self.relief_slope_mount_Hlayout.addWidget(self.relief_slope_mount_label)
+        self.relief_slope_mount_Hlayout.addWidget(self.relief_slope_mount_spin)
+
         self.start_trajectory_button = QtWidgets.QPushButton(
             "Start Trajectory Planning"
         )
@@ -141,35 +200,48 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.visualization_label = QtWidgets.QLabel("Visualization")
         self.visualization_label.setFont(font)
 
+        full_vis_label = QtWidgets.QLabel("Original v.s. Target Mesh")
+        full_vis_Hlayout = QtWidgets.QHBoxLayout()
         self.vis_original_button = QtWidgets.QPushButton("Original Mesh")
         self.vis_original_button.clicked.connect(self.visualize_original_mesh)
         self.vis_target_button = QtWidgets.QPushButton("Target Mesh")
         self.vis_target_button.clicked.connect(self.visualize_target_mesh)
+        full_vis_Hlayout.addWidget(self.vis_original_button)
+        full_vis_Hlayout.addWidget(self.vis_target_button)
 
-        self.visualize_animation_button = QtWidgets.QPushButton(
-            "Animated Cutting Trajectory"
+        animation_label = QtWidgets.QLabel("Play Cutting Animation")
+        animation_Hlayout = QtWidgets.QHBoxLayout()
+        animation_Hlayout.setContentsMargins(0, 0, 0, 0)
+        self.visualize_animation_button = QtWidgets.QPushButton("Start Animation")
+        self.visualize_animation_button.setStyleSheet(
+            "font-weight: bold; color: orange;"
         )
+        self.visualize_animation_button.setFixedWidth(250)
         self.visualize_animation_button.clicked.connect(self.start_vis_animation)
-        self.visualize_animation_button_stop = QtWidgets.QPushButton("Stop Animation")
+        self.visualize_animation_button_stop = QtWidgets.QPushButton("Stop")
         self.visualize_animation_button_stop.clicked.connect(self.stop_visualization)
+        animation_Hlayout.addWidget(self.visualize_animation_button)
+        animation_Hlayout.addWidget(self.visualize_animation_button_stop)
 
         # generate Gcode part
         self.generate_gcode_label = QtWidgets.QLabel("Generate Gcode")
         self.generate_gcode_label.setFont(font)
 
-        self.z_offset_label = QtWidgets.QLabel(
-            "Z Offset (mm): Large value will cut shallower"
-        )
+        z_offset_Hlayout = QtWidgets.QHBoxLayout()
+        self.z_offset_label = QtWidgets.QLabel("Z Offset (mm): Large cut shallower")
         self.z_offset_spin = QtWidgets.QDoubleSpinBox()
         self.z_offset_spin.setRange(-20, 20)
         self.z_offset_spin.setDecimals(1)
         self.z_offset_spin.setSingleStep(0.1)
         self.z_offset_spin.setValue(CONFIG["offset_z_level"])
+        z_offset_Hlayout.addWidget(self.z_offset_label)
+        z_offset_Hlayout.addWidget(self.z_offset_spin)
 
         self.generate_gcode_button = QtWidgets.QPushButton("Generate Gcode")
         self.generate_gcode_button.clicked.connect(self.generate_gcode)
 
         # separator
+        separator0 = self.define_separator()
         separator1 = self.define_separator()
         separator2 = self.define_separator()
 
@@ -184,23 +256,36 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         case_path_layout.addWidget(self.case_select_combo)
         case_path_layout.addWidget(self.case_refresh_button)
         controls_layout.addLayout(case_path_layout)
+
+        controls_layout.addWidget(separator0)
+
+        controls_layout.addWidget(self.cutting_setting_label)
+
         controls_layout.addLayout(line_cutting_depth_Hlayout)
+        controls_layout.addLayout(spindle_radius_Hlayout)
+
+        controls_layout.addWidget(bulk_carving_depth_label)
+        controls_layout.addLayout(bulk_carving_plane_Hlayout)
+        controls_layout.addLayout(bulk_carving_relief_Hlayout)
+
+        controls_layout.addWidget(relief_slope_label)
+        controls_layout.addLayout(self.relief_slope_caving_Hlayout)
+        controls_layout.addLayout(self.relief_slope_mount_Hlayout)
 
         controls_layout.addWidget(self.start_trajectory_button)
 
         controls_layout.addWidget(separator1)
 
         controls_layout.addWidget(self.visualization_label)
-        controls_layout.addWidget(self.vis_original_button)
-        controls_layout.addWidget(self.vis_target_button)
-        controls_layout.addWidget(self.visualize_animation_button)
-        controls_layout.addWidget(self.visualize_animation_button_stop)
+        controls_layout.addWidget(full_vis_label)
+        controls_layout.addLayout(full_vis_Hlayout)
+        controls_layout.addWidget(animation_label)
+        controls_layout.addLayout(animation_Hlayout)
 
         controls_layout.addWidget(separator2)
 
         controls_layout.addWidget(self.generate_gcode_label)
-        controls_layout.addWidget(self.z_offset_label)
-        controls_layout.addWidget(self.z_offset_spin)
+        controls_layout.addLayout(z_offset_Hlayout)
         controls_layout.addWidget(self.generate_gcode_button)
 
         controls_layout.addStretch()
@@ -239,15 +324,23 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.append_message(f"Failed to load centerline results: {e}", "error")
             return
 
-        self.traj_thread = TrajectoryThread()
-        self.traj_thread.line_dict = self.line_dict
-        self.traj_thread.reverse_mask_dict = self.reverse_mask_dict
-        self.traj_thread.mask_action_binaries = self.mask_action_binaries
-        self.traj_thread.temp_file_path = os.path.join(
-            self.temp_file_path, self.trajectory_saving_subfolder
+        self.traj_thread = TrajectoryThread(parent=self)
+        self.traj_thread.set_settings(
+            temp_file_path=os.path.join(
+                self.temp_file_path, self.trajectory_saving_subfolder
+            ),
+            depth_forward_steps=CONFIG["depth_forward_steps"],
+            line_cutting_depth=self.line_cutting_depth_spin.value(),
+            spindle_radius=int(self.spindle_radius_spin.value()),
+            bulk_carving_depth={
+                "behavior_plane": self.bulk_carving_plane_spin.value(),
+                "behavior_relief": self.bulk_carving_relief_spin.value(),
+            },
+            relief_slop={
+                "carving": self.relief_slope_caving_spin.value(),
+                "mount": self.relief_slope_mount_spin.value(),
+            },
         )
-        self.traj_thread.line_cutting_depth = self.line_cutting_depth_spin.value()
-        self.traj_thread.depth_forward_steps = CONFIG["depth_forward_steps"]
 
         # connect signals
         self.traj_thread.coarse_trajectory_signal.connect(self.update_coarse_trajectory)

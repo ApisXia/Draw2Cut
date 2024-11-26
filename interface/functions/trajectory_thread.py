@@ -19,20 +19,18 @@ class TrajectoryThread(QtCore.QThread):
     depth_map_signal = QtCore.pyqtSignal(list)
     coarse_trajectory_drawing_signal = QtCore.pyqtSignal(np.ndarray)
 
-    def __init__(self):
+    def __init__(self, parent=None):
         super(TrajectoryThread, self).__init__()
-        # all these will be defined by the GUI
-        # required input variables
+        # define parent
+        self.parent = parent
+
+        # pass the settings
         self.temp_file_path = None
-        self.line_dict = None
-        self.mask_action_binaries = None
-        self.reverse_mask_dict = None
-
-        # universal settings
-        self.depth_forward_steps = []
-
-        # line cutting settings
+        self.depth_forward_steps = None
         self.line_cutting_depth = None
+        self.spindle_radius = None
+        self.bulk_carving_depth = None
+        self.relief_slop = None
 
         # trajecotry holders
         # store the trajectory of line cutting and coarse bulk cutting
@@ -44,6 +42,22 @@ class TrajectoryThread(QtCore.QThread):
         # [ ] store the depth map of all cutting (current just for bulk cutting)
         self.depth_map_holders = []
 
+    def set_settings(
+        self,
+        temp_file_path: str,
+        depth_forward_steps: list,
+        line_cutting_depth: float,
+        spindle_radius: int,
+        bulk_carving_depth: dict,
+        relief_slop: dict,
+    ):
+        self.temp_file_path = temp_file_path
+        self.depth_forward_steps = depth_forward_steps
+        self.line_cutting_depth = line_cutting_depth
+        self.spindle_radius = spindle_radius
+        self.bulk_carving_depth = bulk_carving_depth
+        self.relief_slop = relief_slop
+
     def run(self):
         self.message_signal.emit("Start Trajectory Planning", "step")
 
@@ -51,7 +65,7 @@ class TrajectoryThread(QtCore.QThread):
 
         # draw coarse trajectory
         # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
-        canvas = np.zeros_like(self.mask_action_binaries["contour"])
+        canvas = np.zeros_like(self.parent.mask_action_binaries["contour"])
         map_image = draw_trajectory(canvas, self.coarse_trajectory_holders)
         # flip the image horizontally
         map_image = cv2.flip(map_image, 0)
@@ -67,9 +81,6 @@ class TrajectoryThread(QtCore.QThread):
         self.message_signal.emit("Finish Trajectory Planning", "step")
 
     def perform_task(self):
-        # check settings
-        self.check_settings()
-
         # remove if the folder exists, and create a new one
         if os.path.exists(self.temp_file_path):
             shutil.rmtree(self.temp_file_path)
@@ -112,13 +123,16 @@ class TrajectoryThread(QtCore.QThread):
         ).tolist()
         z_arange_list.append(-self.line_cutting_depth)
 
-        for key_contour in self.line_dict["contour"].keys():
+        for key_contour in self.parent.line_dict["contour"].keys():
             self.message_signal.emit(
                 "Processing line cutting no. " + str(key_contour), "info"
             )
 
-            contour_line = self.line_dict["contour"][key_contour]["centerline"]
-            if self.line_dict["contour"][key_contour]["related_behavior"] is None:
+            contour_line = self.parent.line_dict["contour"][key_contour]["centerline"]
+            if (
+                self.parent.line_dict["contour"][key_contour]["related_behavior"]
+                is None
+            ):
                 # switch x, y to y, x, and add z value
                 for z_value in z_arange_list:
                     switch_contour_line = [
@@ -137,58 +151,25 @@ class TrajectoryThread(QtCore.QThread):
         combine_bulk_mask_dict = {}
         for behavior_mark_type in CONFIG["behavior_mark"]:
             combine_bulk_mask_dict[behavior_mark_type] = np.zeros_like(
-                self.mask_action_binaries["contour"], dtype=np.uint8
+                self.parent.mask_action_binaries["contour"], dtype=np.uint8
             )
-            for key_contour in self.line_dict["contour"].keys():
+            for key_contour in self.parent.line_dict["contour"].keys():
                 print(
-                    f"type pairs: {self.line_dict['contour'][key_contour]['related_behavior']} ++++ {behavior_mark_type}"
+                    f"type pairs: {self.parent.line_dict['contour'][key_contour]['related_behavior']} ++++ {behavior_mark_type}"
                 )
 
                 if (
-                    self.line_dict["contour"][key_contour]["related_behavior"]
+                    self.parent.line_dict["contour"][key_contour]["related_behavior"]
                     == behavior_mark_type
                 ):
                     combine_bulk_mask_dict[behavior_mark_type] = cv2.bitwise_or(
                         combine_bulk_mask_dict[behavior_mark_type],
-                        self.line_dict["contour"][key_contour]["mask"],
+                        self.parent.line_dict["contour"][key_contour]["mask"],
                     )
-
-        # # save temp bulk mask
-        # for behavior_mark_type in CONFIG["behavior_mark"]:
-        #     cv2.imwrite(
-        #         os.path.join(
-        #             self.temp_file_path,
-        #             f"temp_bulk_mask_({behavior_mark_type}).png",
-        #         ),
-        #         combine_bulk_mask_dict[behavior_mark_type],
-        #     )
-
-        # # save all mask in line_dict
-        # for mark_type in CONFIG["behavior_mark"] + ["contour"]:
-        #     for key in self.line_dict[mark_type].keys():
-        #         related_behavior = self.line_dict[mark_type][key]["related_behavior"]
-        #         cv2.imwrite(
-        #             os.path.join(
-        #                 self.temp_file_path,
-        #                 f"temp_mask_({mark_type})_no.{key}_related_{related_behavior}.png",
-        #             ),
-        #             self.line_dict[mark_type][key]["mask"],
-        #         )
-
-        # # save all reverse mask in reverse_mask_dict
-        # for mark_type in CONFIG["behavior_mark"]:
-        #     for key in self.reverse_mask_dict[mark_type].keys():
-        #         cv2.imwrite(
-        #             os.path.join(
-        #                 self.temp_file_path,
-        #                 f"temp_reverse_mask_({mark_type})_no.{key}.png",
-        #             ),
-        #             self.reverse_mask_dict[mark_type][key],
-        #         )
 
         # reverse the bulk mask
         for behavior_mark_type in CONFIG["behavior_mark"]:
-            for re_mask in self.reverse_mask_dict[behavior_mark_type].values():
+            for re_mask in self.parent.reverse_mask_dict[behavior_mark_type].values():
                 combine_bulk_mask_dict[behavior_mark_type] = cv2.bitwise_xor(
                     combine_bulk_mask_dict[behavior_mark_type], re_mask
                 )
@@ -212,7 +193,7 @@ class TrajectoryThread(QtCore.QThread):
                     "processing bulk cutting no. " + str(label), "info"
                 )
                 print(f"** [info] ** Processing bulk cutting No. {bulk_counter}")
-                img_binary = np.zeros_like(self.mask_action_binaries["contour"])
+                img_binary = np.zeros_like(self.parent.mask_action_binaries["contour"])
                 img_binary[labels == label] = 255
 
                 # all img_binary should be uint8
@@ -220,7 +201,7 @@ class TrajectoryThread(QtCore.QThread):
 
                 # find corresponding reverse mask
                 reverse_mask_map = None
-                for _, reverse_mask in self.reverse_mask_dict[
+                for _, reverse_mask in self.parent.reverse_mask_dict[
                     behavior_mark_type
                 ].items():
                     if np.sum(cv2.bitwise_and(reverse_mask, img_binary)) > 0:
@@ -235,6 +216,10 @@ class TrajectoryThread(QtCore.QThread):
                         cutting_bulk_map=img_binary,
                         reverse_mask_map=reverse_mask_map,
                         behavior_type=behavior_mark_type,
+                        depth_forward_steps=self.depth_forward_steps,
+                        spindle_radius=self.spindle_radius,
+                        bulk_carving_depth=self.bulk_carving_depth,
+                        relief_slop=self.relief_slop,
                     )
                 else:
                     raise ValueError("Unsupported bulk cutting style")
@@ -245,13 +230,13 @@ class TrajectoryThread(QtCore.QThread):
                 )
                 self.fine_trajectory_holders.extend(cutting_planning[1]["trajectories"])
                 if len(cutting_planning) > 2:
-                    for idx in range(2, len(CONFIG["depth_forward_steps"])):
+                    for idx in range(2, len(self.depth_forward_steps)):
                         self.ultra_fine_trajectory_holders.extend(
                             cutting_planning[idx]["trajectories"]
                         )
 
                 # save the visited map for visualization
-                for idx_cutting in range(len(CONFIG["depth_forward_steps"])):
+                for idx_cutting in range(len(self.depth_forward_steps)):
                     saving_folder = f"forward_{idx_cutting}_bulk_masks"
                     os.makedirs(
                         os.path.join(self.temp_file_path, saving_folder), exist_ok=True
@@ -294,19 +279,3 @@ class TrajectoryThread(QtCore.QThread):
                         )
 
                 bulk_counter += 1
-
-    """ Checking settings """
-
-    def check_settings(self):
-        if len(self.depth_forward_steps) == 0:
-            self.message_signal.emit("Please set the depth forward steps", "error")
-        if self.line_cutting_depth is None:
-            self.message_signal.emit("Please set the line cutting depth", "error")
-        if self.line_dict is None:
-            self.message_signal.emit("Please set the line dictionary", "error")
-        if self.temp_file_path is None:
-            self.message_signal.emit("Please set the temporary file path", "error")
-        if self.mask_action_binaries is None:
-            self.message_signal.emit("Please set the mask action binaries", "error")
-        if self.reverse_mask_dict is None:
-            self.message_signal.emit("Please set the reverse mask dictionary", "error")

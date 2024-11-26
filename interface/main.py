@@ -38,21 +38,21 @@ class MainWindow(QtWidgets.QWidget):
         """
         )
 
-        # page1: capture
+        # Page1: capture
         self.capture_layout = CaptureGUI(message_box=self.message_box)
         self.pages.addTab(self.capture_layout, "Step1: Capture")
 
-        # page2: separate surface
+        # Page2: separate surface
         self.separate_layout = SeperateGUI(message_box=self.message_box)
         self.pages.addTab(self.separate_layout, "Step2: Separate")
 
-        # page3: color mask extraction & Centerline extraction
+        # Page3: color mask extraction & Centerline extraction
         self.mask_extract_layout = MaskExtractGUI(message_box=self.message_box)
         self.pages.addTab(
             self.mask_extract_layout, "Step3: Mask & Centerline Extraction"
         )
 
-        # page4: cutting visualization & replay + gcode generation + save
+        # Page4: cutting visualization & replay + gcode generation + save
         self.trajectory_layout = TrajectoryGUI(message_box=self.message_box)
         self.pages.addTab(
             self.trajectory_layout,
