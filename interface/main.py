@@ -10,7 +10,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from interface.pages.capture_gui import CaptureGUI
 from interface.pages.separate_gui import SeperateGUI
 from interface.pages.mask_extract_gui import MaskExtractGUI
-from interface.pages.replay_gui import ReplayGUI
 from interface.pages.trajectory_gui import TrajectoryGUI
 
 
@@ -53,17 +52,12 @@ class MainWindow(QtWidgets.QWidget):
             self.mask_extract_layout, "Step3: Mask & Centerline Extraction"
         )
 
-        # [ ]: page4: cutting visualization & replay + gcode generation + save
-
-        # [ ]: page_old: Centerline extraction and Cutting Visualization and Gcode genearation
+        # page4: cutting visualization & replay + gcode generation + save
         self.trajectory_layout = TrajectoryGUI(message_box=self.message_box)
-        self.pages.addTab(self.trajectory_layout, "Step 4: Trajectory (OLD)")
-
-        # [ ]: page5: replay
-
-        # test page: replay
-        # self.replay_layout = ReplayGUI(message_box=self.message_box)
-        # self.pages.addTab(self.replay_layout, "Test: Replay")
+        self.pages.addTab(
+            self.trajectory_layout,
+            "Step 4: Trajectory & Visualization & Gcode Generation",
+        )
 
         # main layout
         main_layout = QtWidgets.QVBoxLayout()

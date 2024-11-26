@@ -7,6 +7,7 @@ import numpy as np
 
 from glob import glob
 from functools import partial
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QTableWidget, QHeaderView, QPushButton, QToolButton
@@ -213,7 +214,11 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         separator3 = self.define_separator()
 
         # vertical layout for controls
-        controls_layout = QtWidgets.QVBoxLayout()
+        controls_widget = QtWidgets.QWidget()
+        controls_widget.setFixedWidth(400)
+        controls_widget.setFixedHeight(800)
+        controls_layout = QtWidgets.QVBoxLayout(controls_widget)
+
         controls_layout.addWidget(self.case_select_label)
         case_path_layout = QtWidgets.QHBoxLayout()
         case_path_layout.addWidget(self.case_select_combo)
@@ -223,7 +228,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         controls_layout.addWidget(separator1)
 
         controls_layout.addWidget(self.color_label)
-        controls_layout.addWidget(self.color_value_table)
+        controls_layout.addWidget(self.color_value_table, alignment=Qt.AlignHCenter)
         controls_layout.addSpacing(-10)
         controls_layout.addLayout(color_botton_layout)
         controls_layout.addWidget(self.mask_extract_button)
@@ -233,7 +238,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         controls_layout.addWidget(self.centerline_section_label)
         controls_layout.addLayout(centerline_smooth_Hlayout)
         controls_layout.addWidget(self.centerline_extract_button)
-        controls_layout.addWidget(self.centerline_vis_table)
+        controls_layout.addWidget(self.centerline_vis_table, alignment=Qt.AlignHCenter)
 
         controls_layout.addWidget(separator3)
 
@@ -245,7 +250,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         # horizontal layout for all
         all_layout = QtWidgets.QHBoxLayout()
         all_layout.addWidget(self.image_label)
-        all_layout.addLayout(controls_layout)
+        all_layout.addWidget(controls_widget)
 
         return all_layout
 

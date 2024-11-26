@@ -41,7 +41,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
-        self.image_label.setFixedSize(1280, 800)
+        self.image_label.setFixedSize(1080, 800)
         self.image_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
@@ -53,14 +53,14 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
         # depth display
         self.depth_label = QtWidgets.QLabel()
-        self.depth_label.setFixedSize(1280, 800)
+        self.depth_label.setFixedSize(1080, 800)
         self.depth_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
         self.depth_label.setStyleSheet(
             """
             border: 1px solid black;
-            background-color: lightgray;
+            background-color: darkgray;
         """
         )
 
@@ -113,7 +113,11 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.stop_button.setEnabled(False)
 
         # vertical layout for controls
-        controls_layout = QtWidgets.QVBoxLayout()
+        controls_widget = QtWidgets.QWidget()
+        controls_widget.setFixedWidth(400)
+        controls_widget.setFixedHeight(800)
+        controls_layout = QtWidgets.QVBoxLayout(controls_widget)
+
         if self.use_ordinary_camera:
             controls_layout.addWidget(self.camera_label)
             controls_layout.addWidget(self.camera_combo)
@@ -134,7 +138,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         # horizontal layout for capture
         capture_layout = QtWidgets.QHBoxLayout()
         capture_layout.addLayout(self.stacked_layout)
-        capture_layout.addLayout(controls_layout)
+        capture_layout.addWidget(controls_widget)
 
         return capture_layout
 
@@ -211,12 +215,14 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         """update the image in the label"""
         qt_img = self.convert_cv_qt(cv_img)
         self.image_label.setPixmap(qt_img)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
 
     @QtCore.pyqtSlot(np.ndarray)
     def update_depth(self, cv_img):
         """update the depth in the label"""
         qt_img = self.convert_cv_qt(cv_img)
         self.depth_label.setPixmap(qt_img)
+        self.depth_label.setAlignment(QtCore.Qt.AlignCenter)
 
     def switch_display(self):
         """switch between image and depth display"""

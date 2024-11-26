@@ -1,0 +1,435 @@
+import os
+import sys
+import time
+import threading
+import numpy as np
+import open3d as o3d
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+
+from glob import glob
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+from configs.load_config import CONFIG
+from get_trajectory_Gcode import get_trajectory_Gcode
+from interface.functions.gui_mixins import MessageBoxMixin
+
+
+class QTextEditStream:
+    def __init__(self, text_edit):
+        self.text_edit = text_edit
+
+    def write(self, message):
+        # Remove any trailing newlines to avoid extra lines
+        message = message.rstrip()
+        if message:
+            QtCore.QMetaObject.invokeMethod(
+                self.text_edit.message_box,
+                "append",
+                QtCore.Qt.QueuedConnection,
+                QtCore.Q_ARG(str, message),
+            )
+
+    def flush(self):
+        pass  # This method is required for compatibility with print()
+
+
+class Worker(QtCore.QObject):
+    # Define a signal to send output messages to the GUI
+    output_signal = QtCore.pyqtSignal(str)
+    finished = QtCore.pyqtSignal()
+
+    def __init__(
+        self, temp_file_path, smooth_size, offset_z_level, line_cutting_depth, gui
+    ):
+        super().__init__()
+        self.smooth_size = smooth_size
+        self.offset_z_level = offset_z_level
+        self.line_cutting_depth = line_cutting_depth
+        self.gui = gui
+        self.temp_file_path = temp_file_path
+
+    def run(self):
+        # Run get_trajectory_Gcode in the worker thread and send output messages to the main thread
+        sys.stdout = QTextEditStream(self.gui)
+        get_trajectory_Gcode(
+            self.temp_file_path,
+            self.smooth_size,
+            self.offset_z_level,
+            self.line_cutting_depth,
+            self.gui.gl_view,
+        )
+        self.finished.emit()  # Emit finished signal when done
+
+
+class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
+    def __init__(self, message_box: QtWidgets.QTextEdit = None):
+        super(TrajectoryGUI, self).__init__()
+
+        # set close event
+        self.stop_event = threading.Event()
+        self.thread = None
+
+        # setup layout
+        page_layout = self.create_layout()
+        main_layout = QtWidgets.QVBoxLayout()
+        main_layout.addLayout(page_layout)
+
+        if message_box is not None:
+            self.message_box = message_box
+        else:
+            # define left message box
+            self.message_box = QtWidgets.QTextEdit()
+            self.message_box.setReadOnly(True)
+            self.message_box.setFixedHeight(100)
+            main_layout.addWidget(self.message_box)
+
+        self.setLayout(main_layout)
+
+    def create_layout(self):
+        # create layout
+        layout = QtWidgets.QHBoxLayout()
+
+        # create GLViewWidget
+        self.gl_view = gl.GLViewWidget()
+        self.gl_view.setFixedSize(1280, 800)
+        self.gl_view.opts["distance"] = 320  # set camera distance
+        # self.gl_view.setBackgroundColor((255, 255, 255))
+
+        # control layout
+        self.case_select_label = QtWidgets.QLabel("Select Case:")
+        self.case_select_combo = QtWidgets.QComboBox()
+        self.refresh_folder_list()
+
+        self.case_refresh_button = QtWidgets.QPushButton()
+        self.case_refresh_button.setText("Refresh")
+        self.case_refresh_button.clicked.connect(self.refresh_folder_list)
+
+        self.smooth_size_label = QtWidgets.QLabel("Smooth_size:")
+        self.smooth_size_spin = QtWidgets.QSpinBox()
+        self.smooth_size_spin.setRange(0, 10)
+        self.smooth_size_spin.setValue(CONFIG["smooth_size"])
+
+        self.spindle_radius_label = QtWidgets.QLabel("Spindle_radius:")
+        self.spindle_radius_spin = QtWidgets.QDoubleSpinBox()
+        self.spindle_radius_spin.setRange(0, 10)
+        self.spindle_radius_spin.setDecimals(1)
+        self.spindle_radius_spin.setValue(CONFIG["spindle_radius"])
+
+        self.offset_z_level_label = QtWidgets.QLabel("Offset_z_level:")
+        self.offset_z_level_spin = QtWidgets.QDoubleSpinBox()
+        self.offset_z_level_spin.setRange(-10, 10)
+        self.offset_z_level_spin.setDecimals(1)
+        self.offset_z_level_spin.setValue(CONFIG["offset_z_level"])
+
+        self.line_cutting_depth_label = QtWidgets.QLabel("Line_cutting_depth:")
+        self.line_cutting_depth_spin = QtWidgets.QDoubleSpinBox()
+        self.line_cutting_depth_spin.setDecimals(1)
+        self.line_cutting_depth_spin.setRange(0, 20)
+        self.line_cutting_depth_spin.setValue(CONFIG["line_cutting_depth"])
+
+        self.behavior_relief_label = QtWidgets.QLabel("Behavior_relief:")
+        self.behavior_relief_spin = QtWidgets.QDoubleSpinBox()
+        self.behavior_relief_spin.setDecimals(1)
+        self.behavior_relief_spin.setRange(0, 20)
+        self.behavior_relief_spin.setValue(
+            CONFIG["bulk_carving_depth"]["behavior_relief"]
+        )
+
+        self.behavior_plane_label = QtWidgets.QLabel("Behavior_plane:")
+        self.behavior_plane_spin = QtWidgets.QDoubleSpinBox()
+        self.behavior_plane_spin.setDecimals(1)
+        self.behavior_plane_spin.setRange(0, 20)
+        self.behavior_plane_spin.setValue(
+            CONFIG["bulk_carving_depth"]["behavior_plane"]
+        )
+
+        self.start_button = QtWidgets.QPushButton("Start trajectory")
+        self.start_button.clicked.connect(self.start_trajectory)
+        self.step = 0
+
+        # create buttons
+        self.replay_button = QtWidgets.QPushButton("Replay")
+        self.replay_button.clicked.connect(self.replay)
+
+        # vertical layout for controls
+        controls_layout = QtWidgets.QVBoxLayout()
+        controls_layout.addWidget(self.case_select_label)
+        case_path_layout = QtWidgets.QHBoxLayout()
+        case_path_layout.addWidget(self.case_select_combo)
+        case_path_layout.addWidget(self.case_refresh_button)
+        controls_layout.addLayout(case_path_layout)
+        controls_layout.addWidget(self.smooth_size_label)
+        controls_layout.addWidget(self.smooth_size_spin)
+        controls_layout.addWidget(self.spindle_radius_label)
+        controls_layout.addWidget(self.spindle_radius_spin)
+        controls_layout.addWidget(self.offset_z_level_label)
+        controls_layout.addWidget(self.offset_z_level_spin)
+        controls_layout.addWidget(self.line_cutting_depth_label)
+        controls_layout.addWidget(self.line_cutting_depth_spin)
+        controls_layout.addWidget(self.behavior_relief_label)
+        controls_layout.addWidget(self.behavior_relief_spin)
+        controls_layout.addWidget(self.behavior_plane_label)
+        controls_layout.addWidget(self.behavior_plane_spin)
+        controls_layout.addWidget(self.start_button)
+        controls_layout.addStretch()
+        controls_layout.addWidget(self.replay_button)
+
+        # add to main layout
+        layout.addWidget(self.gl_view)
+        layout.addLayout(controls_layout)
+
+        return layout
+
+    # add function to refresh folder list
+    def refresh_folder_list(self):
+        case_list = [
+            os.path.basename(os.path.normpath(path))
+            for path in sorted(
+                glob(CONFIG["case_folder_template"].format(case_name="*")),
+                key=os.path.getmtime,
+                reverse=True,
+            )
+        ]
+
+        if len(case_list) > 0:
+            self.case_select_combo.clear()
+            self.case_select_combo.addItems(case_list)
+        else:
+            self.append_message("No case folder found", "error")
+
+    def start_trajectory(self):
+        case_name = self.case_select_combo.currentText()
+        if not case_name:
+            self.message_box.append("Can not get viable case name", "error")
+            return
+
+        data_path = CONFIG["data_path_template"].format(case_name=case_name)
+        temp_file_path = CONFIG["temp_file_path_template"].format(case_name=case_name)
+        if not os.path.exists(temp_file_path):
+            os.makedirs(temp_file_path)
+        self.temp_file_path = temp_file_path
+
+        if self.step == 0:
+            self.smooth_size = self.smooth_size_spin.value()
+            self.spindle_radius = self.spindle_radius_spin.value()
+            self.offset_z_level = self.offset_z_level_spin.value()
+            self.line_cutting_depth = self.line_cutting_depth_spin.value()
+            self.behavior_relief = self.behavior_relief_spin.value()
+            self.behavior_plane = self.behavior_plane_spin.value()
+            self.case_path = data_path
+
+            # Create a QThread and Worker
+            self.thread = QtCore.QThread()
+            self.worker = Worker(
+                temp_file_path,
+                self.smooth_size,
+                self.offset_z_level,
+                self.line_cutting_depth,
+                self,
+            )
+            self.worker.moveToThread(self.thread)
+
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+
+            self.thread.finished.connect(self.visualize_cutting_planning)
+
+            # Start the thread
+            self.thread.started.connect(self.worker.run)
+            self.thread.start()
+            # self.visualize_cutting_planning()
+            self.start_button.setText("final_visualize")
+            self.step = 1
+        else:
+            self.visualize_final_surface()
+            self.start_button.setText("Start trajectory")
+            self.step = 0
+
+    def visualize_cutting_planning(self):
+        scanned_points = np.load(
+            os.path.join(self.temp_file_path, "scanned_points.npz")
+        )["points"]
+        scanned_colors = np.load(
+            os.path.join(self.temp_file_path, "scanned_points.npz")
+        )["colors"]
+        coarse_cutting_points = np.load(
+            os.path.join(self.temp_file_path, "coarse_points.npz")
+        )["points"]
+        fine_cutting_points = np.load(
+            os.path.join(self.temp_file_path, "fine_points.npz")
+        )["points"]
+        ultra_fine_cutting_points = np.load(
+            os.path.join(self.temp_file_path, "ultra_fine_points.npz")
+        )["points"]
+
+        self.gl_view.clear()
+
+        scatter = gl.GLScatterPlotItem(
+            pos=scanned_points,
+            size=0.5,
+            color=scanned_colors,
+        )
+        self.gl_view.addItem(scatter)
+
+        # create coarse trajectory point cloud object using green color
+        coarse_trajectory_scatter = gl.GLScatterPlotItem(
+            pos=coarse_cutting_points,
+            color=np.array([[0, 1, 0]] * len(coarse_cutting_points)),
+            size=0.5,
+        )
+        self.gl_view.addItem(coarse_trajectory_scatter)
+
+        # create fine trajectory point cloud object using red color
+        if len(fine_cutting_points) > 0:
+            fine_trajectory_scatter = gl.GLScatterPlotItem(
+                pos=fine_cutting_points,
+                color=np.array([[1, 0, 0]] * len(fine_cutting_points)),
+                size=0.5,
+            )
+            self.gl_view.addItem(fine_trajectory_scatter)
+
+        # create ultra fine trajectory point cloud object using blue color
+        if len(ultra_fine_cutting_points) > 0:
+            ultra_fine_trajectory_scatter = gl.GLScatterPlotItem(
+                pos=ultra_fine_cutting_points,
+                color=np.array([[0, 0, 1]] * len(ultra_fine_cutting_points)),
+                size=0.5,
+            )
+            self.gl_view.addItem(ultra_fine_trajectory_scatter)
+
+        center = np.mean(scanned_points, axis=0)
+        self.gl_view.opts["center"] = pg.Vector(center[0], center[1], center[2])
+
+    def visualize_final_surface(self):
+        final_surface_path = os.path.join(self.temp_file_path, "final_surface.ply")
+        if os.path.exists(final_surface_path):
+            mesh = o3d.io.read_triangle_mesh(final_surface_path)
+            if not mesh.has_vertices():
+                return  # skip if no vertices
+
+            # get vertices and faces
+            vertices = np.asarray(mesh.vertices)
+            faces = np.asarray(mesh.triangles)
+
+            # get colors
+            if mesh.has_vertex_colors():
+                colors = np.asarray(mesh.vertex_colors)
+            else:
+                colors = np.ones_like(vertices)  # white
+
+            # create GLMeshItem
+            mesh_item = gl.GLMeshItem(
+                vertexes=vertices,
+                faces=faces,
+                vertexColors=colors,
+                smooth=False,
+                drawFaces=True,
+                drawEdges=True,
+            )
+            mesh_item.setGLOptions("opaque")  # set opaque
+            self.gl_view.clear()
+            self.gl_view.addItem(mesh_item)
+
+            self.center_view_on_vertices(vertices)
+
+    def replay(self):
+        """start replaying the frames"""
+        if self.thread and self.thread.is_alive():
+            self.stop_event.set()
+            self.thread.join()
+            self.stop_event.clear()
+
+        thread = threading.Thread(target=self.cutting_replay)
+        thread.start()
+
+    def cutting_replay(self):
+        num_frames = 1000
+        save_dir = os.path.join(self.temp_file_path, "cutting_moive")
+        # save_dir = "./rendered_frames"
+        self.load_and_render_frames(save_dir, num_frames)
+
+    def load_and_render_frames(
+        self, save_dir: str, num_frames: int, target_fps: int = 30
+    ):
+        """load and render frames from the given directory"""
+        for frame in range(1, num_frames + 1):
+            if self.stop_event.is_set():
+                break
+
+            frame_file_path = os.path.join(save_dir, f"frame_{frame:03d}.ply")
+            if os.path.exists(frame_file_path):
+                mesh = o3d.io.read_triangle_mesh(frame_file_path)
+                if not mesh.has_vertices():
+                    continue  # skip if no vertices
+
+                # get vertices and faces
+                vertices = np.asarray(mesh.vertices)
+                faces = np.asarray(mesh.triangles)
+
+                # get colors
+                if mesh.has_vertex_colors():
+                    colors = np.asarray(mesh.vertex_colors)
+                else:
+                    colors = np.ones_like(vertices)  # white
+
+                # create GLMeshItem
+                mesh_item = gl.GLMeshItem(
+                    vertexes=vertices,
+                    faces=faces,
+                    vertexColors=colors,
+                    smooth=False,
+                    drawFaces=True,
+                    drawEdges=True,
+                )
+                mesh_item.setGLOptions("opaque")  # set opaque
+                self.gl_view.clear()
+                self.gl_view.addItem(mesh_item)
+
+                # center view on vertices
+                if frame == 1:
+                    self.center_view_on_vertices(vertices)
+
+                # sleep for target fps
+                time.sleep(1.0 / target_fps)
+
+    def center_view_on_vertices(self, vertices):
+        if vertices.size == 0:
+            return
+        # 计算所有顶点的平均值作为中心点
+        center = vertices.mean(axis=0)
+        center_point = QtGui.QVector3D(center[0], center[1], center[2])
+
+        # 设置视图中心
+        self.gl_view.opts["center"] = center_point
+        self.gl_view.update()
+
+    # # [ ]: need to add fine cutting trajectory?
+    # np.savez(
+    #     os.path.join(temp_file_path, "coarse_points.npz"),
+    #     points=coarse_cutting_points,
+    #     colors=np.array([[0, 1, 0]] * len(coarse_cutting_points)),
+    # )
+    # np.savez(
+    #     os.path.join(temp_file_path, "fine_points.npz"),
+    #     points=fine_cutting_points,
+    #     colors=np.array([[0, 0, 1]] * len(fine_cutting_points)),
+    # )
+    # np.savez(
+    #     os.path.join(temp_file_path, "ultra_fine_points.npz"),
+    #     points=ultra_fine_cutting_points,
+    #     colors=np.array([[1, 0, 0]] * len(ultra_fine_cutting_points)),
+    # )
+    # np.savez(
+    #     os.path.join(temp_file_path, "scanned_points.npz"),
+    #     points=scanned_points,
+    #     colors=scanned_colors,
+    # )
+
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    window = TrajectoryGUI()
+    window.show()
+    sys.exit(app.exec_())
