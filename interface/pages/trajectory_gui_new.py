@@ -1,24 +1,17 @@
 import os
-import json
 import sys
-import cv2
-import time
 import pickle
 import numpy as np
 import open3d as o3d
 import pyqtgraph.opengl as gl
 
-from copy import deepcopy
-from scipy.spatial import KDTree
-from PyQt5.QtCore import QTimer
-from PyQt5.QtGui import QColor, QFont
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QTableWidget, QHeaderView, QPushButton, QToolButton
 
 from configs.load_config import CONFIG
-from utils.trajectory_transform import down_scaling_to_real, vis_points_transformation
+from utils.trajectory_transform import down_scaling_to_real
 from interface.functions.gui_mixins import MessageBoxMixin
 from interface.functions.trajectory_thread import TrajectoryThread
+from interface.functions.vis_animation_thread import VisualizeAnimationThread
 
 
 class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
@@ -71,8 +64,10 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         self.setLayout(main_layout)
 
-        # setup thread
+        # calculate trajectory thread
         self.traj_thread = TrajectoryThread()
+        # play trajectory animation thread
+        self.vis_animation_thread = VisualizeAnimationThread()
 
     def create_layout(self):
         # image display
@@ -141,9 +136,9 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.vis_original_button.clicked.connect(self.visualize_original_mesh)
 
         self.visualize_animation_button = QtWidgets.QPushButton("Animated Trajectory")
-        self.visualize_animation_button.clicked.connect(
-            self.visualize_animated_trajectory
-        )
+        self.visualize_animation_button.clicked.connect(self.start_vis_animation)
+        self.visualize_animation_button_stop = QtWidgets.QPushButton("Stop Animation")
+        self.visualize_animation_button_stop.clicked.connect(self.stop_visualization)
 
         # separator
         separator1 = self.define_separator()
@@ -164,6 +159,7 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
         controls_layout.addWidget(self.visualization_label)
         controls_layout.addWidget(self.vis_original_button)
         controls_layout.addWidget(self.visualize_animation_button)
+        controls_layout.addWidget(self.visualize_animation_button_stop)
 
         controls_layout.addStretch()
 
@@ -269,58 +265,29 @@ class TrajecotryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
     """ Visualization Functions """
 
-    def visualize_animated_trajectory(self):
-        self.switch_display(1)
-        self.get_case_info()
+    def start_vis_animation(self):
+        if (
+            hasattr(self, "vis_animation_thread")
+            and self.vis_animation_thread.is_running
+        ):
+            self.vis_animation_thread.stop()
+            self.vis_animation_thread.wait()
 
-        self.read_original_mesh(check_already_loaded=True)
+        self.vis_animation_thread = VisualizeAnimationThread(parent=self, fps=30)
+        self.vis_animation_thread.update_mesh.connect(self.gl_view.update)
+        self.vis_animation_thread.message_signal.connect(self.append_message)
 
-        # get the cutting trajectory points
-        combined_vis_points, combined_vis_trajectory = vis_points_transformation(
-            self.coarse_trajectory_holders
-            + self.fine_trajectory_holders
-            + self.ultra_fine_trajectory_holders,
-            self.left_bottom_point[0],
-            self.left_bottom_point[1],
-            self.left_bottom_point[2],
-        )
+        # start animation thread
+        self.vis_animation_thread.start()
 
-        print(self.left_bottom_point)
-
-        # print x range and y range of combined_vis_points and self.original_mesh_vertices
-        print(
-            f"combined_vis_points x range: {np.min(combined_vis_points[:, 0])} to {np.max(combined_vis_points[:, 0])}"
-        )
-        print(
-            f"combined_vis_points y range: {np.min(combined_vis_points[:, 1])} to {np.max(combined_vis_points[:, 1])}"
-        )
-        print(
-            f"original_mesh_vertices x range: {np.min(self.original_mesh_vertices[:, 0])} to {np.max(self.original_mesh_vertices[:, 0])}"
-        )
-        print(
-            f"original_mesh_vertices y range: {np.min(self.original_mesh_vertices[:, 1])} to {np.max(self.original_mesh_vertices[:, 1])}"
-        )
-
-        # build original vertices kd-tree
-        original_vertices_kd_tree = KDTree(self.original_mesh_vertices[:, :2])
-        animated_vertices = deepcopy(self.original_mesh_vertices)
-        # every 100 points, find all the points with the self.spindle_radius, reset vertices
-        for traj in combined_vis_trajectory:
-            for i, point in enumerate(traj):
-                # get all the points within the spindle radius
-                indices = original_vertices_kd_tree.query_ball_point(
-                    point[:2], self.spindle_radius
-                )
-                animated_vertices[indices, 2] = point[2]
-                if i % 100 == 0:
-                    # play
-                    self.put_mesh_on_view(
-                        animated_vertices,
-                        self.original_mesh_triangles,
-                        self.original_mesh_colors,
-                    )
-
-                    QTimer.singleShot(100, self.gl_view.update)
+    def stop_visualization(self):
+        if (
+            hasattr(self, "vis_animation_thread")
+            and self.vis_animation_thread.isRunning()
+        ):
+            self.vis_animation_thread.stop()
+            self.vis_animation_thread.wait()
+            self.append_message("Trajectory animation stopped", "step")
 
     def visualize_original_mesh(self):
         # switch to mesh display
