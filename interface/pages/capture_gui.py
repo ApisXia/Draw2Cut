@@ -78,28 +78,46 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.display_widget.setLayout(self.display_layout)
 
         # right side control panel
+        font = QtGui.QFont()
+        font.setBold(True)
+
+        self.capture_label = QtWidgets.QLabel("Capture Settings")
+        self.capture_label.setFont(font)
+
         if self.use_ordinary_camera:
             self.camera_label = QtWidgets.QLabel("Select Camera:")
             self.camera_combo = QtWidgets.QComboBox()
             self.populate_cameras()
 
+        case_name_Hlayout = QtWidgets.QHBoxLayout()
         self.case_name_label = QtWidgets.QLabel("Case Name:")
         self.case_name_edit = QtWidgets.QLineEdit(CONFIG["case_name"])
+        case_name_Hlayout.addWidget(self.case_name_label, 1)
+        case_name_Hlayout.addWidget(self.case_name_edit, 1)
 
+        exposure_Hlayout = QtWidgets.QHBoxLayout()
         self.exposure_label = QtWidgets.QLabel("Exposure Level:")
         self.exposure_spin = QtWidgets.QSpinBox()
         self.exposure_spin.setRange(1, 500)
         self.exposure_spin.setValue(CONFIG["exposure_level"])
+        exposure_Hlayout.addWidget(self.exposure_label, 1)
+        exposure_Hlayout.addWidget(self.exposure_spin, 1)
 
+        samping_number_Hlayout = QtWidgets.QHBoxLayout()
         self.sampling_number_label = QtWidgets.QLabel("Image Sampling Number:")
         self.sampling_number_spin = QtWidgets.QSpinBox()
         self.sampling_number_spin.setRange(1, 50)
         self.sampling_number_spin.setValue(CONFIG["image_sampling_size"])
+        samping_number_Hlayout.addWidget(self.sampling_number_label, 1)
+        samping_number_Hlayout.addWidget(self.sampling_number_spin, 1)
 
+        depth_queue_Hlayout = QtWidgets.QHBoxLayout()
         self.depth_queue_label = QtWidgets.QLabel("Depth Queue Size:")
         self.depth_queue_spin = QtWidgets.QSpinBox()
         self.depth_queue_spin.setRange(1, 100)
         self.depth_queue_spin.setValue(CONFIG["depth_queue_size"])
+        depth_queue_Hlayout.addWidget(self.depth_queue_label, 1)
+        depth_queue_Hlayout.addWidget(self.depth_queue_spin, 1)
 
         self.save_checkbox = QtWidgets.QCheckBox("Save Data")
         self.save_checkbox.setChecked(True)
@@ -117,17 +135,16 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         controls_widget.setFixedHeight(800)
         controls_layout = QtWidgets.QVBoxLayout(controls_widget)
 
+        controls_layout.addWidget(self.capture_label)
         if self.use_ordinary_camera:
             controls_layout.addWidget(self.camera_label)
             controls_layout.addWidget(self.camera_combo)
-        controls_layout.addWidget(self.case_name_label)
-        controls_layout.addWidget(self.case_name_edit)
-        controls_layout.addWidget(self.exposure_label)
-        controls_layout.addWidget(self.exposure_spin)
-        controls_layout.addWidget(self.sampling_number_label)
-        controls_layout.addWidget(self.sampling_number_spin)
-        controls_layout.addWidget(self.depth_queue_label)
-        controls_layout.addWidget(self.depth_queue_spin)
+
+        controls_layout.addLayout(case_name_Hlayout)
+        controls_layout.addLayout(exposure_Hlayout)
+        controls_layout.addLayout(samping_number_Hlayout)
+        controls_layout.addLayout(depth_queue_Hlayout)
+
         controls_layout.addWidget(self.switch_button)
         controls_layout.addStretch()
         controls_layout.addWidget(self.save_checkbox)

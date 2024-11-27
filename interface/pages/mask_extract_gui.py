@@ -88,6 +88,11 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         """
         )
 
+        # use stacked layout to switch between image and depth
+        self.stacked_layout = QtWidgets.QStackedLayout()
+        self.stacked_layout.setAlignment(Qt.AlignCenter)
+        self.stacked_layout.addWidget(self.image_label)
+
         # right side control panel
 
         font = QtGui.QFont()
@@ -249,7 +254,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # horizontal layout for all
         all_layout = QtWidgets.QHBoxLayout()
-        all_layout.addWidget(self.image_label)
+        all_layout.addLayout(self.stacked_layout)
         all_layout.addWidget(controls_widget)
 
         return all_layout
