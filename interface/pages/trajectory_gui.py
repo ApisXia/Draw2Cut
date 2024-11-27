@@ -216,12 +216,11 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.visualize_animation_button.setStyleSheet(
             "font-weight: bold; color: orange;"
         )
-        self.visualize_animation_button.setFixedWidth(250)
         self.visualize_animation_button.clicked.connect(self.start_vis_animation)
         self.visualize_animation_button_stop = QtWidgets.QPushButton("Stop")
         self.visualize_animation_button_stop.clicked.connect(self.stop_visualization)
-        animation_Hlayout.addWidget(self.visualize_animation_button)
-        animation_Hlayout.addWidget(self.visualize_animation_button_stop)
+        animation_Hlayout.addWidget(self.visualize_animation_button, 3)
+        animation_Hlayout.addWidget(self.visualize_animation_button_stop, 1)
 
         # generate Gcode part
         self.generate_gcode_label = QtWidgets.QLabel("Generate Gcode")
@@ -608,6 +607,18 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
     def switch_display(self, display_index: int):
         self.stacked_layout.setCurrentIndex(display_index)
+
+    def clean_result_variables(self):
+        self.mask_action_binaries = None
+        self.line_dict = None
+        self.reverse_mask_dict = None
+        self.coarse_trajectory_holders = []
+        self.fine_trajectory_holders = []
+        self.ultra_fine_trajectory_holders = []
+        self.left_bottom_point = None
+        self.original_mesh_vertices = None
+        self.original_mesh_triangles = None
+        self.original_mesh_colors = None
 
 
 if __name__ == "__main__":

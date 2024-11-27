@@ -337,7 +337,15 @@ def kernel_linear(depth_map, slope, clip_lower, clip_upper):
 """ Drawing section"""
 
 
-def draw_trajectory(map_image, trajectories):
+def draw_trajectory(map_image, trajectories, spindle_radius=2, line_type="arrow"):
+    if line_type not in ["arrow", "line"]:
+        raise ValueError("!!! Line type is not valid.")
+
+    if line_type == "arrow":
+        line_func = cv2.arrowedLine
+    elif line_type == "line":
+        line_func = cv2.line
+
     # Convert grayscale image to BGR
     map_image = cv2.cvtColor(map_image, cv2.COLOR_GRAY2BGR)
 
@@ -348,7 +356,7 @@ def draw_trajectory(map_image, trajectories):
             cv2.circle(
                 map_image,
                 (trajectory[0][1], trajectory[0][0]),
-                4,
+                spindle_radius,
                 (0, 0, 255),
                 thickness=-1,
             )
@@ -357,6 +365,8 @@ def draw_trajectory(map_image, trajectories):
                 # Draw arrow between consecutive points
                 pt1 = (int(trajectory[i - 1][1]), int(trajectory[i - 1][0]))
                 pt2 = (int(trajectory[i][1]), int(trajectory[i][0]))
-                cv2.arrowedLine(map_image, pt1, pt2, (0, 0, 255), 3)  # Arrow in red BGR
+                line_func(
+                    map_image, pt1, pt2, (0, 0, 255), spindle_radius * 2
+                )  # Arrow in red BGR
 
     return map_image

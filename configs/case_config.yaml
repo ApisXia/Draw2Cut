@@ -1,4 +1,4 @@
-version: 0.7.0
+version: 1.0.0
 
 # Case settings
 case_name: "default_case"  # which is also the folder name
@@ -6,17 +6,26 @@ data_path_template: "data/{case_name}/point_cloud.npz"
 temp_file_path_template: "temp_files/{case_name}/"
 case_folder_template: "data/{case_name}/"
 
+# Uiversal settings
+depth_map_height: 800  # pixel
+depth_map_width: 1280  # pixel
+
 # page 1: capture settings
 exposure_level: 100
 image_sampling_size: 20
 depth_queue_size: 50
 
 # page 2: working space settings
-default_x_length: 296  # mm, from back to front
-default_y_length: 523.3  # mm, from left to right
+# In panel
 origin_label: "0"  # later needs to be "11"
 x_axis_label: ["9", "8"]  # the last one can be used to define the axis length
 y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis length
+z_min_level: 10  # mm
+z_max_level: 60  # mm
+dilation_size: 5
+# Not in panel
+default_x_length: 296  # mm, from back to front
+default_y_length: 523.3  # mm, from left to right
 surface_upscale: 10  # times
 
 # Page3: color mask extraction & Centerline extraction

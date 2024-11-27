@@ -106,12 +106,6 @@ class TrajectoryThread(QtCore.QThread):
             "info",
         )
 
-        # emit trajectory + depth map
-        self.coarse_trajectory_signal.emit(self.coarse_trajectory_holders)
-        self.fine_trajectory_signal.emit(self.fine_trajectory_holders)
-        self.ultra_fine_trajectory_signal.emit(self.ultra_fine_trajectory_holders)
-        self.depth_map_signal.emit(self.depth_map_holders)
-
     """ Line cutting functions """
 
     def get_line_cutting_trajectory(self):
@@ -140,6 +134,23 @@ class TrajectoryThread(QtCore.QThread):
                     ]
                     self.coarse_trajectory_holders.append(switch_contour_line)
                 continue
+
+        # build depth map for line cutting based on spindle radius
+        depth_whiteboard = np.zeros_like(self.parent.mask_action_binaries["contour"])
+        depth_whiteboard = draw_trajectory(
+            depth_whiteboard,
+            self.coarse_trajectory_holders,
+            spindle_radius=self.spindle_radius,
+            line_type="line",
+        )
+        # black part is 0, while white part is - line cutting depth
+        depth_whiteboard = cv2.cvtColor(depth_whiteboard, cv2.COLOR_BGR2GRAY).astype(
+            np.int16
+        )
+        depth_whiteboard[depth_whiteboard > 0] = -self.line_cutting_depth
+        self.depth_map_holders.append(depth_whiteboard)
+        print(f"max depth: {np.max(depth_whiteboard)}")
+        print(f"min depth: {np.min(depth_whiteboard)}")
 
         self.message_signal.emit("Finish extracting line cutting trajectory", "step")
 
