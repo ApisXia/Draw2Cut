@@ -60,7 +60,7 @@ feed_rate:
   coarse: 15  # mm/min, all cutting rate, except the last one
   fine: 15  # mm/min, the last cutting rate
 device_precision: 1  # mm
-z_expension: 3  # ratio for visualizing the z level
+z_expension: 2  # ratio for visualizing the z level
 
 
 
