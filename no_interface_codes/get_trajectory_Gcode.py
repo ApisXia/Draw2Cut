@@ -18,19 +18,32 @@ from src.mask.extract_mask import (
     find_in_predefined_colors,
     draw_extracted_marks,
 )
-from src.trajectory.find_centerline_groups import (
-    find_centerline_groups,
-    filter_centerlines,
-    centerline_downsample,
-)
-from utils.trajectory_transform import (
-    down_sampling_to_real_scale,
-    add_x_y_offset,
-    vis_points_ransformation,
-)
-from utils.visualization import visualize_cutting_planning, visualize_final_surface, visualize_final_surface_dynamic,load_and_render_frames
 
-def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth = 2,gl_view=None):
+from centerline.set_attributes import (
+    set_centerline_actions,
+    get_centerline_related_behavior,
+)
+
+from utils.trajectory_transform import (
+    down_scaling_to_real,
+    add_x_y_offset,
+    vis_points_transformation,
+)
+from utils.visualization import (
+    visualize_cutting_planning,
+    visualize_final_surface,
+    visualize_final_surface_dynamic,
+    load_and_render_frames,
+)
+
+
+def get_trajectory_Gcode(
+    temp_file_path,
+    smooth_size=0,
+    offset_z_level=-1.5,
+    line_cutting_depth=2,
+    gl_view=None,
+):
     # build action mapping dict
     with open("src/mask/color_type_values.json", "r") as f:
         color_type_values = json.load(f)
@@ -41,9 +54,6 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
             item["action"] in CONFIG["contour_mark"] + CONFIG["behavior_mark"]
         ):  # currently only support these two functions
             ACTION_MAPPING_DICT[item["type"]] = item["action"]
-
-    # define the path to save the temporary files
-    temp_file_path = CONFIG["temp_file_path"]
 
     # action subfolder
     action_folder = os.path.join(temp_file_path, "trajectory_extraction")
@@ -73,121 +83,20 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     print("******** Step 1: Extracting color masks Done ********")
 
     print("******** Step 2: Extracting centerlines ********")
-    # assign name to semantic mask dict
-    img_binaries = {}
-    for original_name, new_name in ACTION_MAPPING_DICT.items():
-        if original_name in semantic_color_mask_dict.keys():
-            if new_name in img_binaries:
-                img_binaries[new_name] = cv2.bitwise_or(
-                    img_binaries[new_name],
-                    semantic_color_mask_dict[original_name][::-1, :],
-                )
-            else:
-                img_binaries[new_name] = semantic_color_mask_dict[original_name][
-                    ::-1, :
-                ]
-    if len(img_binaries) == 0:
-        raise ValueError("No action type found in the image")
-
-    # assign types to the centerlines
-    line_dict = {}
-    for mark_type_name in CONFIG["contour_mark"] + CONFIG["behavior_mark"]:
-        if mark_type_name not in img_binaries:
-            line_dict[mark_type_name] = {}
-            continue
-        all_centerlines, all_masks = find_centerline_groups(
-            img_binaries[mark_type_name]
-        )
-        if smooth_size > 0:
-            all_centerlines = filter_centerlines(
-                all_centerlines, filter_size=smooth_size
-            )
-
-        # Draw the centerlines for visualization
-        centerline_image = np.zeros_like(img_binaries[mark_type_name])
-        cv2.drawContours(centerline_image, all_centerlines, -1, (255, 255, 255), 1)
+    mask_action_binaries, line_dict, centerline_images_dict = set_centerline_actions(
+        semantic_color_mask_dict,
+        ACTION_MAPPING_DICT,
+        smooth_size,
+    )
+    for mark_type_name in centerline_images_dict.keys():
         cv2.imwrite(
             os.path.join(action_folder, f"centerline_{mark_type_name}.png"),
-            centerline_image,
+            centerline_images_dict[mark_type_name],
         )
 
-        line_dict[mark_type_name] = {}
-        for i, centerline in enumerate(all_centerlines):
-            area = cv2.contourArea(centerline)
-            downsampled_centerline = np.asarray(centerline_downsample(centerline))
-            line_dict[mark_type_name][i] = {
-                "type": "loop" if area > 100 else "line",
-                "centerline": downsampled_centerline,
-                "mask": all_masks[i],
-                "related_behavior": None,
-            }
-
-    # sort behavior in CONFIG["behavior_mark"] putting line first
-    for mark_type in CONFIG["behavior_mark"]:
-        line_dict[mark_type] = dict(
-            sorted(
-                line_dict[mark_type].items(),
-                key=lambda item: 0 if item[1]["type"] == "line" else 1,
-            )
-        )
-
-    # for each "contour" type, check relationship with "behavior_plane"
-    reverse_mask_dict = {}
-    for behavior_mark_type in CONFIG["behavior_mark"]:
-        reverse_mask_dict[behavior_mark_type] = {}
-
-    for key_contour in line_dict["contour"].keys():
-        contour_type = line_dict["contour"][key_contour]["type"]
-        contour_line = line_dict["contour"][key_contour]["centerline"]
-        related_behavior = line_dict["contour"][key_contour]["related_behavior"]
-        contour_polygon = Polygon(contour_line)
-
-        # for behavior_mark_type in
-        for behavior_mark_type in CONFIG["behavior_mark"]:
-
-            for key_behaviour in line_dict[behavior_mark_type].keys():
-                behaviour_type = line_dict[behavior_mark_type][key_behaviour]["type"]
-                behaviour_line = line_dict[behavior_mark_type][key_behaviour][
-                    "centerline"
-                ]
-                behaviour_polygon = Polygon(behaviour_line)
-
-                # if behaviour line is inside the contour line, update the mask with filled contour region
-                if contour_type == "loop" and behaviour_type == "line":
-                    if contour_polygon.contains(behaviour_polygon):
-                        contour_mask_binary = np.zeros_like(
-                            img_binaries["contour"], dtype=np.uint8
-                        )
-                        cv2.fillPoly(contour_mask_binary, [contour_line], 255)
-                        line_dict["contour"][key_contour]["mask"] = contour_mask_binary
-                        related_behavior = behavior_mark_type
-
-                # if contour line is inside the behaviour line, draw the behaviour line region, and subtract the contour region
-                if contour_type in ["line", "loop"] and behaviour_type == "loop":
-                    if behaviour_polygon.contains(contour_polygon):
-                        # get the behavior mask, if not exist, create one
-                        if key_behaviour in reverse_mask_dict.keys():
-                            behavior_mask_binary = reverse_mask_dict[
-                                behavior_mark_type
-                            ][key_behaviour]
-                        else:
-                            behavior_mask_binary = np.zeros_like(
-                                img_binaries[behavior_mark_type], dtype=np.uint8
-                            )
-                            cv2.fillPoly(behavior_mask_binary, [behaviour_line], 255)
-                            reverse_mask_dict[behavior_mark_type][
-                                key_behaviour
-                            ] = behavior_mask_binary
-                        related_behavior = behavior_mark_type
-
-        # save each contour mask (comment out)
-        # cv2.imwrite(
-        #     os.path.join(
-        #         action_folder, f"altered_{related_behavior}_mask_{key_contour}.png"
-        #     ),
-        #     line_dict["contour"][key_contour]["mask"],
-        # )
-        line_dict["contour"][key_contour]["related_behavior"] = related_behavior
+    reverse_mask_dict, line_dict = get_centerline_related_behavior(
+        mask_action_binaries, line_dict
+    )
 
     print("******** Step 2: Extracting centerlines Done ********")
 
@@ -224,7 +133,7 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     combine_bulk_mask_dict = {}
     for behavior_mark_type in CONFIG["behavior_mark"]:
         combine_bulk_mask_dict[behavior_mark_type] = np.zeros_like(
-            img_binaries["contour"], dtype=np.uint8
+            mask_action_binaries["contour"], dtype=np.uint8
         )
         for key_contour in line_dict["contour"].keys():
             if (
@@ -259,7 +168,7 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
         )
         for label in range(1, num_labels):
             print(f"** [info] ** Processing bulk cutting No. {bulk_counter}")
-            img_binary = np.zeros_like(img_binaries["contour"])
+            img_binary = np.zeros_like(mask_action_binaries["contour"])
             img_binary[labels == label] = 255
 
             # all img_binary should be uint8
@@ -348,16 +257,14 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
 
     print("******** Step 5: Drawing and saving Gcode ********")
     # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
-    canvas = np.zeros_like(img_binaries["contour"])
+    canvas = np.zeros_like(mask_action_binaries["contour"])
     map_image = draw_trajectory(canvas, coarse_trajectory_holders)
     cv2.imwrite(os.path.join(action_folder, "coarse_trajectory.png"), map_image)
 
     # downsample the trajectory based on SURFACE_UPSCALE
-    coarse_trajectory_holders = down_sampling_to_real_scale(coarse_trajectory_holders)
-    fine_trajectory_holders = down_sampling_to_real_scale(fine_trajectory_holders)
-    ultra_fine_trajectory_holders = down_sampling_to_real_scale(
-        ultra_fine_trajectory_holders
-    )
+    coarse_trajectory_holders = down_scaling_to_real(coarse_trajectory_holders)
+    fine_trajectory_holders = down_scaling_to_real(fine_trajectory_holders)
+    ultra_fine_trajectory_holders = down_scaling_to_real(ultra_fine_trajectory_holders)
 
     # load left_bottom of the image
     preprocess_data = np.load(os.path.join(temp_file_path, "left_bottom_point.npz"))
@@ -414,17 +321,17 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
     )
 
     # get the cutting trajectory points
-    coarse_cutting_points,corse_vis_trajectory = vis_points_ransformation(
+    coarse_cutting_points, corse_vis_trajectory = vis_points_transformation(
         coarse_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    fine_cutting_points,fine_vis_trajectory = vis_points_ransformation(
+    fine_cutting_points, fine_vis_trajectory = vis_points_transformation(
         fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
-    ultra_fine_cutting_points,ultra_vis_trajectory = vis_points_ransformation(
+    ultra_fine_cutting_points, ultra_vis_trajectory = vis_points_transformation(
         ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
-    # [ ]: need to add fine cutting trajectory?
+    # need to add fine cutting trajectory?
     np.savez(
         os.path.join(temp_file_path, "coarse_points.npz"),
         points=coarse_cutting_points,
@@ -445,7 +352,6 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
         points=scanned_points,
         colors=scanned_colors,
     )
-    
 
     # visualize_cutting_planning(
     #     scanned_points,
@@ -463,20 +369,26 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
         [depth_map_points, depth_map_total[depth_map_total < 0].reshape(-1, 1)], axis=1
     )
 
-    depth_map_points = down_sampling_to_real_scale([depth_map_points.tolist()])
-    depth_map_points,_ = vis_points_ransformation(
+    depth_map_points = down_scaling_to_real([depth_map_points.tolist()])
+    depth_map_points, _ = vis_points_transformation(
         depth_map_points, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
     visualize_final_surface(
-        scanned_points, scanned_colors, depth_map_points, left_bottom[2]
+        scanned_points,
+        scanned_colors,
+        depth_map_points,
+        left_bottom[2],
+        temp_file_path,
     )
     # visualize_final_surface_dynamic(
     #     scanned_points, scanned_colors, depth_map_points, left_bottom[2],coarse_cutting_points
     # )
     # Example of how to use the functions:
     # First, call the function to precompute and save the frames
-    combined_vis_trajectory = corse_vis_trajectory + fine_vis_trajectory + ultra_vis_trajectory
+    combined_vis_trajectory = (
+        corse_vis_trajectory + fine_vis_trajectory + ultra_vis_trajectory
+    )
 
     # time cost, so default is false
     # visualize_final_surface_dynamic(
@@ -493,11 +405,12 @@ def get_trajectory_Gcode(smooth_size=0,offset_z_level = -1.5,line_cutting_depth 
 
     print("******** Step 6: Visualizing the cutting planning Done ********")
 
+
 # list of list -> trajectory_holders
 
 if __name__ == "__main__":
     smooth_size = CONFIG["smooth_size"]
     offset_z_level = CONFIG["offset_z_level"]
     line_cutting_depth = CONFIG["line_cutting_depth"]
-    
+
     get_trajectory_Gcode(smooth_size, offset_z_level, line_cutting_depth)

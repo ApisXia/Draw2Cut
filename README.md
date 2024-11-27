@@ -1,8 +1,6 @@
 # WoodCut Project
 
-| Version: 0.1.1 (24.08.26)
-
-- It is the installation guidance of this project.
+| Version: 1.0.0
 
 ## 1. Installation
 
@@ -15,34 +13,26 @@ poetry install
 poetry shell
 ```
 
-## 2. Scan the wood
+## 2. Interface
 
 - Run the following code to start interface.
 
 ``` bash
-python realsense/realtime_capture_multi_frame.py
+python interface/main.py
 ```
 
-- Press `Q` when the the depth map is stable.
+### Step1: Capture Pointcloud
 
-## 3. Code running
+todo.
 
-- Run the following codes in order.
+### Step2: Separate Cutting Surface
 
-### 3.1 Separate Wood surface
+todo.
 
-``` bash
-python get_trajectory_Gcode.py
-```
+### Step3: Mask && Centerline Extraction
 
-### 3.2 Get Gcode
+todo.
 
-``` bash
-python get_trajectory_Gcode.py
-```
+### Step 4: Trajectory && Visualization && Gcode Generation
 
-### 3.3 Preview Cutting Trajectory
-
-``` bash
-python cut_preview.py
-```
+todo.

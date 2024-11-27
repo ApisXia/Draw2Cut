@@ -3,19 +3,22 @@ import cv2
 
 import numpy as np
 import open3d as o3d
+from glob import glob
 from copy import deepcopy
 
-from glob import glob
+from configs.load_config import CONFIG
 from src.space_finding.plane import calculate_points_plane
 
-from configs.load_config import CONFIG
 
-def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis_label:str):
+def seperate_wood_surface(
+    data_path: str,
+    temp_file_path: str,
+    origin_label: str,
+    x_axis_label: str,
+    y_axis_label: str,
+):
 
     pointcloud_data = np.load(data_path)
-    temp_file_path = CONFIG["temp_file_path"]
-
-    os.makedirs(temp_file_path, exist_ok=True)
 
     points_plane, _ = calculate_points_plane(
         origin_label, pointcloud_data, resize_factor=2
@@ -62,7 +65,7 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
 
     z_direction = np.cross(y_direction, x_direction)
 
-    # XXX: using z and y axis to calculate orthogonal x axis again
+    # using z and y axis to calculate orthogonal x axis again
     x_direction = np.cross(z_direction, y_direction)
     print("x dot y later", np.dot(x_direction, y_direction))
 
@@ -169,6 +172,30 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
     )
     extract_mask = extract_mask & mask_plane
 
+    # fix holes in the extract_mask
+    extract_mask = extract_mask.reshape(800, 1280)
+    from skimage.morphology import (
+        remove_small_objects,
+        remove_small_holes,
+        dilation,
+        disk,
+    )
+
+    extract_mask = remove_small_objects(extract_mask, min_size=70)
+    extract_mask = remove_small_holes(extract_mask, area_threshold=70)
+    # extract_mask = dilation(
+    #     extract_mask, disk(9)
+    # )
+
+    extract_mask = extract_mask.reshape(-1)
+    extract_mask = extract_mask & mask
+
+    # update x_min, x_max, y_min, y_max
+    x_min = np.min(points_transformed[extract_mask, 0])
+    x_max = np.max(points_transformed[extract_mask, 0])
+    y_min = np.min(points_transformed[extract_mask, 1])
+    y_max = np.max(points_transformed[extract_mask, 1])
+
     # get the corresponding color for these points, and wrap them into a 2d image
     extract_color = colors[extract_mask, :]
     extract_points = points_transformed[extract_mask, :]
@@ -185,7 +212,7 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
     # 创建一个掩码，标记需要填充的区域
     mask = np.all(wrapped_image == 0, axis=2).astype(np.uint8)
     # 使用 inpaint 函数填充
-    wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_TELEA)
+    wrapped_image = cv2.inpaint(wrapped_image, mask, 3, cv2.INPAINT_NS)
     wrapped_image = cv2.cvtColor(wrapped_image, cv2.COLOR_BGR2RGB)
 
     # increase the size by 10 and save the wrapped image
@@ -215,6 +242,20 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
     colors = colors.astype(np.float32)
     colors /= 255.0
 
+    points_smoothed = deepcopy(points_transformed)
+    points_smoothed[extract_mask, 2] = z_surface
+
+    mask_smoothed = (
+        (points_smoothed[:, 0] > 0)
+        & (points_smoothed[:, 0] < x_length)
+        & (points_smoothed[:, 1] > 0)
+        & (points_smoothed[:, 1] < y_length)
+        & (points_smoothed[:, 2] < z_max + 5)
+        & (points_smoothed[:, 2] > -5)
+    )
+
+    points_smoothed = points_smoothed[mask_smoothed, :]
+
     mask_visual = (
         (points_transformed[:, 0] > 0)
         & (points_transformed[:, 0] < x_length)
@@ -230,7 +271,11 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
     np.savez(
         os.path.join(temp_file_path, "points_transformed.npz"),
         points=points_transformed,
+        points_smoothed=points_smoothed,
         colors=colors,
+        left_bottom_point=left_bottom_point,
+        x_length=x_length,
+        y_length=y_length,
     )
 
     # add spheres to the point cloud
@@ -246,11 +291,16 @@ def seperate_wood_surface(data_path:str,origin_label:str,x_axis_label:str,y_axis
     # # visualize point cloud
     # o3d.visualization.draw_geometries(object_to_draw)
 
+
 if __name__ == "__main__":
     # read data
     data_path = CONFIG["data_path"]
     origin_label = CONFIG["origin_label"]
     x_axis_label = CONFIG["x_axis_label"]
     y_axis_label = CONFIG["y_axis_label"]
+    temp_file_path = CONFIG["temp_file_path"]
+    os.makedirs(temp_file_path, exist_ok=True)
 
-    seperate_wood_surface(data_path, origin_label, x_axis_label, y_axis_label)
+    seperate_wood_surface(
+        data_path, temp_file_path, origin_label, x_axis_label, y_axis_label
+    )

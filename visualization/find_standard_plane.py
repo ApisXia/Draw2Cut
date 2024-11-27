@@ -1,8 +1,6 @@
 import numpy as np
 import open3d as o3d
 
-from glob import glob
-
 from configs.load_config import CONFIG
 
 from src.space_finding.plane import calculate_points_plane

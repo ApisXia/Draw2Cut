@@ -7,6 +7,7 @@ import numpy as np
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from configs.load_config import CONFIG
 from interface.functions.capture_thread import CaptureThread
 from interface.functions.gui_mixins import MessageBoxMixin
 
@@ -34,12 +35,12 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         self.setLayout(main_layout)
 
-        # [ ]: not correct?
         self.capture_thread = CaptureThread()
 
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
+        self.image_label.setFixedSize(1080, 800)
         self.image_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
@@ -51,13 +52,14 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
         # depth display
         self.depth_label = QtWidgets.QLabel()
+        self.depth_label.setFixedSize(1080, 800)
         self.depth_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
         self.depth_label.setStyleSheet(
             """
             border: 1px solid black;
-            background-color: lightgray;
+            background-color: darkgray;
         """
         )
 
@@ -76,28 +78,46 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.display_widget.setLayout(self.display_layout)
 
         # right side control panel
+        font = QtGui.QFont()
+        font.setBold(True)
+
+        self.capture_label = QtWidgets.QLabel("Capture Settings")
+        self.capture_label.setFont(font)
+
         if self.use_ordinary_camera:
             self.camera_label = QtWidgets.QLabel("Select Camera:")
             self.camera_combo = QtWidgets.QComboBox()
             self.populate_cameras()
 
+        case_name_Hlayout = QtWidgets.QHBoxLayout()
         self.case_name_label = QtWidgets.QLabel("Case Name:")
-        self.case_name_edit = QtWidgets.QLineEdit("temp_case")
+        self.case_name_edit = QtWidgets.QLineEdit(CONFIG["case_name"])
+        case_name_Hlayout.addWidget(self.case_name_label, 1)
+        case_name_Hlayout.addWidget(self.case_name_edit, 1)
 
+        exposure_Hlayout = QtWidgets.QHBoxLayout()
         self.exposure_label = QtWidgets.QLabel("Exposure Level:")
         self.exposure_spin = QtWidgets.QSpinBox()
         self.exposure_spin.setRange(1, 500)
-        self.exposure_spin.setValue(100)
+        self.exposure_spin.setValue(CONFIG["exposure_level"])
+        exposure_Hlayout.addWidget(self.exposure_label, 1)
+        exposure_Hlayout.addWidget(self.exposure_spin, 1)
 
+        samping_number_Hlayout = QtWidgets.QHBoxLayout()
         self.sampling_number_label = QtWidgets.QLabel("Image Sampling Number:")
         self.sampling_number_spin = QtWidgets.QSpinBox()
         self.sampling_number_spin.setRange(1, 50)
-        self.sampling_number_spin.setValue(20)
+        self.sampling_number_spin.setValue(CONFIG["image_sampling_size"])
+        samping_number_Hlayout.addWidget(self.sampling_number_label, 1)
+        samping_number_Hlayout.addWidget(self.sampling_number_spin, 1)
 
+        depth_queue_Hlayout = QtWidgets.QHBoxLayout()
         self.depth_queue_label = QtWidgets.QLabel("Depth Queue Size:")
         self.depth_queue_spin = QtWidgets.QSpinBox()
         self.depth_queue_spin.setRange(1, 100)
-        self.depth_queue_spin.setValue(50)
+        self.depth_queue_spin.setValue(CONFIG["depth_queue_size"])
+        depth_queue_Hlayout.addWidget(self.depth_queue_label, 1)
+        depth_queue_Hlayout.addWidget(self.depth_queue_spin, 1)
 
         self.save_checkbox = QtWidgets.QCheckBox("Save Data")
         self.save_checkbox.setChecked(True)
@@ -110,18 +130,21 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.stop_button.setEnabled(False)
 
         # vertical layout for controls
-        controls_layout = QtWidgets.QVBoxLayout()
+        controls_widget = QtWidgets.QWidget()
+        controls_widget.setFixedWidth(400)
+        controls_widget.setFixedHeight(800)
+        controls_layout = QtWidgets.QVBoxLayout(controls_widget)
+
+        controls_layout.addWidget(self.capture_label)
         if self.use_ordinary_camera:
             controls_layout.addWidget(self.camera_label)
             controls_layout.addWidget(self.camera_combo)
-        controls_layout.addWidget(self.case_name_label)
-        controls_layout.addWidget(self.case_name_edit)
-        controls_layout.addWidget(self.exposure_label)
-        controls_layout.addWidget(self.exposure_spin)
-        controls_layout.addWidget(self.sampling_number_label)
-        controls_layout.addWidget(self.sampling_number_spin)
-        controls_layout.addWidget(self.depth_queue_label)
-        controls_layout.addWidget(self.depth_queue_spin)
+
+        controls_layout.addLayout(case_name_Hlayout)
+        controls_layout.addLayout(exposure_Hlayout)
+        controls_layout.addLayout(samping_number_Hlayout)
+        controls_layout.addLayout(depth_queue_Hlayout)
+
         controls_layout.addWidget(self.switch_button)
         controls_layout.addStretch()
         controls_layout.addWidget(self.save_checkbox)
@@ -130,8 +153,8 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # horizontal layout for capture
         capture_layout = QtWidgets.QHBoxLayout()
-        capture_layout.addLayout(self.stacked_layout, stretch=6)
-        capture_layout.addLayout(controls_layout, stretch=1)
+        capture_layout.addLayout(self.stacked_layout)
+        capture_layout.addWidget(controls_widget)
 
         return capture_layout
 
@@ -160,25 +183,6 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # Pop up windows to ask
         if self.save_checkbox.isChecked():
-
-            # in order to keep the file structure, use string to deal with the yaml file instead of yaml library
-            import re
-
-            with open("configs/case_config.yaml", "r") as f:
-                yaml_content = f.read()
-            yaml_content = re.sub(
-                r'(?<=case_name:\s)["\'].*?["\']',
-                f'"{self.capture_thread.case_name}"',
-                yaml_content,
-            )
-
-            with open("configs/case_config.yaml", "w") as file:
-                file.write(yaml_content)
-
-            from configs.load_config import reload_config
-
-            CONFIG = reload_config()
-
             saving_path = os.path.join("data", self.capture_thread.case_name)
             if os.path.exists(saving_path):
                 reply = QtWidgets.QMessageBox.question(
@@ -211,8 +215,9 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         if hasattr(self, "capture_thread") and self.capture_thread.isRunning():
             self.capture_thread.stop()
             self.capture_thread.wait()
-            # 清理线程实例
+            # del the thread
             del self.capture_thread
+
         if self.use_ordinary_camera:
             self.camera_combo.setEnabled(True)
         self.start_button.setEnabled(True)
@@ -226,28 +231,14 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         """update the image in the label"""
         qt_img = self.convert_cv_qt(cv_img)
         self.image_label.setPixmap(qt_img)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
 
     @QtCore.pyqtSlot(np.ndarray)
     def update_depth(self, cv_img):
         """update the depth in the label"""
         qt_img = self.convert_cv_qt(cv_img)
         self.depth_label.setPixmap(qt_img)
-
-    def convert_cv_qt(self, cv_img):
-        """convert cv image to qt image"""
-        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-        h, w, ch = rgb_image.shape
-        bytes_per_line = ch * w
-        qt_image = QtGui.QImage(
-            rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888
-        )
-        qt_pixmap = QtGui.QPixmap.fromImage(qt_image)
-        qt_pixmap = qt_pixmap.scaled(
-            self.image_label.width(),
-            self.image_label.height(),
-            QtCore.Qt.KeepAspectRatio,
-        )
-        return qt_pixmap
+        self.depth_label.setAlignment(QtCore.Qt.AlignCenter)
 
     def switch_display(self):
         """switch between image and depth display"""
@@ -267,7 +258,7 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
         for index in available_cameras:
             self.camera_combo.addItem(f"Cam {index}", index)
 
-    def get_available_cameras(self, max_cameras=5):
+    def get_available_cameras(self, max_cameras=10):
         """detect all available cameras"""
         available = []
         for index in range(max_cameras):
