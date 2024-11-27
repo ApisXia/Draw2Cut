@@ -17,7 +17,7 @@ class TrajectoryThread(QtCore.QThread):
     fine_trajectory_signal = QtCore.pyqtSignal(list)
     ultra_fine_trajectory_signal = QtCore.pyqtSignal(list)
     depth_map_signal = QtCore.pyqtSignal(list)
-    coarse_trajectory_drawing_signal = QtCore.pyqtSignal(np.ndarray)
+    coarse_trajectory_drawing_signal = QtCore.pyqtSignal(dict)
 
     def __init__(self, parent=None):
         super(TrajectoryThread, self).__init__()
@@ -64,20 +64,18 @@ class TrajectoryThread(QtCore.QThread):
         self.perform_task()
 
         # draw coarse trajectory
-        # draw the trajectory on the map (it is always flipped, because image start from top left corner)`
-        canvas = np.zeros_like(self.parent.mask_action_binaries["contour"])
-        map_image = draw_trajectory(canvas, self.coarse_trajectory_holders)
-        # flip the image horizontally
-        map_image = cv2.flip(map_image, 0)
-        cv2.imwrite(
-            os.path.join(self.temp_file_path, "coarse_trajectory.png"), map_image
-        )
+        coarse_drawing_dict = self.draw_coarse_trajectory()
+        for key, map_image in coarse_drawing_dict.items():
+            cv2.imwrite(
+                os.path.join(self.temp_file_path, f"coarse_trajectory_level_{key}.png"),
+                map_image,
+            )
 
         self.coarse_trajectory_signal.emit(self.coarse_trajectory_holders)
         self.fine_trajectory_signal.emit(self.fine_trajectory_holders)
         self.ultra_fine_trajectory_signal.emit(self.ultra_fine_trajectory_holders)
         self.depth_map_signal.emit(self.depth_map_holders)
-        self.coarse_trajectory_drawing_signal.emit(map_image)
+        self.coarse_trajectory_drawing_signal.emit(coarse_drawing_dict)
         self.message_signal.emit("Finish Trajectory Planning", "step")
 
     def perform_task(self):
@@ -105,6 +103,21 @@ class TrajectoryThread(QtCore.QThread):
             + str(len(self.ultra_fine_trajectory_holders)),
             "info",
         )
+
+    """ Drawing coarse trajectory maps """
+
+    def draw_coarse_trajectory(self):
+        c_drawing_dict = {}
+        for c_traj in self.coarse_trajectory_holders:
+            cutting_depth = c_traj[0][2]
+            level = int(cutting_depth // self.depth_forward_steps[0])
+            if level not in c_drawing_dict.keys():
+                c_drawing_dict[level] = np.zeros_like(
+                    self.parent.mask_action_binaries["contour"]
+                )
+            c_drawing_dict[level] = draw_trajectory(c_drawing_dict[level], [c_traj])
+
+        return c_drawing_dict
 
     """ Line cutting functions """
 

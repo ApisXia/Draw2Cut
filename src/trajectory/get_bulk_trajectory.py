@@ -347,7 +347,8 @@ def draw_trajectory(map_image, trajectories, spindle_radius=2, line_type="arrow"
         line_func = cv2.line
 
     # Convert grayscale image to BGR
-    map_image = cv2.cvtColor(map_image, cv2.COLOR_GRAY2BGR)
+    if len(map_image.shape) == 2:
+        map_image = cv2.cvtColor(map_image, cv2.COLOR_GRAY2BGR)
 
     # Iterate over the trajectories, draw each one
     for trajectory in trajectories:

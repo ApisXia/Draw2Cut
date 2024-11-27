@@ -8,7 +8,9 @@ import pyqtgraph.opengl as gl
 from copy import deepcopy
 from PyQt5.QtCore import Qt
 from scipy.spatial import KDTree
+from PyQt5.QtGui import QFont
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QTableWidget, QHeaderView, QToolButton
 
 from configs.load_config import CONFIG
 from utils.trajectory_transform import (
@@ -47,6 +49,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.ultra_fine_trajectory_holders = []
         # store the depth map of all cutting
         self.depth_map_holders = []
+        self.coarse_trajectory_image_dict = None
 
         # step2: mesh holders
         self.vertices_offset = np.asarray([[150, 260, 0]])
@@ -196,6 +199,27 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         )
         self.start_trajectory_button.clicked.connect(self.start_trajectory_planning)
 
+        self.trajectory_result_table = QtWidgets.QTableWidget()
+        self.trajectory_result_table.setColumnCount(2)
+        self.trajectory_result_table.setFixedWidth(350)
+        self.trajectory_result_table.setFixedHeight(92)
+        self.trajectory_result_table.setHorizontalHeaderLabels(
+            ["Cutting Level", "Coarse Trajectory"]
+        )
+
+        self.trajectory_result_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents
+        )
+        self.trajectory_result_table.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents
+        )
+        self.trajectory_result_table.horizontalHeader().setStretchLastSection(True)
+        self.trajectory_result_table.setSizeAdjustPolicy(QTableWidget.AdjustToContents)
+        self.trajectory_result_table.resizeRowsToContents()
+        self.trajectory_result_table.setWordWrap(False)
+
+        self.update_trajectory_result_table()
+
         # visualization part
         self.visualization_label = QtWidgets.QLabel("Visualization")
         self.visualization_label.setFont(font)
@@ -272,6 +296,10 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         controls_layout.addLayout(self.relief_slope_mount_Hlayout)
 
         controls_layout.addWidget(self.start_trajectory_button)
+
+        controls_layout.addWidget(
+            self.trajectory_result_table, alignment=Qt.AlignHCenter
+        )
 
         controls_layout.addWidget(separator1)
 
@@ -355,6 +383,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # start trajectory planning thread
         self.traj_thread.finished.connect(self.trajectory_down_scaling_to_real)
+        self.traj_thread.finished.connect(self.update_trajectory_result_table)
         self.traj_thread.start()
 
     @QtCore.pyqtSlot(list)
@@ -377,12 +406,50 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         del self.depth_map_holders
         self.depth_map_holders = depth_map
 
-    @QtCore.pyqtSlot(np.ndarray)
-    def update_coarse_traj_image(self, coarse_traj_image):
-        qt_pixmap = self.convert_cv_qt(coarse_traj_image)
+    @QtCore.pyqtSlot(dict)
+    def update_coarse_traj_image(self, coarse_traj_image_dict):
+        self.coarse_trajectory_image_dict = coarse_traj_image_dict
+        qt_pixmap = self.convert_cv_qt(list(coarse_traj_image_dict.values())[0])
         self.image_label.setPixmap(qt_pixmap)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
         self.append_message("Coarse trajectory image visualized", "info")
+
+    def update_trajectory_result_table(self):
+        # avoid signal emitting
+        self.trajectory_result_table.blockSignals(True)
+
+        if self.coarse_trajectory_image_dict is None:
+            self.trajectory_result_table.setRowCount(0)
+            self.trajectory_result_table.blockSignals(False)
+            return
+
+        self.trajectory_result_table.setRowCount(len(self.coarse_trajectory_image_dict))
+        for i, _ in enumerate(self.coarse_trajectory_image_dict.keys()):
+            count_item = QtWidgets.QTableWidgetItem(str(i))
+            count_item.setTextAlignment(Qt.AlignCenter)
+            self.trajectory_result_table.setItem(i, 0, count_item)
+
+            font = QFont()
+            font.setPointSize(7)
+            action_button = QToolButton()
+            action_button.setText("💡")
+            action_button.clicked.connect(
+                lambda _, row=i: self.click_to_view_trajectory(row)
+            )
+            self.trajectory_result_table.setCellWidget(i, 1, action_button)
+
+        self.trajectory_result_table.blockSignals(False)
+
+    def click_to_view_trajectory(self, row):
+        if self.coarse_trajectory_image_dict is None:
+            return
+
+        self.switch_display(0)
+
+        key = list(self.coarse_trajectory_image_dict.keys())[row]
+        qt_pixmap = self.convert_cv_qt(self.coarse_trajectory_image_dict[key])
+        self.image_label.setPixmap(qt_pixmap)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
 
     def trajectory_down_scaling_to_real(self):
         # downsample the trajectory based on SURFACE_UPSCALE
@@ -615,10 +682,14 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.coarse_trajectory_holders = []
         self.fine_trajectory_holders = []
         self.ultra_fine_trajectory_holders = []
+        self.coarse_trajectory_image_dict = None
         self.left_bottom_point = None
         self.original_mesh_vertices = None
         self.original_mesh_triangles = None
         self.original_mesh_colors = None
+        self.depth_map_holders = []
+
+        self.update_trajectory_result_table()
 
 
 if __name__ == "__main__":

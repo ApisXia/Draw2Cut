@@ -37,11 +37,11 @@ class MainWindow(QtWidgets.QWidget):
         """
         )
 
-        # Page1: capture
+        # Page1: Capture Pointcloud
         self.capture_layout = CaptureGUI(message_box=self.message_box)
         self.pages.addTab(self.capture_layout, "Step1: Capture Pointcloud")
 
-        # Page2: separate surface
+        # Page2: Separate Cutting Surface
         self.separate_layout = SeperateGUI(message_box=self.message_box)
         self.pages.addTab(self.separate_layout, "Step2: Separate Cutting Surface")
 
