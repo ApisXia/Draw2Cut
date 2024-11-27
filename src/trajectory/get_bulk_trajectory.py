@@ -85,7 +85,7 @@ def get_trajectory_layer_cut(
     bulk_carving_depth: dict = CONFIG["bulk_carving_depth"],
     behavior_type: str = "behavior_plane",
 ):
-    # [ ] (remvoe in future) print current settings
+    # print current settings
     print(f"** [Settings] **")
     print(f"** [Settings] ** Depth forward steps: {depth_forward_steps}")
     print(f"** [Settings] ** Spindle radius: {spindle_radius}")

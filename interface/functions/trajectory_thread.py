@@ -39,7 +39,7 @@ class TrajectoryThread(QtCore.QThread):
         self.fine_trajectory_holders = []
         # store the trajectory of ultra fine bulk cutting
         self.ultra_fine_trajectory_holders = []
-        # [ ] store the depth map of all cutting (current just for bulk cutting)
+        # store the depth map of all cutting
         self.depth_map_holders = []
 
     def set_settings(

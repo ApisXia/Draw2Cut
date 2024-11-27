@@ -8,7 +8,7 @@ import open3d as o3d
 from PyQt5 import QtCore
 from copy import deepcopy
 
-from visualization.QRcode_localization import localize_qr_codes
+from utils.QRcode_localization import localize_qr_codes
 
 
 def depth_queue(
@@ -194,8 +194,7 @@ class CaptureThread(QtCore.QThread):
             .get_intrinsics()
         )
 
-        # [ ] better print format
-        print(intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy)
+        self.message_signal.emit(f"Camera intrinsics: {intr}", "info")
 
         # get camera intrinsic parameters for open3d
         o3d_intr = o3d.camera.PinholeCameraIntrinsic(
@@ -216,11 +215,9 @@ class CaptureThread(QtCore.QThread):
                 image_list.append(color_image)
                 # print(f"Image {len(image_list)} is collected.")
             elif len(image_list) == self.sampling_number:
-                # [ ] set that to message center later
-                print("Color Image collection is done.")
                 self.message_signal.emit("Color Image collection is done.", "info")
 
-            # 在彩色图像上绘制 QR 码
+            # draw the qr code
             color_image_with_qr = localize_qr_codes(
                 deepcopy(color_image), resize_factor=2
             )
@@ -250,8 +247,6 @@ class CaptureThread(QtCore.QThread):
             self.depth_updated.emit(depth_colormap)
 
             if self.saving_opt and self._stop_event.is_set():
-                # 执行保存操作
-                print("Saving point cloud...")
                 self.message_signal.emit("Saving point cloud...", "info")
 
                 # Convert the scaled NumPy array back to an Open3D image
@@ -279,18 +274,11 @@ class CaptureThread(QtCore.QThread):
                     [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]
                 )
 
-                # pipeline.stop()
-
-                # o3d.visualization.draw_geometries([pcd])
-
                 # save the point cloud to npz file
                 points_pos = np.asarray(pcd.points)
                 transformed_color = np.asarray(pcd.colors)
                 depth = np.asarray(depth)
-                # show_image(points_pos, "points_pos")
-                # show_image(transformed_color, "transformed_color")
-                # show_image(depth, "depth")
-                # color_image = cv2.resize(color_image, (1280, 800))
+
                 np.savez(
                     os.path.join(saving_path, "point_cloud.npz"),
                     points_pos=points_pos,

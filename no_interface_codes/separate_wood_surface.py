@@ -65,7 +65,7 @@ def seperate_wood_surface(
 
     z_direction = np.cross(y_direction, x_direction)
 
-    # XXX: using z and y axis to calculate orthogonal x axis again
+    # using z and y axis to calculate orthogonal x axis again
     x_direction = np.cross(z_direction, y_direction)
     print("x dot y later", np.dot(x_direction, y_direction))
 
@@ -185,7 +185,7 @@ def seperate_wood_surface(
     extract_mask = remove_small_holes(extract_mask, area_threshold=70)
     # extract_mask = dilation(
     #     extract_mask, disk(9)
-    # )  # [ ]: this can control extra bundary
+    # )
 
     extract_mask = extract_mask.reshape(-1)
     extract_mask = extract_mask & mask

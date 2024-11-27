@@ -35,7 +35,6 @@ class CaptureGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         self.setLayout(main_layout)
 
-        # [ ]: not correct?
         self.capture_thread = CaptureThread()
 
     def create_layout(self):

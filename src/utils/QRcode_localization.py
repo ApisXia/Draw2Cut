@@ -1,10 +1,6 @@
 import cv2
-import numpy as np
 
-from glob import glob
 from pyzbar import pyzbar
-
-from configs.load_config import CONFIG
 
 
 def localize_qr_codes(image, resize_factor=2):
@@ -62,26 +58,3 @@ def localize_qr_codes(image, resize_factor=2):
         except Exception as e:
             print(f"An error occurred: {str(e)}")
     return image
-
-
-if __name__ == "__main__":
-    # TODO: not correct, need to support using RGB camera on the depth camera
-    file_path = CONFIG["data_path"]
-    data_list = glob(file_path)
-
-    for data_path in data_list:
-        # load data
-        data = np.load(data_path)
-        cv2.imshow("Transformed Color", localize_qr_codes(data["transformed_color"]))
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    cv2.destroyAllWindows()
-
-    # read local camera and display the QR code
-    # cap = cv2.VideoCapture(1)
-    # while True:
-    #     ret, frame = cap.read()
-    #     cv2.imshow("QR code localization", localize_qr_codes(frame, resize_factor=0.5))
-    #     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #         break

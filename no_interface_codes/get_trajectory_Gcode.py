@@ -331,7 +331,7 @@ def get_trajectory_Gcode(
         ultra_fine_trajectory_holders, left_bottom[0], left_bottom[1], left_bottom[2]
     )
 
-    # [ ]: need to add fine cutting trajectory?
+    # need to add fine cutting trajectory?
     np.savez(
         os.path.join(temp_file_path, "coarse_points.npz"),
         points=coarse_cutting_points,

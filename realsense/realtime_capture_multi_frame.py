@@ -6,7 +6,7 @@ import open3d as o3d
 
 from copy import deepcopy
 
-from visualization.QRcode_localization import localize_qr_codes
+from utils.QRcode_localization import localize_qr_codes
 
 
 def create_custom_point_cloud(depth_image, color_image, intrinsic):
@@ -115,6 +115,7 @@ def depth_queue(
     # return average depth image using valid mask
     average_depth_image = np.sum(DEPTH_QUEUE * DEPTH_VALID_QUEUE, axis=0) / valid_sum
     return average_depth_image
+
 
 def capture(case_name):
     samping_number = 20
@@ -244,7 +245,6 @@ def capture(case_name):
 
     pipeline.stop()
     exit()
-
 
 
 if __name__ == "__main__":
