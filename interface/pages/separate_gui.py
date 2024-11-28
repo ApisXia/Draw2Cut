@@ -92,7 +92,7 @@ class SeperateGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.vis_point_cloud_button = QtWidgets.QPushButton("Show Collected Pointcloud")
         self.vis_point_cloud_button.clicked.connect(self.show_collected_pointcloud)
 
-        axis_label = QtWidgets.QLabel("Axis Label Setting")
+        axis_label = QtWidgets.QLabel("Axis Setting && Separation Parameters")
         axis_label.setFont(font)
         origin_HLayout = QtWidgets.QHBoxLayout()
         self.origin_label = QtWidgets.QLabel("origin_label:")
