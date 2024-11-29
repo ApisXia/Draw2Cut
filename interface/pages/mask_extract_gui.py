@@ -57,7 +57,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         # setup layout
         page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addLayout(page_layout)
+        main_layout.addLayout(page_layout, stretch=7)
 
         if message_box is not None:
             self.message_box = message_box
@@ -66,7 +66,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.message_box = QtWidgets.QTextEdit()
             self.message_box.setReadOnly(True)
             self.message_box.setFixedHeight(100)
-            main_layout.addWidget(self.message_box)
+            main_layout.addWidget(self.message_box, stretch=1)
 
         self.setLayout(main_layout)
 
@@ -77,7 +77,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
-        self.image_label.setFixedSize(1080, 800)
+        self.image_label.setMinimumSize(1080, 800)
         self.image_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
@@ -301,8 +301,14 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.colored_mask = colored_mask
         # also update the image label
         qt_img = self.convert_cv_qt(colored_mask)
-        self.image_label.setPixmap(qt_img)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setPixmap(
+            qt_img.scaled(
+                self.image_label.size(),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+        )
 
     @QtCore.pyqtSlot(dict)
     def update_semantic_mask_dict(self, semantic_mask_dict):
@@ -416,8 +422,14 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
             return
 
         qt_img = self.convert_cv_qt(self.colored_mask)
-        self.image_label.setPixmap(qt_img)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setPixmap(
+            qt_img.scaled(
+                self.image_label.size(),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+        )
 
     def update_color_table(self):
         # avoid signal emitting
@@ -529,8 +541,14 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         mask = self.semantic_mask_dict[color_type]
         qt_img = self.convert_cv_qt(mask)
-        self.image_label.setPixmap(qt_img)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setPixmap(
+            qt_img.scaled(
+                self.image_label.size(),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+        )
 
     def visualize_each_centerline(self, mark_type_name):
         if self.centerline_images_dict is None:
@@ -543,8 +561,14 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         mask = self.centerline_images_dict[mark_type_name]
         qt_img = self.convert_cv_qt(mask)
-        self.image_label.setPixmap(qt_img)
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setPixmap(
+            qt_img.scaled(
+                self.image_label.size(),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+        )
 
     def delete_color(self, row):
         # remove the color from the list

@@ -61,7 +61,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         # setup layout
         page_layout = self.create_layout()
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addLayout(page_layout)
+        main_layout.addLayout(page_layout, stretch=7)
 
         if message_box is not None:
             self.message_box = message_box
@@ -70,7 +70,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             self.message_box = QtWidgets.QTextEdit()
             self.message_box.setReadOnly(True)
             self.message_box.setFixedHeight(100)
-            main_layout.addWidget(self.message_box)
+            main_layout.addWidget(self.message_box, stretch=1)
 
         self.setLayout(main_layout)
 
@@ -82,7 +82,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     def create_layout(self):
         # image display
         self.image_label = QtWidgets.QLabel()
-        self.image_label.setFixedSize(1080, 800)
+        self.image_label.setMinimumSize(1080, 800)
         self.image_label.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
         )
@@ -95,7 +95,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         # create GLViewWidget
         self.gl_view = gl.GLViewWidget()
-        self.gl_view.setFixedSize(1080, 800)
+        self.gl_view.setMinimumSize(1080, 800)
         self.gl_view.opts["distance"] = 320  # set camera distance
 
         # add grid
@@ -409,9 +409,15 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     @QtCore.pyqtSlot(dict)
     def update_coarse_traj_image(self, coarse_traj_image_dict):
         self.coarse_trajectory_image_dict = coarse_traj_image_dict
-        qt_pixmap = self.convert_cv_qt(list(coarse_traj_image_dict.values())[0])
-        self.image_label.setPixmap(qt_pixmap)
+        qt_img = self.convert_cv_qt(list(coarse_traj_image_dict.values())[0])
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setPixmap(
+            qt_img.scaled(
+                self.image_label.size(),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+        )
         self.append_message("Coarse trajectory image visualized", "info")
 
     def update_trajectory_result_table(self):
@@ -447,9 +453,15 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.switch_display(0)
 
         key = list(self.coarse_trajectory_image_dict.keys())[row]
-        qt_pixmap = self.convert_cv_qt(self.coarse_trajectory_image_dict[key])
-        self.image_label.setPixmap(qt_pixmap)
+        qt_img = self.convert_cv_qt(self.coarse_trajectory_image_dict[key])
         self.image_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.image_label.setPixmap(
+            qt_img.scaled(
+                self.image_label.size(),
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+        )
 
     def trajectory_down_scaling_to_real(self):
         # downsample the trajectory based on SURFACE_UPSCALE

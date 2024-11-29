@@ -18,12 +18,12 @@ class MainWindow(QtWidgets.QWidget):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Draw2Cut")
-        self.setFixedSize(1600, 1000)
+        # self.setFixedSize(1600, 1000)
 
         # define message box
         self.message_box = QtWidgets.QTextEdit()
         self.message_box.setReadOnly(True)
-        self.message_box.setFixedSize(1500, 100)
+        # self.message_box.setFixedSize(1500, 100)
 
         # create pages
         self.pages = QtWidgets.QTabWidget()
@@ -60,8 +60,8 @@ class MainWindow(QtWidgets.QWidget):
 
         # main layout
         main_layout = QtWidgets.QVBoxLayout()
-        main_layout.addWidget(self.pages, alignment=QtCore.Qt.AlignCenter)
-        main_layout.addWidget(self.message_box, alignment=QtCore.Qt.AlignCenter)
+        main_layout.addWidget(self.pages, stretch=7)
+        main_layout.addWidget(self.message_box, stretch=1)
 
         self.setLayout(main_layout)
 
