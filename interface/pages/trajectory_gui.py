@@ -537,7 +537,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         offsetted_z_list = []
         for point in self.original_mesh_vertices:
             dist, idx = depth_map_kd_tree.query(point[:2])
-            if dist < 2:
+            if dist < 0.6:
                 offsetted_z_list.append(depth_map_points[idx, 2])
             else:
                 offsetted_z_list.append(point[2])
