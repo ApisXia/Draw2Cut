@@ -111,11 +111,17 @@ class TrajectoryThread(QtCore.QThread):
         for c_traj in self.coarse_trajectory_holders:
             cutting_depth = c_traj[0][2]
             level = int(cutting_depth // self.depth_forward_steps[0])
+            if level == 0:
+                continue
             if level not in c_drawing_dict.keys():
                 c_drawing_dict[level] = np.zeros_like(
                     self.parent.mask_action_binaries["contour"]
                 )
             c_drawing_dict[level] = draw_trajectory(c_drawing_dict[level], [c_traj])
+
+        # upside down all the images
+        for key, map_image in c_drawing_dict.items():
+            c_drawing_dict[key] = cv2.flip(map_image, 0)
 
         return c_drawing_dict
 
@@ -128,6 +134,8 @@ class TrajectoryThread(QtCore.QThread):
         z_arange_list = np.arange(
             0, -self.line_cutting_depth, -self.depth_forward_steps[0]
         ).tolist()
+        # remove 0
+        z_arange_list.pop(0)
         z_arange_list.append(-self.line_cutting_depth)
 
         for key_contour in self.parent.line_dict["contour"].keys():
