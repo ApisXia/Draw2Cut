@@ -234,7 +234,7 @@ class MaskExtractGUI(QtWidgets.QWidget, MessageBoxMixin):
 
         controls_layout.addWidget(self.color_label)
         controls_layout.addWidget(self.color_value_table, alignment=Qt.AlignHCenter)
-        controls_layout.addSpacing(-10)
+        # controls_layout.addSpacing(-10)
         controls_layout.addLayout(color_botton_layout)
         controls_layout.addWidget(self.mask_extract_button)
 

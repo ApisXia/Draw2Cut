@@ -557,9 +557,13 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
         self.append_message("Original mesh visualized", "step")
 
     def put_mesh_on_view(self, vertices, triangles, colors):
+        # reverse the x axis
+        vertices = vertices - self.vertices_offset
+        vertices[:, 0] = -vertices[:, 0]
+
         # create GLMeshItem
         mesh_item = gl.GLMeshItem(
-            vertexes=vertices - self.vertices_offset,
+            vertexes=vertices,
             faces=triangles,
             vertexColors=colors,
             smooth=False,
