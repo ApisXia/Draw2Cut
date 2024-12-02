@@ -5,7 +5,7 @@ from scipy.spatial import KDTree
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from utils.trajectory_transform import vis_points_transformation
+from trajectory.trajectory_transform import vis_points_transformation
 
 
 class VisualizeAnimationThread(QThread):
