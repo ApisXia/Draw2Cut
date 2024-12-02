@@ -51,7 +51,7 @@ If depth camera functionality is not required, you can skip this step.
 Run the following command to launch the interface:
 
 ```bash
-python interface/main.py
+python main.py
 ```
 
 ### Notes for Ubuntu Users:

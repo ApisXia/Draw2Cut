@@ -479,6 +479,9 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
     """ Visualization Functions """
 
     def start_vis_animation(self):
+        self.switch_display(1)
+        self.read_original_mesh(check_already_loaded=True)
+
         if (
             hasattr(self, "vis_animation_thread")
             and self.vis_animation_thread.is_running
@@ -581,6 +584,7 @@ class TrajectoryGUI(QtWidgets.QWidget, MessageBoxMixin):
             smooth=False,
             drawFaces=True,
             drawEdges=False,
+            shader="shaded",
         )
         mesh_item.setGLOptions("opaque")  # set opaque
         self.gl_view.clear()

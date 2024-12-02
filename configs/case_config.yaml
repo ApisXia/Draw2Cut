@@ -17,7 +17,7 @@ depth_queue_size: 50
 
 # page 2: working space settings
 # In panel
-origin_label: "0"  # later needs to be "11"
+origin_label: "10"  # later needs to be "11"
 x_axis_label: ["9", "8"]  # the last one can be used to define the axis length
 y_axis_label: ["1", "2", "3"]  # the last one can be used to define the axis length
 z_min_level: 10  # mm
@@ -43,7 +43,7 @@ line_cutting_depth: 2  # mm (minus means nothing will happen)
 offset_z_level: 0  # mm (decide this by comparing machine measured z level and the actual z level)
 bulk_carving_depth: 
   behavior_relief: 10.5  # mm (minus means nothing will happen)
-  behavior_plane: 10.5  # mm (minus means nothing will happen)
+  behavior_plane: 3  # mm (minus means nothing will happen)
 relief_slop:
   carving: 0.19  # z / x or y
   mount: 0.3  # z / x or y
