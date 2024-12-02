@@ -1,11 +1,6 @@
-import os
 import sys
-import cv2
-import shutil
-import datetime
-import numpy as np
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtWidgets
 
 from interface.pages.capture_gui import CaptureGUI
 from interface.pages.separate_gui import SeperateGUI

@@ -1,11 +1,9 @@
 import os
 import sys
 import cv2
-import threading
 import numpy as np
 import pyqtgraph.opengl as gl
 
-from glob import glob
 from copy import deepcopy
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui, QtWidgets, QtCore

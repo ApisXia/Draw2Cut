@@ -13,7 +13,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QTableWidget, QHeaderView, QToolButton
 
 from configs.load_config import CONFIG
-from utils.trajectory_transform import (
+from trajectory.trajectory_transform import (
     down_scaling_to_real,
     vis_points_transformation,
     add_x_y_offset,
