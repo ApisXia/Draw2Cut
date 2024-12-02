@@ -1,5 +1,4 @@
 import cv2
-import json
 import numpy as np
 
 from skimage.morphology import skeletonize, thin

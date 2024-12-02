@@ -2,7 +2,6 @@ import os
 import cv2
 import numpy as np
 
-from copy import deepcopy
 from sklearn.cluster import KMeans
 
 from src.mask.extract_mask import extract_marks_with_colors, draw_extracted_marks

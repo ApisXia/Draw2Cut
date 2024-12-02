@@ -2,13 +2,12 @@ import os
 import cv2
 import threading
 import numpy as np
-import pandas as pd
 import open3d as o3d
 
 from PyQt5 import QtCore
 from copy import deepcopy
 
-from utils.QRcode_localization import localize_qr_codes
+from src.space_finding.qr_code import localize_qr_codes
 
 
 def depth_queue(

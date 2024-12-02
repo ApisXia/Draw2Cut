@@ -1,7 +1,6 @@
 import os
 import cv2
 import shutil
-import numpy as np
 
 from PyQt5 import QtCore
 
