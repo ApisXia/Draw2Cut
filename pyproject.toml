@@ -1,13 +1,10 @@
 [tool.poetry]
-name = "woodcut"
-version = "0.1.0"
+name = "Draw2Cut"
+version = "1.0.0"
 description = ""
-authors = ["Atara <dingxia1995@gmail.com>"]
+authors = ["Unknown"]
 readme = "README.md"
-packages = [
-    { include = "visualization" },
-    { include = "mask", from = "src" },
-]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"

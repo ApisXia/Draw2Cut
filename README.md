@@ -1,5 +1,5 @@
 
-# WoodCut Project
+# Draw2Cut Project
 
 **Version:** 1.0.0
 
