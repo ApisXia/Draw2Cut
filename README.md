@@ -44,6 +44,22 @@ The current `pyproject.toml` does not include `pyrealsense2`. If you need depth 
 
 If depth camera functionality is not required, you can skip this step.
 
+### Download Demo Data
+
+- **Download Test Data**
+   - Access the demo data from [Google Drive](https://drive.google.com/drive/folders/1EA1aSkaY4Srou1xx2owAVgIeyRJQJpu4?usp=sharing)
+   - Download the `point_cloud.npz` file
+
+-  **Setup Data Directory**
+   - Create a `data` folder in the project root if it doesn't exist
+   - Create a `teatable` subfolder inside `data`
+   - Place the downloaded `point_cloud.npz` file at:
+     ```
+     data/
+     └── teatable/
+         └── point_cloud.npz
+     ```
+
 ---
 
 ## 2. Interface
@@ -102,6 +118,8 @@ python main.py
    - Use the table to inspect results for each type of centerline.
 
 7. If results are unsatisfactory, adjust the color table and repeat the process.
+
+8. Remember to click **Save to File**.
 
 ---
 
