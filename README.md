@@ -1,5 +1,5 @@
 
-# Draw2Cut Project
+# [CHI2025] Draw2Cut: Direct On-Material Annotations for CNC Milling
 
 **Version:** 1.0.0
 
@@ -147,3 +147,14 @@ python main.py
 Ensure all parameters are fine-tuned during each step for optimal results. Repeat steps as necessary to refine outputs.
 
 ---
+
+### Citation
+
+```
+@article{gui2025direct,
+  title={Draw2Cut: Direct On-Material Annotations for CNC Milling},
+  author={Gui, Xinyue and Xia, Ding and Gao, Wang and Dogan, Mustafa Doga and Larsson, Maria and Igarashi, Takeo},
+  journal={arXiv preprint arXiv:2501.18951},
+  year={2025}
+}
+```
