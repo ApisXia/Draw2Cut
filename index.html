@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
+    <!-- Replace the content tag with appropriate information -->
+    <meta name="description" content="DESCRIPTION META TAG" />
+    <meta property="og:title" content="SOCIAL MEDIA TITLE TAG" />
+    <meta
+      property="og:description"
+      content="SOCIAL MEDIA DESCRIPTION TAG TAG"
+    />
+    <meta property="og:url" content="URL OF THE WEBSITE" />
+    <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
+    <meta property="og:image" content="static/image/your_banner_image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <meta name="twitter:title" content="TWITTER BANNER TITLE META TAG" />
+    <meta
+      name="twitter:description"
+      content="TWITTER BANNER DESCRIPTION META TAG"
+    />
+    <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X600-->
+    <meta
+      name="twitter:image"
+      content="static/images/your_twitter_banner_image.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Keywords for your paper to be indexed by-->
+    <meta name="keywords" content="KEYWORDS SHOULD BE PLACED HERE" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Draw2Cut Project Page</title>
+    <link rel="icon" type="image/x-icon" href="static/images/draw2cut.ico" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="static/css/bulma.min.css" />
+    <link rel="stylesheet" href="static/css/bulma-carousel.min.css" />
+    <link rel="stylesheet" href="static/css/bulma-slider.min.css" />
+    <link rel="stylesheet" href="static/css/fontawesome.all.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css"
+    />
+    <link rel="stylesheet" href="static/css/index.css" />
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+    <script defer src="static/js/fontawesome.all.min.js"></script>
+    <script src="static/js/bulma-carousel.min.js"></script>
+    <script src="static/js/bulma-slider.min.js"></script>
+    <script src="static/js/index.js"></script>
+  </head>
+  <body>
+    <section class="hero">
+      <div class="hero-body">
+        <div class="container is-max-desktop">
+          <div class="columns is-centered">
+            <div class="column has-text-centered">
+              <h1 class="title is-1 publication-title">
+                Draw2Cut: Direct On-Material Annotations for CNC Milling
+              </h1>
+              <div class="is-size-5 publication-authors">
+                <!-- Paper authors -->
+                <span class="author-block">
+                  <a href="https://xinyuegui.github.io/" target="_blank"
+                    >Xinyue Gui</a
+                  ><sup>*,1</sup>,</span
+                >
+                <span class="author-block">
+                  <a href="https://github.com/ApisXia" target="_blank"
+                    >Ding Xia</a
+                  ><sup>*,1</sup>,</span
+                >
+                <span class="author-block">
+                  <a href="THIRD AUTHOR PERSONAL LINK" target="_blank"
+                    >Wang Gao</a
+                  ><sup>1</sup>,</span
+                >
+                <span class="author-block">
+                  <a href="https://www.dogadogan.com/" target="_blank"
+                    >Mustafa Doga Dogan</a
+                  ><sup>2</sup>,</span
+                >
+                <span class="author-block">
+                  <a href="http://ma-la.com/" target="_blank">Maria Larsson</a
+                  ><sup>1</sup>,</span
+                >
+                <span class="author-block">
+                  <a
+                    href="https://www-ui.is.s.u-tokyo.ac.jp/~takeo/"
+                    target="_blank"
+                    >Takeo Igarashi</a
+                  ><sup>1</sup>
+                </span>
+              </div>
+
+              <div class="is-size-5 publication-authors">
+                <span class="author-block">
+                  <sup>1</sup>The University of Tokyo, <sup>2</sup>Adobe
+                  Research<br />CHI 2025
+                </span>
+                <div style="margin-top: 8px; font-size: 0.9rem; color: #666">
+                  <sup>*</sup>Indicates Equal Contribution
+                </div>
+              </div>
+
+              <div class="column has-text-centered">
+                <div class="publication-links">
+                  <!-- Arxiv PDF link -->
+                  <span class="link-block">
+                    <a
+                      href="https://arxiv.org/abs/2501.18951"
+                      target="_blank"
+                      class="external-link button is-normal is-rounded is-dark"
+                    >
+                      <span class="icon">
+                        <i class="fas fa-file-pdf"></i>
+                      </span>
+                      <span>Paper</span>
+                    </a>
+                  </span>
+
+                  <!-- Supplementary PDF link -->
+                  <!-- <span class="link-block">
+                      <a href="static/pdfs/supplementary_material.pdf" target="_blank"
+                      class="external-link button is-normal is-rounded is-dark">
+                      <span class="icon">
+                        <i class="fas fa-file-pdf"></i>
+                      </span>
+                      <span>Supplementary</span>
+                    </a>
+                  </span> -->
+
+                  <!-- Github link -->
+                  <span class="link-block">
+                    <a
+                      href="https://github.com/ApisXia/Draw2Cut"
+                      target="_blank"
+                      class="external-link button is-normal is-rounded is-dark"
+                    >
+                      <span class="icon">
+                        <i class="fab fa-github"></i>
+                      </span>
+                      <span>Code</span>
+                    </a>
+                  </span>
+
+                  <!-- ArXiv abstract Link -->
+                  <span class="link-block">
+                    <a
+                      href="https://arxiv.org/abs/2501.18951"
+                      target="_blank"
+                      class="external-link button is-normal is-rounded is-dark"
+                    >
+                      <span class="icon">
+                        <i class="ai ai-arxiv"></i>
+                      </span>
+                      <span>arXiv</span>
+                    </a>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Teaser figure -->
+    <section class="hero">
+      <div class="container is-max-desktop">
+        <div class="hero-body">
+          <div class="figure">
+            <img
+              src="static/images/teaser.jpg"
+              alt="Teaser figure"
+              style="width: 100%"
+            />
+          </div>
+          <div
+            class="content"
+            style="
+              margin-top: 1.5rem;
+              font-family: 'Google Sans', 'Noto Sans', sans-serif;
+              font-size: 1rem;
+              line-height: 1.6;
+            "
+          >
+            <p class="has-text-centered">
+              <strong>Draw2Cut</strong> enables users to create custom
+              CNC-milled artifacts by directly drawing on physical materials.
+              Left: The three-step creation process — (1) annotate the material,
+              (2) preview the result, and (3) mill automatically. Right: Sample
+              artifacts including a logo, wooden maze, and carved
+              <i>sakura</i> patterns.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- End teaser figure -->
+
+    <!-- Paper abstract -->
+    <section class="section hero">
+      <div class="container is-max-desktop">
+        <div class="hero-body">
+          <h2 class="title is-3 has-text-centered">Abstract</h2>
+          <div class="content has-text-justified">
+            <p>
+              Creating custom artifacts with computer numerical control (CNC)
+              milling machines typically requires mastery of complex
+              computer-aided design (CAD) software. To eliminate this user
+              barrier, we introduced <strong>Draw2Cut</strong>, a novel system
+              that allows users to design and fabricate artifacts by sketching
+              directly on physical materials. <strong>Draw2Cut</strong> employs
+              a custom-drawing language to convert user-drawn lines, symbols,
+              and colors into toolpaths, thereby enabling users to express their
+              creative intent intuitively. The key features include real-time
+              alignment between material and virtual toolpaths, a preview
+              interface for validation, and an open-source platform for
+              customization. Through technical evaluations and user studies, we
+              demonstrate that <strong>Draw2Cut</strong> lowers the entry
+              barrier for personal fabrication, enabling novices to create
+              customized artifacts with precision and ease. Our findings
+              highlight the potential of the system to enhance creativity,
+              engagement, and accessibility in CNC-based woodworking.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- End paper abstract -->
+
+    <!-- Video -->
+    <section class="hero is-small">
+      <div class="hero-body">
+        <div class="container">
+          <h2 class="title is-3 has-text-centered">Video</h2>
+          <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+              <div class="publication-video">
+                <iframe
+                  src="https://www.youtube.com/embed/QnT9pDCj-gw"
+                  frameborder="0"
+                  allow="autoplay; encrypted-media"
+                  allowfullscreen
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- End video -->
+
+    <!--BibTex citation -->
+    <section class="section hero" id="BibTeX">
+      <div class="container is-max-desktop">
+        <div class="hero-body">
+          <h2 class="title is-3 has-text-centered">BibTeX</h2>
+          <pre
+            style="background-color: #f5f5f5; padding: 1rem; border-radius: 4px"
+          ><code>
+@article{gui2025draw2cut,
+  title={Draw2Cut: Direct On-Material Annotations for CNC Milling},
+  author={Gui, Xinyue and Xia, Ding and Gao, Wang and Doga Dogan, Mustafa and Larsson, Maria and Igarashi, Takeo},
+  journal={arXiv e-prints},
+  pages={arXiv--2501},
+  year={2025}
+}
+          </code></pre>
+        </div>
+      </div>
+    </section>
+    <!--End BibTex citation -->
+
+    <footer class="footer">
+      <div class="container">
+        <div class="columns is-centered">
+          <div class="column is-8">
+            <div class="content">
+              <p>
+                This page was built using the
+                <a
+                  href="https://github.com/eliahuhorwitz/Academic-project-page-template"
+                  target="_blank"
+                  >Academic Project Page Template</a
+                >
+                which was adopted from the <a
+                  href="https://nerfies.github.io"
+                  target="_blank"
+                  >Nerfies</a
+                > project page. You are free to borrow the source code of this
+                website, we just ask that you link back to this page in the
+                footer. <br />
+                This website is licensed under a
+                <a
+                  rel="license"
+                  href="http://creativecommons.org/licenses/by-sa/4.0/"
+                  target="_blank"
+                  >Creative Commons Attribution-ShareAlike 4.0 International
+                  License</a
+                >.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Statcounter tracking code -->
+
+    <!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
+
+    <!-- End of Statcounter Code -->
+  </body>
+</html>

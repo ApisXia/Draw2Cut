@@ -86,7 +86,6 @@ profile_default/
 ipython_config.py
 
 # data
-images
 realsense_data
 cutwood
 
