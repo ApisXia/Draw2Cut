@@ -1,7 +1,7 @@
 
 # [CHI2025] Draw2Cut: Direct On-Material Annotations for CNC Milling
 
-**Version:** 1.0.0
+**Official Website:** [https://apisxia.github.io/Draw2Cut/](https://apisxia.github.io/Draw2Cut/)
 
 ---
 
@@ -151,10 +151,10 @@ Ensure all parameters are fine-tuned during each step for optimal results. Repea
 ### Citation
 
 ```
-@article{gui2025direct,
+@inproceedings{gui2025draw2cut,
   title={Draw2Cut: Direct On-Material Annotations for CNC Milling},
-  author={Gui, Xinyue and Xia, Ding and Gao, Wang and Dogan, Mustafa Doga and Larsson, Maria and Igarashi, Takeo},
-  journal={arXiv preprint arXiv:2501.18951},
-  year={2025}
+  author={Gui, Xinyue and Xia, Ding and Gao, Wang and Doga Dogan, Mustafa and Larsson, Maria and Igarashi, Takeo},
+  booktitle={Proceedings of The ACM conference on Human Factors in Computing Systems (CHI)},
+  year={2025},
 }
 ```
