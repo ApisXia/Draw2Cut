@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://apisxia.github.io/Draw2Cut/sitemap.xml
